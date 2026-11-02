@@ -1,0 +1,25 @@
+# Proyecto BPMN: organización de cursos de capacitación
+
+Proyecto final de Gestión y Tecnologías de Procesos de Negocio. Implementa en Flowable el proceso de la consigna (`ProyectoCursos_V2_168448775197.pdf`).
+
+## Requisitos
+
+- Docker Desktop (abierto y con el motor corriendo)
+- Java 11 y Maven
+- Postman (opcional, para probar la API REST)
+
+## Levantar el entorno
+
+```
+docker compose up -d
+```
+
+| Servicio | URL | Usuario / contraseña |
+|---|---|---|
+| Interfaz de Flowable | http://localhost:8081/flowable-ui | `admin` / `test` |
+| API REST (Swagger) | http://localhost:8080/flowable-rest/docs/ | `rest-admin` / `test` |
+| PostgreSQL | `localhost:5432`, base `flowable` | `flowable` / `flowable` |
+
+Si `flowable-ui` falla en el primer arranque, volvé a ejecutar `docker compose up -d`.
+
+Para bajar el entorno conservando los datos: `docker compose down`. Para borrar también los datos: `docker compose down -v`.

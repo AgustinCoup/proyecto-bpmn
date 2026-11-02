@@ -1,0 +1,49 @@
+services:
+  # Base de datos del motor Flowable (tablas ACT_*). La BD propia de la institución se agrega más adelante.
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: flowable
+      POSTGRES_USER: flowable
+      POSTGRES_PASSWORD: flowable
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowable -d flowable"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # API REST del motor: la usan el sitio web y el simulador de comunicaciones.
+  # http://localhost:8080/flowable-rest/docs/  (usuario rest-admin / contraseña test)
+  flowable-rest:
+    image: flowable/flowable-rest:6.8.0
+    environment:
+      SPRING_DATASOURCE_DRIVER-CLASS-NAME: org.postgresql.Driver
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/flowable
+      SPRING_DATASOURCE_USERNAME: flowable
+      SPRING_DATASOURCE_PASSWORD: flowable
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Interfaz web de Flowable (bandeja de tareas, modeler, admin), sobre la misma BD que la API REST.
+  # http://localhost:8081/flowable-ui  (usuario admin / contraseña test)
+  flowable-ui:
+    image: flowable/flowable-ui:6.8.0
+    environment:
+      SPRING_DATASOURCE_DRIVER-CLASS-NAME: org.postgresql.Driver
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/flowable
+      SPRING_DATASOURCE_USERNAME: flowable
+      SPRING_DATASOURCE_PASSWORD: flowable
+    ports:
+      - "8081:8080"
+    depends_on:
+      - flowable-rest
+
+volumes:
+  postgres-data:
