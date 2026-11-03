@@ -32,7 +32,7 @@ class ContarCursosEnEjecucionListenerTest {
     private long iniciarYLeer() {
         ProcessInstance pi = engine.getRuntimeService().startProcessInstanceByKey("Process_Curso");
         Object valor = engine.getRuntimeService().getVariable(pi.getId(), "cursosEnEjecucion");
-        return (Long) valor;
+        return ((Number) valor).longValue();
     }
 
     @Test
