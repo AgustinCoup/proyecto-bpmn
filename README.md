@@ -72,6 +72,17 @@ Reglas del JAR (por qué el orden importa):
    ```
    (La columna `process_instance_id` la completa quien crea el curso, que será el sitio web; con una instancia iniciada a mano hay que hacer `update curso set process_instance_id='<id>' where id=1`.)
 
+## Evidencia de integración del Día 2
+
+Verificación realizada el 2026-11-03 contra Docker, PostgreSQL y Flowable REST:
+
+- `mvn test`: todos los tests unitarios pasaron.
+- `mvn package -DskipTests`: generó `target/cursos-flowable.jar`.
+- `docker compose up -d`: PostgreSQL, Flowable REST y Flowable UI quedaron activos.
+- `scripts/crear-usuarios.sh`, `scripts/crear-bd.sh` y `scripts/desplegar-modelo.sh`: usuarios, grupos, BD institucional, DMN y `Process_Curso` preparados correctamente.
+- Instancia `6467fea6-d7b7-11f1-84f7-5e61841db8c5`: después de aceptar y enviar la nómina, la tarea `Lista` quedó asignada automáticamente a `admin2` por `AsignarMenosCargadoListener`.
+- Instancia `2295de2b-d7b7-11f1-84f7-5e61841db8c5`: al completar `Archivar solicitud` después de los dos recordatorios, `ActualizarEstadoCursoListener` actualizó `curso.estado` a `SIN_RESPUESTA`.
+
 ## Tests
 
 ```
