@@ -11,10 +11,10 @@ rechazarla, pedir cambios, mandar la lista de participantes o cancelar. Solo te
 deja hacer lo que el proceso está esperando en ese momento, así que no es un
 menú fijo: si algo no corresponde, no aparece.
 
-Todo lo de acá funciona con el proceso de ejemplo
-(`src/test/resources/procesos/ejemplo-materiales.bpmn20.xml`). El modelo real
-todavía no es ejecutable, así que con ese no va a andar hasta que el equipo lo
-termine.
+Todo lo de acá usa el proceso de ejemplo
+(`src/test/resources/procesos/ejemplo-materiales.bpmn20.xml`). Con el modelo
+real también andan: ver el
+`README.md` y la sección 7 de `README-aplicaciones.md`.
 
 ## Antes de arrancar
 

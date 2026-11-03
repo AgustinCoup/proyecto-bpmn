@@ -5,11 +5,13 @@
   <bpmn:message id="Msg_rechaza" name="Rechazo" />
   <bpmn:message id="Msg_mod" name="Solicitud de modificaciones" />
   <bpmn:message id="Msg_cancel" name="Cancelación" />
-  <!-- PROVISORIO (fase X2): Flowable no despliega un evento de mensaje sin messageRef (Event_1g4xmqo).
-       Este mensaje no lo envía nadie: deja la cancelación desactivada hasta que la fase X2 asocie Msg_cancel. -->
-  <bpmn:message id="Msg_pendienteX2" name="Cancelación (pendiente fase X2)" />
+  <bpmn:error id="Err_sinAulas" name="Sin aulas" errorCode="SIN_AULAS" />
   <bpmn:process id="Process_Curso" name="Organizar curso de capacitación" isExecutable="true">
     <bpmn:documentation>Modelo ejecutable en Flowable 6.8.0. Los recordatorios se cuentan por versión de propuesta. La fecha programada se obtiene de la propuesta aceptada. La empresa se representa como pool de caja negra; los mensajes internos del subproceso se expresan con tareas de envío/recepción y eventos de mensaje.</bpmn:documentation>
+    <bpmn:extensionElements>
+      <!-- Consigna 3.3: al terminar la instancia, por cualquier camino, pasa el valor de resultado a curso.estado (BD institucion). -->
+      <flowable:executionListener event="end" class="unrc.cursos.ActualizarEstadoCursoListener" />
+    </bpmn:extensionElements>
     <bpmn:laneSet id="LaneSet_0ilhqvy">
       <bpmn:lane id="Lane_0sq5phl" name="Docentes">
         <bpmn:flowNodeRef>Dictar</bpmn:flowNodeRef>
@@ -37,7 +39,11 @@
         <bpmn:flowNodeRef>Activity_0iibzwu</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Confirmar</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Preparar</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>Event_0farfur</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GwCancelado</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>CompensarCancelacion</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GwHayEquipo</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EsperarLiberacion</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>CompensarFin</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Fin</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Revisar</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>EnviarInforme</bpmn:flowNodeRef>
@@ -113,13 +119,44 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Recordatorio ${n} e
     <bpmn:sequenceFlow id="Rechazado" sourceRef="Rechazar" targetRef="Archivar" />
     <bpmn:sequenceFlow id="ModificarProp" sourceRef="Modificar" targetRef="Revisar" />
     <bpmn:sequenceFlow id="Flow_175t1j3" sourceRef="Activity_12e0et1" targetRef="Event_0w2kitf" />
-    <bpmn:sequenceFlow id="Flow_1ymw5qe" sourceRef="Event_0farfur" targetRef="Activity_12e0et1" />
-    <bpmn:sequenceFlow id="Preparado" sourceRef="Preparar" targetRef="Confirmar" />
-    <!-- PROVISORIO (fase X2): sólo un log; Flowable no despliega una tarea de script sin script. -->
+    <bpmn:sequenceFlow id="Preparado" sourceRef="Preparar" targetRef="GwCancelado" />
+    <bpmn:exclusiveGateway id="GwCancelado" name="¿Preparación cancelada?" default="NoCancelado">
+      <bpmn:incoming>Preparado</bpmn:incoming>
+      <bpmn:outgoing>SiCancelado</bpmn:outgoing>
+      <bpmn:outgoing>NoCancelado</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="SiCancelado" name="Sí" sourceRef="GwCancelado" targetRef="CompensarCancelacion">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${execution.getVariable('resultado') == 'CANCELADO'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="NoCancelado" name="No" sourceRef="GwCancelado" targetRef="Confirmar" />
+    <!-- Compensa los recursos de Preparar que terminaron: Liberar Aula, Liberar Aula Virtual y la tarea Liberar Equipamiento. -->
+    <bpmn:intermediateThrowEvent id="CompensarCancelacion" name="Liberar recursos gestionados">
+      <bpmn:incoming>SiCancelado</bpmn:incoming>
+      <bpmn:outgoing>Flow_ACompensado</bpmn:outgoing>
+      <bpmn:compensateEventDefinition id="CompensateEventDefinition_Cancelacion" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:sequenceFlow id="Flow_ACompensado" sourceRef="CompensarCancelacion" targetRef="GwHayEquipo" />
+    <bpmn:exclusiveGateway id="GwHayEquipo" name="¿Se contrató equipamiento?" default="SinEquipo">
+      <bpmn:incoming>Flow_ACompensado</bpmn:incoming>
+      <bpmn:outgoing>ConEquipo</bpmn:outgoing>
+      <bpmn:outgoing>SinEquipo</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="ConEquipo" name="Sí" sourceRef="GwHayEquipo" targetRef="EsperarLiberacion">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${execution.getVariable('equipamientoContratado') == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SinEquipo" name="No" sourceRef="GwHayEquipo" targetRef="Activity_12e0et1" />
+    <!-- Se destraba cuando se completa Liberar Equipamiento (AvisarLiberacionEquipamientoListener). -->
+    <bpmn:receiveTask id="EsperarLiberacion" name="Esperar liberación de equipamiento">
+      <bpmn:incoming>ConEquipo</bpmn:incoming>
+      <bpmn:outgoing>LiberacionLista</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:sequenceFlow id="LiberacionLista" sourceRef="EsperarLiberacion" targetRef="Activity_12e0et1" />
+    <!-- Notifica sólo con un log (simulado); el motivo sale de motivoCancelacion. -->
     <bpmn:scriptTask id="Activity_12e0et1" name="Notificar Cierre" scriptFormat="groovy">
-      <bpmn:incoming>Flow_1ymw5qe</bpmn:incoming>
+      <bpmn:incoming>SinEquipo</bpmn:incoming>
+      <bpmn:incoming>LiberacionLista</bpmn:incoming>
       <bpmn:outgoing>Flow_175t1j3</bpmn:outgoing>
-      <bpmn:script><![CDATA[println "[Process_Curso ${execution.getProcessInstanceId()}] Cierre notificado a la empresa (simulado)"]]></bpmn:script>
+      <bpmn:script><![CDATA[println "[Process_Curso ${execution.getProcessInstanceId()}] Cierre notificado a la empresa por ${execution.getVariable('motivoCancelacion')} (simulado)"]]></bpmn:script>
     </bpmn:scriptTask>
     <bpmn:endEvent id="Event_0w2kitf">
       <bpmn:incoming>Flow_175t1j3</bpmn:incoming>
@@ -175,9 +212,11 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Recordatorio ${n} e
         <bpmn:incoming>s2</bpmn:incoming>
         <bpmn:outgoing>Flow_1j917g3</bpmn:outgoing>
       </bpmn:receiveTask>
-      <!-- PROVISORIO (fase listeners Java): grupo candidato administracion hasta que exista el Task Listener
-           AsignarMenosCargadoListener (evento create), que la asignará al administrativo con menos tareas asignadas. -->
+      <!-- Consigna 3.2: al crearse, el listener la asigna al administrativo con menos tareas asignadas pendientes. -->
       <bpmn:userTask id="Lista" name="Confeccionar lista definitiva" flowable:candidateGroups="administracion">
+        <bpmn:extensionElements>
+          <flowable:taskListener event="create" class="unrc.cursos.AsignarMenosCargadoListener" />
+        </bpmn:extensionElements>
         <bpmn:incoming>Flow_1j917g3</bpmn:incoming>
         <bpmn:outgoing>Flow_1q09oq9</bpmn:outgoing>
         <bpmn:dataOutputAssociation id="DataOutputAssociation_1uk8xt0">
@@ -199,6 +238,10 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Recordatorio ${n} e
         <bpmn:outgoing>oj1</bpmn:outgoing>
       </bpmn:userTask>
       <bpmn:userTask id="Equipo" name="Contratar equipamiento" flowable:candidateGroups="administracion">
+        <bpmn:extensionElements>
+          <!-- Lo lee GwHayEquipo: sólo si se contrató hay algo que liberar antes de notificar el cierre. -->
+          <flowable:executionListener event="end" expression="${execution.setVariable('equipamientoContratado', true)}" />
+        </bpmn:extensionElements>
         <bpmn:incoming>or2</bpmn:incoming>
         <bpmn:outgoing>oj2</bpmn:outgoing>
       </bpmn:userTask>
@@ -243,21 +286,34 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Recordatorio ${n} e
         <bpmn:outgoing>Flow_0r6hcyb</bpmn:outgoing>
       </bpmn:userTask>
       <bpmn:subProcess id="Activity_048d5em" name="Cancelación" triggeredByEvent="true">
-        <bpmn:sequenceFlow id="Flow_099pqle" sourceRef="Event_1g4xmqo" targetRef="Event_1rvo4k6" />
-        <bpmn:intermediateThrowEvent id="Event_1rvo4k6">
-          <bpmn:incoming>Flow_099pqle</bpmn:incoming>
-          <bpmn:outgoing>Flow_0h5si5f</bpmn:outgoing>
-          <bpmn:compensateEventDefinition id="CompensateEventDefinition_0vae6de" />
-        </bpmn:intermediateThrowEvent>
         <bpmn:startEvent id="Event_1g4xmqo" name="Recibir Cancelación">
+          <bpmn:extensionElements>
+            <!-- Sólo marca el motivo: las compensaciones se lanzan fuera de Preparar (CompensarCancelacion). -->
+            <flowable:executionListener event="end" expression="${execution.setVariable('resultado', 'CANCELADO')}" />
+            <flowable:executionListener event="end" expression="${execution.setVariable('motivoCancelacion', 'EMPRESA')}" />
+          </bpmn:extensionElements>
           <bpmn:outgoing>Flow_099pqle</bpmn:outgoing>
-          <!-- PROVISORIO (fase X2): mensaje que nadie envía (ver Msg_pendienteX2). -->
-          <bpmn:messageEventDefinition id="MessageEventDefinition_1avzsle" messageRef="Msg_pendienteX2" />
+          <bpmn:messageEventDefinition id="MessageEventDefinition_1avzsle" messageRef="Msg_cancel" />
         </bpmn:startEvent>
-        <bpmn:sequenceFlow id="Flow_0h5si5f" sourceRef="Event_1rvo4k6" targetRef="Event_0snigbc" />
+        <bpmn:sequenceFlow id="Flow_099pqle" sourceRef="Event_1g4xmqo" targetRef="Event_0snigbc" />
         <bpmn:endEvent id="Event_0snigbc">
-          <bpmn:incoming>Flow_0h5si5f</bpmn:incoming>
-          <bpmn:errorEventDefinition id="ErrorEventDefinition_0dmehr3" />
+          <bpmn:incoming>Flow_099pqle</bpmn:incoming>
+        </bpmn:endEvent>
+      </bpmn:subProcess>
+      <!-- X2: la falta de aulas se atrapa dentro de Preparar y sigue el mismo camino que la cancelación. -->
+      <bpmn:subProcess id="FaltaAulas" name="Falta de aulas" triggeredByEvent="true">
+        <bpmn:startEvent id="InicioFaltaAulas" name="Sin aulas disponibles">
+          <bpmn:extensionElements>
+            <flowable:executionListener event="end" expression="${execution.setVariable('resultado', 'CANCELADO')}" />
+            <flowable:executionListener event="end" expression="${execution.setVariable('motivoCancelacion', 'SIN_AULAS')}" />
+          </bpmn:extensionElements>
+          <bpmn:outgoing>FlujoFaltaAulas</bpmn:outgoing>
+          <bpmn:errorEventDefinition id="ErrorEventDefinition_FaltaAulas" errorRef="Err_sinAulas" />
+        </bpmn:startEvent>
+        <bpmn:sequenceFlow id="FlujoFaltaAulas" sourceRef="InicioFaltaAulas" targetRef="FinFaltaAulas" />
+        <bpmn:endEvent id="FinFaltaAulas">
+          <bpmn:incoming>FlujoFaltaAulas</bpmn:incoming>
+          <bpmn:terminateEventDefinition id="TerminateDef_FaltaAulas" />
         </bpmn:endEvent>
       </bpmn:subProcess>
       <bpmn:boundaryEvent id="Event_0rm0c02" attachedToRef="Aula">
@@ -271,28 +327,23 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Recordatorio ${n} e
       <bpmn:boundaryEvent id="Event_1ypcc1j" attachedToRef="Equipo">
         <bpmn:compensateEventDefinition id="CompensateEventDefinition_1weqaul" />
       </bpmn:boundaryEvent>
-      <bpmn:userTask id="Activity_1m08pcl" name="Liberar Equipamiento" isForCompensation="true" flowable:candidateGroups="administracion" />
-      <!-- PROVISORIO (fase X2): expresión que no hace nada; Flowable exige una implementación en toda tarea de servicio.
-           Será ReservarAulaDelegate. -->
-      <bpmn:serviceTask id="Aula" name="Reservar aula" flowable:expression="${true}">
+      <bpmn:userTask id="Activity_1m08pcl" name="Liberar Equipamiento" isForCompensation="true" flowable:candidateGroups="administracion">
+        <bpmn:extensionElements>
+          <!-- Destraba EsperarLiberacion si la instancia está esperando ahí (camino de cancelación). -->
+          <flowable:taskListener event="complete" class="unrc.cursos.AvisarLiberacionEquipamientoListener" />
+        </bpmn:extensionElements>
+      </bpmn:userTask>
+      <bpmn:serviceTask id="Aula" name="Reservar aula" flowable:class="unrc.cursos.ReservarAulaDelegate">
         <bpmn:incoming>or0</bpmn:incoming>
         <bpmn:outgoing>oj0</bpmn:outgoing>
       </bpmn:serviceTask>
-      <!-- PROVISORIO (fase X2): expresión que no hace nada (implementación obligatoria). Será LiberarAulaDelegate. -->
-      <bpmn:serviceTask id="Activity_16zz91p" name="Liberar Aula" isForCompensation="true" flowable:expression="${true}" />
+      <bpmn:serviceTask id="Activity_16zz91p" name="Liberar Aula" isForCompensation="true" flowable:class="unrc.cursos.LiberarAulaDelegate" />
       <bpmn:sequenceFlow id="Flow_1j917g3" sourceRef="Nomina" targetRef="Lista" />
-      <!-- PROVISORIO (fase X2): sólo un log; Flowable no despliega una tarea de script sin script. -->
-      <bpmn:scriptTask id="Activity_02hrooc" name="Liberar Aula Virtual" isForCompensation="true" scriptFormat="groovy">
-        <bpmn:script><![CDATA[println "[Process_Curso ${execution.getProcessInstanceId()}] Aula virtual liberada (simulado)"]]></bpmn:script>
-      </bpmn:scriptTask>
+      <bpmn:serviceTask id="Activity_02hrooc" name="Liberar Aula Virtual" isForCompensation="true" flowable:class="unrc.cursos.LiberarAulaVirtualDelegate" />
       <bpmn:association id="Association_1fh67xn" associationDirection="One" sourceRef="Event_0rm0c02" targetRef="Activity_16zz91p" />
       <bpmn:association id="Association_0oqohax" associationDirection="One" sourceRef="Event_1ypcc1j" targetRef="Activity_1m08pcl" />
       <bpmn:association id="Association_0f6fnvw" associationDirection="One" sourceRef="Event_1gsyqer" targetRef="Activity_02hrooc" />
     </bpmn:subProcess>
-    <bpmn:boundaryEvent id="Event_0farfur" attachedToRef="Preparar">
-      <bpmn:outgoing>Flow_1ymw5qe</bpmn:outgoing>
-      <bpmn:errorEventDefinition id="ErrorEventDefinition_1dbg61w" />
-    </bpmn:boundaryEvent>
     <bpmn:userTask id="Informe" name="Elaborar informe de resultados" flowable:assignee="jefeDocente">
       <bpmn:incoming>Flow_1sdjeh6</bpmn:incoming>
       <bpmn:outgoing>InformeEnviar</bpmn:outgoing>
@@ -301,7 +352,7 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Recordatorio ${n} e
       </bpmn:dataOutputAssociation>
     </bpmn:userTask>
     <bpmn:sequenceFlow id="InformeEnviar" sourceRef="Informe" targetRef="EnviarInforme" />
-    <bpmn:sequenceFlow id="InformeArchivar" sourceRef="EnviarInforme" targetRef="Fin" />
+    <bpmn:sequenceFlow id="InformeArchivar" sourceRef="EnviarInforme" targetRef="CompensarFin" />
     <bpmn:sequenceFlow id="Flow_0g8vm9l" sourceRef="Inicio" targetRef="Activity_1xw400l" />
     <bpmn:sequenceFlow id="Flow_0kbnm1d" sourceRef="Activity_1xw400l" targetRef="Gateway_10gftrn" />
     <bpmn:sequenceFlow id="Flow_0k38d9g" name="si" sourceRef="Gateway_10gftrn" targetRef="Propuesta">
@@ -352,17 +403,23 @@ execution.setVariable('resultado', 'NO_VIABLE')
 println "[Process_Curso ${execution.getProcessInstanceId()}] Solicitud no viable: se avisa a la empresa (simulado)"
 ]]></bpmn:script>
     </bpmn:scriptTask>
-    <!-- PROVISORIO (fase X2): sólo un log; Flowable no despliega una tarea de script sin script. -->
+    <!-- Notifica sólo con un log (simulado). -->
     <bpmn:scriptTask id="Confirmar" name="Enviar confirmación" scriptFormat="groovy">
-      <bpmn:incoming>Preparado</bpmn:incoming>
+      <bpmn:incoming>NoCancelado</bpmn:incoming>
       <bpmn:outgoing>Flow_1topamj</bpmn:outgoing>
       <bpmn:script><![CDATA[println "[Process_Curso ${execution.getProcessInstanceId()}] Confirmación enviada a la empresa (simulado)"]]></bpmn:script>
     </bpmn:scriptTask>
     <bpmn:dataObjectReference id="DatosInforme" name="Informe de resultados" dataObjectRef="DatosInforme_Object" />
     <bpmn:dataObject id="DatosInforme_Object" name="Informe de resultados" />
-    <bpmn:endEvent id="Fin" name="Liberar recursos.&#10; Curso finalizado">
+    <!-- X2: Flowable ignora el fin con compensación; se lanza la compensación antes de un fin simple. -->
+    <bpmn:intermediateThrowEvent id="CompensarFin" name="Liberar recursos">
       <bpmn:incoming>InformeArchivar</bpmn:incoming>
+      <bpmn:outgoing>FinCompensado</bpmn:outgoing>
       <bpmn:compensateEventDefinition id="CompensateEventDefinition_1klq9n1" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:sequenceFlow id="FinCompensado" sourceRef="CompensarFin" targetRef="Fin" />
+    <bpmn:endEvent id="Fin" name="Curso finalizado">
+      <bpmn:incoming>FinCompensado</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:userTask id="Revisar" name="Revisar propuesta" flowable:assignee="jefeAdmin">
       <bpmn:extensionElements>
@@ -378,6 +435,10 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Solicitud no viable
       </bpmn:dataInputAssociation>
     </bpmn:userTask>
     <bpmn:userTask id="EnviarInforme" name="Enviar informe a empresa y Archivar expediente." flowable:assignee="jefeAdmin">
+      <bpmn:extensionElements>
+        <!-- Cierre normal: lo lee el Execution Listener de fin de proceso. -->
+        <flowable:taskListener event="complete" expression="${task.setVariable('resultado', 'FINALIZADO')}" />
+      </bpmn:extensionElements>
       <bpmn:incoming>InformeEnviar</bpmn:incoming>
       <bpmn:outgoing>InformeArchivar</bpmn:outgoing>
       <bpmn:property id="Property_0o964c9" name="__targetRef_placeholder" />
@@ -393,15 +454,11 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Solicitud no viable
       <bpmn:outgoing>Flow_0lscijk</bpmn:outgoing>
     </bpmn:userTask>
     <bpmn:sequenceFlow id="Flow_05hw5hu" sourceRef="Aceptar" targetRef="Activity_1eg7zcl" />
-    <!-- PROVISORIO (fase BD de la institución): sólo deja un log. Cuando exista la BD, crea o reutiliza
-         la cuenta de la empresa (cuenta_empresa) y le vincula el curso. -->
-    <bpmn:scriptTask id="Activity_1eg7zcl" name="Habilitar acceso de la empresa" scriptFormat="groovy">
+    <!-- Consigna 4.1.2: crea o reutiliza la cuenta de la empresa (cuenta_empresa) en la BD de la institución. -->
+    <bpmn:serviceTask id="Activity_1eg7zcl" name="Habilitar acceso de la empresa" flowable:class="unrc.cursos.HabilitarAccesoEmpresaDelegate">
       <bpmn:incoming>Flow_05hw5hu</bpmn:incoming>
       <bpmn:outgoing>Flow_1ffpwga</bpmn:outgoing>
-      <bpmn:script><![CDATA[
-println "[Process_Curso ${execution.getProcessInstanceId()}] Acceso habilitado para la empresa ${execution.getVariable('empresaId')} (simulado)"
-]]></bpmn:script>
-    </bpmn:scriptTask>
+    </bpmn:serviceTask>
     <bpmn:sequenceFlow id="Flow_1ffpwga" sourceRef="Activity_1eg7zcl" targetRef="Preparar" />
     <!-- Notifica sólo con un log (simulado). Reinicia el contador: cada versión enviada tiene sus propios 2 recordatorios. -->
     <bpmn:scriptTask id="Enviar" name="Enviar propuesta" scriptFormat="groovy">
@@ -591,9 +648,6 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Propuesta versión 
         <dc:Bounds x="1280" y="1410" width="300" height="120" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_05opllj_di" bpmnElement="Event_1rvo4k6">
-        <dc:Bounds x="1402" y="1442" width="36" height="36" />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_0qbnbqc_di" bpmnElement="Event_1g4xmqo">
         <dc:Bounds x="1312" y="1442" width="36" height="36" />
         <bpmndi:BPMNLabel>
@@ -605,10 +659,6 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Propuesta versión 
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_099pqle_di" bpmnElement="Flow_099pqle">
         <di:waypoint x="1348" y="1460" />
-        <di:waypoint x="1402" y="1460" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0h5si5f_di" bpmnElement="Flow_0h5si5f">
-        <di:waypoint x="1438" y="1460" />
         <di:waypoint x="1492" y="1460" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="Activity_0b9e576_di" bpmnElement="Activity_1m08pcl">
@@ -763,9 +813,15 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Propuesta versión 
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_03v7uj6_di" bpmnElement="Fin">
-        <dc:Bounds x="1577" y="1712" width="36" height="36" />
+        <dc:Bounds x="1585" y="1712" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1553" y="1677" width="83" height="27" />
+          <dc:Bounds x="1558" y="1755" width="90" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_CompensarFin" bpmnElement="CompensarFin">
+        <dc:Bounds x="1520" y="1712" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1498" y="1675" width="80" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="DI_Revisar" bpmnElement="Revisar">
@@ -773,9 +829,6 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Propuesta versión 
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_1q1t6s2_di" bpmnElement="EnviarInforme">
         <dc:Bounds x="1395" y="1690" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_0dkt4qu_di" bpmnElement="Event_0farfur">
-        <dc:Bounds x="522" y="1572" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="DI_main3" bpmnElement="main3">
         <di:waypoint x="765" y="350" />
@@ -855,14 +908,74 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Propuesta versión 
         <di:waypoint x="670" y="1730" />
         <di:waypoint x="742" y="1730" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1ymw5qe_di" bpmnElement="Flow_1ymw5qe">
-        <di:waypoint x="540" y="1608" />
+      <bpmndi:BPMNShape id="DI_GwCancelado" bpmnElement="GwCancelado" isMarkerVisible="true">
+        <dc:Bounds x="852" y="1615" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="905" y="1595" width="90" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_CompensarCancelacion" bpmnElement="CompensarCancelacion">
+        <dc:Bounds x="780" y="1622" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="758" y="1660" width="80" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_GwHayEquipo" bpmnElement="GwHayEquipo" isMarkerVisible="true">
+        <dc:Bounds x="690" y="1615" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="676" y="1595" width="78" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_EsperarLiberacion" bpmnElement="EsperarLiberacion">
+        <dc:Bounds x="440" y="1690" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_FaltaAulas" bpmnElement="FaltaAulas" isExpanded="true">
+        <dc:Bounds x="370" y="1400" width="300" height="120" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_InicioFaltaAulas" bpmnElement="InicioFaltaAulas">
+        <dc:Bounds x="402" y="1442" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="385" y="1485" width="70" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_FinFaltaAulas" bpmnElement="FinFaltaAulas">
+        <dc:Bounds x="582" y="1442" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="DI_FlujoFaltaAulas" bpmnElement="FlujoFaltaAulas">
+        <di:waypoint x="438" y="1460" />
+        <di:waypoint x="582" y="1460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_NoCancelado" bpmnElement="NoCancelado">
+        <di:waypoint x="877" y="1665" />
+        <di:waypoint x="877" y="1690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_SiCancelado" bpmnElement="SiCancelado">
+        <di:waypoint x="852" y="1640" />
+        <di:waypoint x="816" y="1640" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_Flow_ACompensado" bpmnElement="Flow_ACompensado">
+        <di:waypoint x="780" y="1640" />
+        <di:waypoint x="740" y="1640" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_ConEquipo" bpmnElement="ConEquipo">
+        <di:waypoint x="690" y="1640" />
+        <di:waypoint x="490" y="1640" />
+        <di:waypoint x="490" y="1690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_SinEquipo" bpmnElement="SinEquipo">
+        <di:waypoint x="715" y="1665" />
+        <di:waypoint x="715" y="1680" />
+        <di:waypoint x="620" y="1680" />
+        <di:waypoint x="620" y="1690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_LiberacionLista" bpmnElement="LiberacionLista">
         <di:waypoint x="540" y="1730" />
         <di:waypoint x="570" y="1730" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="DI_Preparado" bpmnElement="Preparado">
         <di:waypoint x="877" y="1590" />
-        <di:waypoint x="877" y="1690" />
+        <di:waypoint x="877" y="1615" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="DI_FechaDictar" bpmnElement="FechaDictar">
         <di:waypoint x="905" y="1910" />
@@ -879,7 +992,11 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Propuesta versión 
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="DI_InformeArchivar" bpmnElement="InformeArchivar">
         <di:waypoint x="1495" y="1730" />
-        <di:waypoint x="1577" y="1730" />
+        <di:waypoint x="1520" y="1730" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_FinCompensado" bpmnElement="FinCompensado">
+        <di:waypoint x="1556" y="1730" />
+        <di:waypoint x="1585" y="1730" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_0g8vm9l_di" bpmnElement="Flow_0g8vm9l">
         <di:waypoint x="260" y="368" />

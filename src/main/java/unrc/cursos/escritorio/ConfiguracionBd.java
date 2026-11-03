@@ -7,6 +7,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+import java.util.TimeZone;
 
 /**
  * Configuracion de conexion del motor Flowable a la base PostgreSQL.
@@ -64,6 +65,7 @@ public final class ConfiguracionBd {
     }
 
     public ProcessEngine crearMotor() {
+        corregirZonaHoraria();
         ProcessEngineConfiguration configuracion =
                 ProcessEngineConfiguration.createStandaloneProcessEngineConfiguration();
         configuracion.setJdbcUrl(url);
@@ -75,6 +77,16 @@ public final class ConfiguracionBd {
                 : ProcessEngineConfiguration.DB_SCHEMA_UPDATE_FALSE);
         configuracion.setAsyncExecutorActivate(false);
         return configuracion.buildProcessEngine();
+    }
+
+    /**
+     * Windows en Argentina informa la zona "America/Buenos_Aires", un alias viejo que PostgreSQL 16
+     * rechaza al abrir la conexion (FATAL: invalid value for parameter "TimeZone").
+     */
+    private static void corregirZonaHoraria() {
+        if ("America/Buenos_Aires".equals(TimeZone.getDefault().getID())) {
+            TimeZone.setDefault(TimeZone.getTimeZone("America/Argentina/Buenos_Aires"));
+        }
     }
 
     public String getUrl() {

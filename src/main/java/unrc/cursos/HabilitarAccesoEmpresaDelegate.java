@@ -23,8 +23,8 @@ public class HabilitarAccesoEmpresaDelegate implements JavaDelegate {
             // Verificar si ya tiene cuenta
             try (PreparedStatement psCheck = conn.prepareStatement("SELECT id FROM cuenta_empresa WHERE empresa_id = ?")) {
                 psCheck.setInt(1, empresaId);
-                try (ResultSet rs = psCheck.getResultSet()) {
-                    if (rs != null && rs.next()) {
+                try (ResultSet rs = psCheck.executeQuery()) {
+                    if (rs.next()) {
                         return; // Ya existe, se reutiliza
                     }
                 }
@@ -35,7 +35,10 @@ public class HabilitarAccesoEmpresaDelegate implements JavaDelegate {
             try (PreparedStatement psEmp = conn.prepareStatement("SELECT cuit FROM empresa WHERE id = ?")) {
                 psEmp.setInt(1, empresaId);
                 try (ResultSet rs = psEmp.executeQuery()) {
-                    if (rs.next()) cuit = rs.getString("cuit").replace("-", "");
+                    if (!rs.next()) {
+                        throw new IllegalArgumentException("No existe la empresa " + empresaId + " en la BD de la institución");
+                    }
+                    cuit = rs.getString("cuit").replace("-", "");
                 }
             }
 

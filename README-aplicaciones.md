@@ -69,6 +69,8 @@ curl -u rest-admin:test -H 'Content-Type: application/json' -X POST \
 > cuando esté desplegado. Los mensajes de las acciones sí tienen los nombres
 > exactos del contrato (con acentos), para probar el simulador.
 
+Esa sección usa el proceso de ejemplo. Para el proceso real, ver la sección 7 y el `README.md`.
+
 Para probar la app de escritorio alcanza con iniciar la instancia y aceptar la
 propuesta (o directamente desde el simulador). La tarea **Preparar materiales**
 queda disponible para el grupo `administracion`.
@@ -203,9 +205,8 @@ completa **Preparar materiales** y borra la instancia al terminar.
 - **Recepción de nómina**: la receive task `Nomina` se despierta con
   `{"action":"signal","variables":[{"name":"participantes",...}]}` sobre la
   ejecución que tiene `activityId = "Nomina"`. Funciona y guarda la variable.
-- **Cancelación**: el mensaje `Cancelación` se recibe si el modelo asocia
-  `Msg_cancel` al inicio del subproceso/evento de cancelación. En el modelo real
-  hoy **no está asociado**; eso hay que corregirlo en el `.bpmn`.
+- **Cancelación**: el mensaje `Cancelación` se recibe porque el modelo asocia
+  `Msg_cancel` al inicio del subproceso de eventos de cancelación (hecho en la fase X2).
 - **Fecha y participantes**: se enviaron como texto ISO/JSON y quedaron guardados
   como variables de tipo string.
 - **App Java contra PostgreSQL real**: se probó autenticación con usuario de
@@ -229,23 +230,16 @@ completa **Preparar materiales** y borra la instancia al terminar.
    problema: las llamadas de los mensajes y de la nómina usaban `POST`. En este
    repositorio ya quedaron cambiadas a `PUT` (el `Contrato.md` se deja como está
    hasta que el equipo decida actualizarlo).
-6. El modelo real sigue necesitando asociar `Msg_cancel` al inicio de la
-   cancelación. Sin eso, el simulador no verá habilitada la acción **Cancelar**.
+6. (Resuelto en la fase X2: `Msg_cancel` ya está asociado y el simulador ofrece **Cancelar**.)
 
-## 7. Qué queda sin probar contra el modelo real
+## 7. Contra el modelo real (probado el 2026-11-03)
 
-El modelo real (`Proyecto_Organizacion_cursos.bpmn`) todavía no está desplegado y
-no es ejecutable. Por eso **no** se probó contra él:
+Con el entorno completo levantado (ver `README.md`, pasos 1 a 5) las dos apps funcionan con el proceso real `Process_Curso`:
 
-- Que el proceso real arranque por el mensaje `Solicitud de curso` y llegue a los
-  estados esperados.
-- Que las suscripciones reales tengan exactamente los nombres/IDs de la sección 5
-  en cada estado (se probaron los nombres en el proceso de ejemplo).
-- La cancelación real dentro de `Preparar` (hoy el modelo no asocia `Msg_cancel`).
-- La tarea real `Nomina` y la variable `participantes` en el proceso real.
-- La tarea real `Material` con su asignación/grupo candidato definitivo.
-- Los listeners, DMN, temporizadores, compensaciones y el resto de los caminos
-  de cierre del modelo real.
-- El comportamiento de la app Java si el modelo real usa una asignación directa
-  a usuario en lugar de grupo candidato para `Preparar materiales` (la app lista
-  tanto asignadas como candidatas, pero la experiencia de reclamo cambia).
+- **Simulador:** con la solicitud esperando respuesta ofrece *Aceptar*, *Rechazar* y *Pedir modificaciones*. Al aceptar (`Aceptación` con `fechaCurso`) pasa a `Preparar` y ofrece *Enviar nómina* y *Cancelar durante la preparación* (probado: la cancelación libera lo gestionado y cierra la solicitud).
+- **App de escritorio:** el administrativo ve *Preparar materiales* (grupo candidato `administracion`), la reclama y la completa contra la PostgreSQL real. `docente1` no la ve. Verificado con `admin2`.
+- La instancia debe llevar `empresaId` de una empresa que exista en la BD de la institución (1 o 2 con los datos de prueba): *Habilitar acceso de la empresa* falla con 500 si no existe.
+- En consolas de Windows las tildes pueden verse mal: ejecutar antes `chcp 65001`.
+- Si la app de escritorio se queda sin conectar con `invalid value for parameter "TimeZone"`: ya está resuelto en el código (Windows en Argentina informa un alias de zona que PostgreSQL 16 rechaza).
+
+La cancelación, la falta de aulas y el fin del curso con compensación están probados contra el modelo real (fase X2, 2026-11-03).
