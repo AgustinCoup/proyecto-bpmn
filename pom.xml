@@ -24,7 +24,7 @@
             <version>${flowable.version}</version>
         </dependency>
 
-        <!-- Motor DMN de Flowable (para la tabla de viabilidad) -->
+        <!-- Motor DMN de Flowable (para la tabla de viabilidad de tu amigo) -->
         <dependency>
             <groupId>org.flowable</groupId>
             <artifactId>flowable-dmn-engine</artifactId>
@@ -64,7 +64,7 @@
     </dependencies>
 
     <build>
-        <!-- Nombre fijo para que coincida con el volumen de docker-compose.yml -->
+        <!-- Nombre fijo que coincide con el docker-compose.yml -->
         <finalName>cursos-flowable</finalName>
         <plugins>
             <plugin>

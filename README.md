@@ -11,8 +11,11 @@ Proyecto final de Gestión y Tecnologías de Procesos de Negocio. Implementa en 
 ## Levantar el entorno
 
 ```
+mvn package -DskipTests   # genera target/unrc-cursos.jar (clases Java propias); antes del primer "up"
 docker compose up -d
 ```
+
+El JAR se monta en `flowable-rest` y `flowable-ui`. Si no existe al hacer `up`, Docker crea un directorio con ese nombre y el contenedor no arranca. Si se recompila con los contenedores arriba, reiniciarlos: `docker compose restart flowable-rest flowable-ui`.
 
 | Servicio | URL | Usuario / contraseña |
 |---|---|---|

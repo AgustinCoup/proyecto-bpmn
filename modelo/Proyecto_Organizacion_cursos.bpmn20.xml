@@ -323,10 +323,16 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Recordatorio ${n} e
       <bpmn:outgoing>Flow_0k38d9g</bpmn:outgoing>
       <bpmn:outgoing>Flow_0w8xn3l</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <!-- PROVISORIO (fase 3): pone viable = true sin evaluar. En la fase 3 pasa a decision task de Flowable
-         (flowable:type="dmn", decisión viabilidadCurso) con el listener ContarCursosEnEjecucionListener.
-         Era businessRuleTask: en esta imagen no despliega (Flowable lo ejecuta con Drools, que no está). -->
-    <bpmn:serviceTask id="Activity_1xw400l" name="Evaluar Viabilidad" flowable:expression="${execution.setVariable('viable', true)}">
+    <!-- Decision task de Flowable (consigna 3.1). Antes de evaluar la tabla viabilidadCurso, el listener de inicio
+         deja en cursosEnEjecucion la cantidad de OTRAS instancias de Process_Curso sin finalizar (todas las versiones).
+         La salida viable la lee Gateway_10gftrn. Era businessRuleTask: en esta imagen no despliega (Flowable lo ejecuta con Drools). -->
+    <bpmn:serviceTask id="Activity_1xw400l" name="Evaluar Viabilidad" flowable:type="dmn">
+      <bpmn:extensionElements>
+        <flowable:field name="decisionTableReferenceKey">
+          <flowable:string>viabilidadCurso</flowable:string>
+        </flowable:field>
+        <flowable:executionListener event="start" class="unrc.cursos.ContarCursosEnEjecucionListener" />
+      </bpmn:extensionElements>
       <bpmn:incoming>Flow_0g8vm9l</bpmn:incoming>
       <bpmn:outgoing>Flow_0kbnm1d</bpmn:outgoing>
     </bpmn:serviceTask>

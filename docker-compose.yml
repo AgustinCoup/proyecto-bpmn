@@ -32,7 +32,6 @@ services:
       - "8080:8080"
     volumes:
       - ./target/cursos-flowable.jar:/app/WEB-INF/lib/cursos-flowable.jar:ro
-
   flowable-ui:
     image: flowable/flowable-ui:6.8.0
     container_name: flowable-ui
