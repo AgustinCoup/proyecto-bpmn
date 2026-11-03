@@ -44,13 +44,37 @@ Si dice "omitido" en algunos, no pasa nada: ya existían. Los usuarios son
 `jefeAdmin`, `admin2`, `jefeDocente`, `docente1` y `docente2`, todos con clave
 `test`.
 
-El proceso de ejemplo también tiene que estar desplegado:
+## Prueba rápida (dos instancias)
+
+Si querés probar las dos apps sin pelear con curls, corré esto desde
+`proyecto-bpmn`:
+
+```bash
+./scripts/preparar-demo.py
+```
+
+Deja dos instancias del proceso de ejemplo:
+
+- **CLI**: esperando la respuesta de la empresa. Sirve para probar aceptar,
+  rechazar, pedir modificaciones, mandar la nómina y cancelar.
+- **GUI**: ya tiene la propuesta aceptada, así que tiene una tarea
+  "Preparar materiales" disponible para la ventana de Java.
+
+El script borra las instancias viejas que tengan businessKey `CLI` o `GUI` y
+crea nuevas. No toca otras instancias. Si lo corrés de nuevo, empezás de cero.
+
+Después seguí con **La consola** y **La ventana de Java** de más abajo. En la
+consola elegí la que dice `businessKey CLI`; en la ventana, la que dice
+`businessKey GUI`.
+
+El proceso de ejemplo también tiene que estar desplegado (el script de arriba lo
+hace si falta):
 
 ```bash
 ./scripts/desplegar-ejemplo.sh
 ```
 
-Ojo, esto despliega el ejemplo, no el modelo real. El script te imprime al final
+Esto despliega el ejemplo, no el modelo real. El script te imprime al final
 el curl para iniciar una instancia, pero te lo dejo acá también:
 
 ```bash
