@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:flowable="http://flowable.org/bpmn" targetNamespace="test">
+  <process id="Process_Curso" isExecutable="true">
+    <startEvent id="ini"/>
+    <sequenceFlow id="f1" sourceRef="ini" targetRef="calc"/>
+    <serviceTask id="calc" flowable:expression="${true}">
+      <extensionElements>
+        <flowable:executionListener event="start" class="unrc.cursos.ContarCursosEnEjecucionListener"/>
+      </extensionElements>
+    </serviceTask>
+    <sequenceFlow id="f2" sourceRef="calc" targetRef="espera"/>
+    <receiveTask id="espera"/>
+    <sequenceFlow id="f3" sourceRef="espera" targetRef="fin"/>
+    <endEvent id="fin"/>
+  </process>
+</definitions>

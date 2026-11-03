@@ -36,4 +36,9 @@
       <version>42.7.4</version>
     </dependency>
   </dependencies>
+
+  <build>
+    <!-- Nombre fijo del JAR: docker-compose.yml lo monta en los contenedores de Flowable. -->
+    <finalName>unrc-cursos</finalName>
+  </build>
 </project>
