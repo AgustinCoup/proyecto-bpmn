@@ -527,7 +527,7 @@
         {
           "name": "Aceptar propuesta (con fecha)",
           "request": {
-            "method": "POST",
+            "method": "PUT",
             "header": [
               {
                 "key": "Content-Type",
@@ -559,7 +559,7 @@
         {
           "name": "Rechazar propuesta",
           "request": {
-            "method": "POST",
+            "method": "PUT",
             "header": [
               {
                 "key": "Content-Type",
@@ -591,7 +591,7 @@
         {
           "name": "Pedir modificaciones",
           "request": {
-            "method": "POST",
+            "method": "PUT",
             "header": [
               {
                 "key": "Content-Type",
@@ -623,7 +623,7 @@
         {
           "name": "Cancelar curso",
           "request": {
-            "method": "POST",
+            "method": "PUT",
             "header": [
               {
                 "key": "Content-Type",
@@ -655,7 +655,7 @@
         {
           "name": "Enviar nomina (recibirNomina)",
           "request": {
-            "method": "POST",
+            "method": "PUT",
             "header": [
               {
                 "key": "Content-Type",

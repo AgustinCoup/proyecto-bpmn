@@ -23,3 +23,10 @@ docker compose up -d
 Si `flowable-ui` falla en el primer arranque, volvé a ejecutar `docker compose up -d`.
 
 Para bajar el entorno conservando los datos: `docker compose down`. Para borrar también los datos: `docker compose down -v`.
+
+## Aplicaciones auxiliares
+
+Las instrucciones del simulador de comunicaciones por consola y de la app Java
+de escritorio para **Preparar materiales** están en
+[`README-aplicaciones.md`](README-aplicaciones.md). Incluye el proceso de ejemplo,
+la configuración por variables de entorno y los tests.

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://unrc.edu.ar/cursos/ejemplo">
+
+  <!--
+    Proceso de ejemplo SOLO para probar el simulador REST y la app Java.
+    No es el modelo del proyecto: usa los mismos nombres de mensajes y la
+    misma tarea "Preparar materiales", pero simplifica el flujo.
+    El mensaje de inicio lleva "(ejemplo)" para no colisionar con el
+    mensaje "Solicitud de curso" del modelo real cuando se despliegue.
+  -->
+  <message id="MsgInicioEjemplo" name="Solicitud de curso (ejemplo)"/>
+  <message id="MsgAceptaEjemplo" name="Aceptación"/>
+  <message id="MsgRechazaEjemplo" name="Rechazo"/>
+  <message id="MsgModificaEjemplo" name="Solicitud de modificaciones"/>
+  <message id="MsgCancelaEjemplo" name="Cancelación"/>
+
+  <process id="ProcesoEjemploMateriales" name="Ejemplo: materiales y comunicaciones"
+           isExecutable="true">
+
+    <startEvent id="Inicio" name="Solicitud recibida">
+      <outgoing>FlowInicioEspera</outgoing>
+      <messageEventDefinition id="DefInicioEjemplo" messageRef="MsgInicioEjemplo"/>
+    </startEvent>
+
+    <eventBasedGateway id="EsperarRespuesta" name="Esperar respuesta">
+      <incoming>FlowInicioEspera</incoming>
+      <outgoing>FlowEsperaAceptar</outgoing>
+      <outgoing>FlowEsperaRechazar</outgoing>
+      <outgoing>FlowEsperaModificar</outgoing>
+    </eventBasedGateway>
+
+    <intermediateCatchEvent id="Aceptar" name="Aceptación">
+      <incoming>FlowEsperaAceptar</incoming>
+      <outgoing>FlowAceptarPreparar</outgoing>
+      <messageEventDefinition id="DefAceptarEjemplo" messageRef="MsgAceptaEjemplo"/>
+    </intermediateCatchEvent>
+
+    <intermediateCatchEvent id="Rechazar" name="Rechazo">
+      <incoming>FlowEsperaRechazar</incoming>
+      <outgoing>FlowRechazarFin</outgoing>
+      <messageEventDefinition id="DefRechazarEjemplo" messageRef="MsgRechazaEjemplo"/>
+    </intermediateCatchEvent>
+
+    <intermediateCatchEvent id="Modificar" name="Solicitud de modificaciones">
+      <incoming>FlowEsperaModificar</incoming>
+      <outgoing>FlowModificarFin</outgoing>
+      <messageEventDefinition id="DefModificarEjemplo" messageRef="MsgModificaEjemplo"/>
+    </intermediateCatchEvent>
+
+    <subProcess id="Preparar" name="Preparar curso">
+      <incoming>FlowAceptarPreparar</incoming>
+      <outgoing>FlowPrepararFin</outgoing>
+
+      <startEvent id="SubInicio">
+        <outgoing>FlowSubInicio</outgoing>
+      </startEvent>
+
+      <parallelGateway id="ParInicio" name="Preparación en paralelo">
+        <incoming>FlowSubInicio</incoming>
+        <outgoing>FlowNomina</outgoing>
+        <outgoing>FlowMaterial</outgoing>
+      </parallelGateway>
+
+      <receiveTask id="Nomina" name="Recibir nómina">
+        <incoming>FlowNomina</incoming>
+        <outgoing>FlowNominaFin</outgoing>
+      </receiveTask>
+
+      <userTask id="Material" name="Preparar materiales"
+                flowable:candidateGroups="administracion">
+        <incoming>FlowMaterial</incoming>
+        <outgoing>FlowMaterialFin</outgoing>
+      </userTask>
+
+      <parallelGateway id="ParFin" name="Preparación completa">
+        <incoming>FlowNominaFin</incoming>
+        <incoming>FlowMaterialFin</incoming>
+        <outgoing>FlowSubFin</outgoing>
+      </parallelGateway>
+
+      <endEvent id="SubFin">
+        <incoming>FlowSubFin</incoming>
+      </endEvent>
+
+      <sequenceFlow id="FlowSubInicio" sourceRef="SubInicio" targetRef="ParInicio"/>
+      <sequenceFlow id="FlowNomina" sourceRef="ParInicio" targetRef="Nomina"/>
+      <sequenceFlow id="FlowMaterial" sourceRef="ParInicio" targetRef="Material"/>
+      <sequenceFlow id="FlowNominaFin" sourceRef="Nomina" targetRef="ParFin"/>
+      <sequenceFlow id="FlowMaterialFin" sourceRef="Material" targetRef="ParFin"/>
+      <sequenceFlow id="FlowSubFin" sourceRef="ParFin" targetRef="SubFin"/>
+    </subProcess>
+
+    <boundaryEvent id="Cancelar" name="Cancelación" attachedToRef="Preparar"
+                   cancelActivity="true">
+      <outgoing>FlowCancelarFin</outgoing>
+      <messageEventDefinition id="DefCancelarEjemplo" messageRef="MsgCancelaEjemplo"/>
+    </boundaryEvent>
+
+    <endEvent id="Fin" name="Curso listo">
+      <incoming>FlowPrepararFin</incoming>
+    </endEvent>
+
+    <endEvent id="FinCancelado" name="Curso cancelado">
+      <incoming>FlowCancelarFin</incoming>
+    </endEvent>
+
+    <endEvent id="FinRechazado" name="Propuesta rechazada">
+      <incoming>FlowRechazarFin</incoming>
+    </endEvent>
+
+    <endEvent id="FinModificado" name="Modificaciones pedidas">
+      <incoming>FlowModificarFin</incoming>
+    </endEvent>
+
+    <sequenceFlow id="FlowInicioEspera" sourceRef="Inicio" targetRef="EsperarRespuesta"/>
+    <sequenceFlow id="FlowEsperaAceptar" sourceRef="EsperarRespuesta" targetRef="Aceptar"/>
+    <sequenceFlow id="FlowEsperaRechazar" sourceRef="EsperarRespuesta" targetRef="Rechazar"/>
+    <sequenceFlow id="FlowEsperaModificar" sourceRef="EsperarRespuesta" targetRef="Modificar"/>
+    <sequenceFlow id="FlowAceptarPreparar" sourceRef="Aceptar" targetRef="Preparar"/>
+    <sequenceFlow id="FlowRechazarFin" sourceRef="Rechazar" targetRef="FinRechazado"/>
+    <sequenceFlow id="FlowModificarFin" sourceRef="Modificar" targetRef="FinModificado"/>
+    <sequenceFlow id="FlowPrepararFin" sourceRef="Preparar" targetRef="Fin"/>
+    <sequenceFlow id="FlowCancelarFin" sourceRef="Cancelar" targetRef="FinCancelado"/>
+  </process>
+</definitions>
