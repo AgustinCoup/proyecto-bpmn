@@ -1,7 +1,7 @@
 services:
-  # Base de datos del motor Flowable (tablas ACT_*). La BD propia de la institución se agrega más adelante.
   postgres:
     image: postgres:16
+    container_name: flowable-postgres
     environment:
       POSTGRES_DB: flowable
       POSTGRES_USER: flowable
@@ -9,41 +9,52 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U flowable -d flowable"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      - pgdata:/var/lib/postgresql/data
 
-  # API REST del motor: la usan el sitio web y el simulador de comunicaciones.
-  # http://localhost:8080/flowable-rest/docs/  (usuario rest-admin / contraseña test)
   flowable-rest:
     image: flowable/flowable-rest:6.8.0
+    container_name: flowable-rest
+    depends_on:
+      - postgres
     environment:
+      SERVER_PORT: 8080
       SPRING_DATASOURCE_DRIVER-CLASS-NAME: org.postgresql.Driver
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/flowable
       SPRING_DATASOURCE_USERNAME: flowable
       SPRING_DATASOURCE_PASSWORD: flowable
+      FLOWABLE_COMMON_APP_IDM-ADMIN_USER: admin
+      FLOWABLE_COMMON_APP_IDM-ADMIN_PASSWORD: test
+      # Conexión a la BD de la institución para nuestros Delegates/Listeners
+      INSTITUCION_DB_URL: jdbc:postgresql://postgres:5432/institucion
+      INSTITUCION_DB_USER: institucion
+      INSTITUCION_DB_PASS: institucion
     ports:
       - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
+    volumes:
+      - ./target/cursos-flowable.jar:/app/WEB-INF/lib/cursos-flowable.jar:ro
 
-  # Interfaz web de Flowable (bandeja de tareas, modeler, admin), sobre la misma BD que la API REST.
-  # http://localhost:8081/flowable-ui  (usuario admin / contraseña test)
   flowable-ui:
     image: flowable/flowable-ui:6.8.0
+    container_name: flowable-ui
+    depends_on:
+      - postgres
     environment:
+      SERVER_PORT: 8080
       SPRING_DATASOURCE_DRIVER-CLASS-NAME: org.postgresql.Driver
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/flowable
       SPRING_DATASOURCE_USERNAME: flowable
       SPRING_DATASOURCE_PASSWORD: flowable
+      FLOWABLE_COMMON_APP_IDM-URL: http://localhost:8081/flowable-ui
+      FLOWABLE_COMMON_APP_IDM-REDIRECT-URL: http://localhost:8081/flowable-ui
+      FLOWABLE_COMMON_APP_IDM-ADMIN_USER: admin
+      FLOWABLE_COMMON_APP_IDM-ADMIN_PASSWORD: test
+      INSTITUCION_DB_URL: jdbc:postgresql://postgres:5432/institucion
+      INSTITUCION_DB_USER: institucion
+      INSTITUCION_DB_PASS: institucion
     ports:
       - "8081:8080"
-    depends_on:
-      - flowable-rest
+    volumes:
+      - ./target/cursos-flowable.jar:/app/WEB-INF/lib/cursos-flowable.jar:ro
 
 volumes:
-  postgres-data:
+  pgdata:
