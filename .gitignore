@@ -1,1 +1,12 @@
+# Salida de compilación de Maven
 target/
+
+# Pruebas de comportamiento de Flowable
+pruebas-flowable/
+
+# Archivos de IDE y del sistema operativo
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
