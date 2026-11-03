@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Proyecto BPMN - Flowable REST",
-    "description": "Pruebas de la API REST de Flowable. Cambiá las variables de la colección (usuario, clave, ids) según lo que quieras probar. Los puntos marcados (verificar) son suposiciones de Contrato.md.",
+    "description": "Pruebas de la API REST de Flowable. Cambiá las variables de la colección (usuario, clave, ids) según lo que quieras probar. Los puntos marcados (verificar) son suposiciones de Contrato.md. Para desplegar el DMN y los timers cortos de las pruebas usar usuario rest-admin.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -47,6 +47,14 @@
     {
       "key": "executionId",
       "value": ""
+    },
+    {
+      "key": "dmnUrl",
+      "value": "http://localhost:8080/flowable-rest/dmn-api"
+    },
+    {
+      "key": "mensaje",
+      "value": "Aceptación"
     }
   ],
   "item": [
@@ -255,7 +263,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"message\": \"Solicitud de curso\",\n  \"variables\": [\n    {\n      \"name\": \"simularFaltaAulas\",\n      \"value\": false\n    }\n  ]\n}",
+              "raw": "{\n  \"message\": \"Solicitud de curso\",\n  \"businessKey\": \"101\",\n  \"variables\": [\n    {\n      \"name\": \"cursoId\",\n      \"value\": 101,\n      \"type\": \"integer\"\n    },\n    {\n      \"name\": \"empresaId\",\n      \"value\": 7,\n      \"type\": \"integer\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -272,7 +280,7 @@
                 "process-instances"
               ]
             },
-            "description": "Verificar que Flowable 6.8 acepte \"message\" en este endpoint (Contrato.md, seccion 2)."
+            "description": "Verificado: Flowable 6.8 acepta \"message\" (el nombre, no el id Msg_sol). La regla DMN rechaza el inicio si ya hay 5 otras instancias de Process_Curso sin finalizar: la instancia termina NO_VIABLE."
           }
         },
         {
@@ -507,7 +515,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/runtime/executions?processInstanceId={{processInstanceId}}",
+              "raw": "{{baseUrl}}/runtime/executions?processInstanceId={{processInstanceId}}&messageEventSubscriptionName={{mensaje}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -519,6 +527,11 @@
                 {
                   "key": "processInstanceId",
                   "value": "{{processInstanceId}}"
+                },
+                {
+                  "key": "messageEventSubscriptionName",
+                  "value": "{{mensaje}}",
+                  "description": "Nombre del mensaje, p. ej. Aceptación, Rechazo, Solicitud de modificaciones. Si la lista viene vacía, ese mensaje no está habilitado ahora. Guardá data[0].id en executionId."
                 }
               ]
             }
@@ -553,7 +566,8 @@
                 "executions",
                 "{{executionId}}"
               ]
-            }
+            },
+            "description": "PUT sobre la ejecución del evento \"Aceptación\" (ver \"Buscar ejecuciones de una instancia\" con messageEventSubscriptionName=Aceptación). Responde 204: la instancia sigue en Preparar. Formato de fechaCurso aceptado por el timer Fecha: ISO 8601 con o sin zona (\"2026-12-01T09:00:00\" se toma como UTC), con offset, o sólo fecha."
           }
         },
         {
@@ -682,7 +696,190 @@
                 "{{executionId}}"
               ]
             },
-            "description": "Contrato.md seccion 5: la nomina es una receive task, se completa con \"signal\" (verificar)."
+            "description": "PUT (no POST). Acción signal/trigger sin verificar todavía: se prueba con el escenario 1."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Viabilidad y plazos (fase 4)",
+      "item": [
+        {
+          "name": "Desplegar DMN (motor DMN)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{dmnUrl}}/dmn-repository/deployments",
+              "host": [
+                "{{dmnUrl}}"
+              ],
+              "path": [
+                "dmn-repository",
+                "deployments"
+              ]
+            },
+            "description": "Antes de iniciar instancias. Elegí modelo/viabilidadCurso.dmn en el campo \"file\". Usar usuario rest-admin.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar despliegues DMN",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{dmnUrl}}/dmn-repository/deployments",
+              "host": [
+                "{{dmnUrl}}"
+              ],
+              "path": [
+                "dmn-repository",
+                "deployments"
+              ]
+            },
+            "description": "Debe quedar vacío al terminar las pruebas."
+          }
+        },
+        {
+          "name": "Iniciar solicitud con plazo corto (plazoRespuesta)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/runtime/process-instances",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "process-instances"
+              ]
+            },
+            "description": "plazoRespuesta (duración ISO 8601) reemplaza los 5 días del timer Plazo sin tocar el modelo. PT20S: cada vencimiento tarda ~24 s. Sin la variable, el plazo es P5D.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Solicitud de curso\",\n  \"businessKey\": \"401\",\n  \"variables\": [\n    {\n      \"name\": \"cursoId\",\n      \"value\": 401,\n      \"type\": \"integer\"\n    },\n    {\n      \"name\": \"empresaId\",\n      \"value\": 7,\n      \"type\": \"integer\"\n    },\n    {\n      \"name\": \"plazoRespuesta\",\n      \"value\": \"PT20S\",\n      \"type\": \"string\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Ver cursosEnEjecucion de una instancia",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/runtime/process-instances/{{processInstanceId}}/variables/cursosEnEjecucion",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "process-instances",
+                "{{processInstanceId}}",
+                "variables",
+                "cursosEnEjecucion"
+              ]
+            },
+            "description": "Entrada de la regla DMN: cantidad de OTRAS instancias de Process_Curso sin finalizar. Si la instancia ya terminó (p. ej. NO_VIABLE), da 404: usar la consulta histórica de abajo."
+          }
+        },
+        {
+          "name": "Ver cursosEnEjecucion (historial, sirve si terminó)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/history/historic-variable-instances?processInstanceId={{processInstanceId}}&variableName=cursosEnEjecucion",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "history",
+                "historic-variable-instances"
+              ],
+              "query": [
+                {
+                  "key": "processInstanceId",
+                  "value": "{{processInstanceId}}"
+                },
+                {
+                  "key": "variableName",
+                  "value": "cursosEnEjecucion"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Instancias activas de Process_Curso (las que cuenta la regla)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/runtime/process-instances?processDefinitionKey={{processKey}}&size=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "process-instances"
+              ],
+              "query": [
+                {
+                  "key": "processDefinitionKey",
+                  "value": "{{processKey}}"
+                },
+                {
+                  "key": "size",
+                  "value": "100"
+                }
+              ]
+            },
+            "description": "Si hay 5 o más, la próxima solicitud termina NO_VIABLE. Borrarlas con \"Borrar una instancia\" antes de probar otros escenarios."
+          }
+        },
+        {
+          "name": "Timers pendientes de una instancia",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/management/timer-jobs?processInstanceId={{processInstanceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "management",
+                "timer-jobs"
+              ],
+              "query": [
+                {
+                  "key": "processInstanceId",
+                  "value": "{{processInstanceId}}"
+                }
+              ]
+            },
+            "description": "Con la instancia esperando respuesta hay un timer (Plazo). Durante la revisión de una modificación no hay ninguno."
           }
         }
       ]

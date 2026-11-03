@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" id="defViabilidadCurso" name="Viabilidad del curso" namespace="http://unrc.edu.ar/cursos">
+  <!-- Los comentarios van DENTRO de la raíz: antes de ella el parser DMN de Flowable falla (500, StAXSource).
+       Consigna 3.1: continúa si hay menos de 5 otras instancias sin finalizar; con 5 o más, el curso no es viable.
+       La entrada cursosEnEjecucion la calcula ContarCursosEnEjecucionListener; la salida viable la lee Gateway_10gftrn. -->
+  <decision id="viabilidadCurso" name="Viabilidad del curso">
+    <decisionTable id="tablaViabilidad" hitPolicy="FIRST">
+      <input id="entradaCursos" label="Otras instancias sin finalizar">
+        <inputExpression id="expresionCursos" typeRef="number"><text>cursosEnEjecucion</text></inputExpression>
+      </input>
+      <output id="salidaViable" label="Viable" name="viable" typeRef="boolean" />
+      <rule id="reglaViable">
+        <inputEntry id="reglaViableEntrada"><text>&lt; 5</text></inputEntry>
+        <outputEntry id="reglaViableSalida"><text>true</text></outputEntry>
+      </rule>
+      <rule id="reglaNoViable">
+        <inputEntry id="reglaNoViableEntrada"><text>&gt;= 5</text></inputEntry>
+        <outputEntry id="reglaNoViableSalida"><text>false</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>
