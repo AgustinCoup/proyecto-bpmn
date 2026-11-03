@@ -1,0 +1,691 @@
+{
+  "info": {
+    "name": "Proyecto BPMN - Flowable REST",
+    "description": "Pruebas de la API REST de Flowable. Cambiá las variables de la colección (usuario, clave, ids) según lo que quieras probar. Los puntos marcados (verificar) son suposiciones de Contrato.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "basic",
+    "basic": [
+      {
+        "key": "username",
+        "value": "{{usuario}}",
+        "type": "string"
+      },
+      {
+        "key": "password",
+        "value": "{{clave}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/flowable-rest/service"
+    },
+    {
+      "key": "usuario",
+      "value": "jefeAdmin"
+    },
+    {
+      "key": "clave",
+      "value": "test"
+    },
+    {
+      "key": "processKey",
+      "value": "Process_Curso"
+    },
+    {
+      "key": "processInstanceId",
+      "value": ""
+    },
+    {
+      "key": "taskId",
+      "value": ""
+    },
+    {
+      "key": "executionId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Identidad",
+      "item": [
+        {
+          "name": "Listar usuarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/identity/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "identity",
+                "users"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar grupos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/identity/groups",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "identity",
+                "groups"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Miembros del grupo administracion",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/identity/users?memberOfGroup=administracion",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "identity",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "memberOfGroup",
+                  "value": "administracion"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Miembros del grupo docentes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/identity/users?memberOfGroup=docentes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "identity",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "memberOfGroup",
+                  "value": "docentes"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Despliegue",
+      "item": [
+        {
+          "name": "Desplegar BPMN / DMN",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/repository/deployments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "repository",
+                "deployments"
+              ]
+            },
+            "description": "Elegí el archivo .bpmn20.xml o .dmn en el campo \"file\".",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar despliegues",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/repository/deployments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "repository",
+                "deployments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar definiciones del proceso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/repository/process-definitions?key={{processKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "repository",
+                "process-definitions"
+              ],
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{processKey}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Instancias",
+      "item": [
+        {
+          "name": "Iniciar por clave",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"processDefinitionKey\": \"{{processKey}}\",\n  \"variables\": [\n    {\n      \"name\": \"simularFaltaAulas\",\n      \"value\": false\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/runtime/process-instances",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "process-instances"
+              ]
+            },
+            "description": "Sirve si el proceso arranca con un inicio \"none\". Con inicio por mensaje, usar la siguiente (verificar)."
+          }
+        },
+        {
+          "name": "Iniciar por mensaje Solicitud de curso",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Solicitud de curso\",\n  \"variables\": [\n    {\n      \"name\": \"simularFaltaAulas\",\n      \"value\": false\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/runtime/process-instances",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "process-instances"
+              ]
+            },
+            "description": "Verificar que Flowable 6.8 acepte \"message\" en este endpoint (Contrato.md, seccion 2)."
+          }
+        },
+        {
+          "name": "Listar instancias en curso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/runtime/process-instances",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "process-instances"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ver variables de una instancia",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/runtime/process-instances/{{processInstanceId}}/variables",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "process-instances",
+                "{{processInstanceId}}",
+                "variables"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Instancias no finalizadas (historial)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/history/historic-process-instances?finished=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "history",
+                "historic-process-instances"
+              ],
+              "query": [
+                {
+                  "key": "finished",
+                  "value": "false"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Borrar una instancia",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/runtime/process-instances/{{processInstanceId}}?deleteReason=prueba",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "process-instances",
+                "{{processInstanceId}}"
+              ],
+              "query": [
+                {
+                  "key": "deleteReason",
+                  "value": "prueba"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Tareas",
+      "item": [
+        {
+          "name": "Mis tareas asignadas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/runtime/tasks?assignee={{usuario}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "tasks"
+              ],
+              "query": [
+                {
+                  "key": "assignee",
+                  "value": "{{usuario}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tareas candidatas del grupo administracion",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/runtime/tasks?candidateGroup=administracion",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "tasks"
+              ],
+              "query": [
+                {
+                  "key": "candidateGroup",
+                  "value": "administracion"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tareas candidatas del grupo docentes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/runtime/tasks?candidateGroup=docentes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "tasks"
+              ],
+              "query": [
+                {
+                  "key": "candidateGroup",
+                  "value": "docentes"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reclamar tarea (claim)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"claim\",\n  \"assignee\": \"{{usuario}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/runtime/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "tasks",
+                "{{taskId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Completar tarea",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"complete\",\n  \"variables\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/runtime/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "tasks",
+                "{{taskId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Mensajes de la empresa",
+      "item": [
+        {
+          "name": "Buscar ejecuciones de una instancia",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/runtime/executions?processInstanceId={{processInstanceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "executions"
+              ],
+              "query": [
+                {
+                  "key": "processInstanceId",
+                  "value": "{{processInstanceId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Aceptar propuesta (con fecha)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"messageEventReceived\",\n  \"messageName\": \"Aceptación\",\n  \"variables\": [\n    {\n      \"name\": \"fechaCurso\",\n      \"value\": \"2026-12-01T09:00:00Z\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/runtime/executions/{{executionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "executions",
+                "{{executionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Rechazar propuesta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"messageEventReceived\",\n  \"messageName\": \"Rechazo\",\n  \"variables\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/runtime/executions/{{executionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "executions",
+                "{{executionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Pedir modificaciones",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"messageEventReceived\",\n  \"messageName\": \"Solicitud de modificaciones\",\n  \"variables\": [\n    {\n      \"name\": \"observaciones\",\n      \"value\": \"Texto del pedido\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/runtime/executions/{{executionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "executions",
+                "{{executionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cancelar curso",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"messageEventReceived\",\n  \"messageName\": \"Cancelación\",\n  \"variables\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/runtime/executions/{{executionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "executions",
+                "{{executionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Enviar nomina (recibirNomina)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"signal\",\n  \"variables\": [\n    {\n      \"name\": \"participantes\",\n      \"value\": \"Ana;Beto;Carla\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/runtime/executions/{{executionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "executions",
+                "{{executionId}}"
+              ]
+            },
+            "description": "Contrato.md seccion 5: la nomina es una receive task, se completa con \"signal\" (verificar)."
+          }
+        }
+      ]
+    }
+  ]
+}
