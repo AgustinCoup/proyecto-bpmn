@@ -19,7 +19,11 @@ Las dos apps se explican en [`README-aplicaciones.md`](README-aplicaciones.md).
 
 ## Requisitos
 
+<<<<<<< HEAD
 - Docker (en Windows/macOS, Docker Desktop abierto y con el motor corriendo; en Linux, Docker Engine con el plugin `compose` y tu usuario en el grupo `docker`) y los puertos 5432, 8080 y 8081 libres
+=======
+- Docker Desktop (Windows) o Docker Engine con Docker Compose (Ubuntu), con el motor corriendo y los puertos 5432, 8080 y 8081 libres
+>>>>>>> 8a612c5dd6ecbe60498178759e22fcaef2d099e6
 - Java 11 o más y Maven 3.8+ (verificado con JDK 21 y Maven 3.9; el JAR sale con bytecode de Java 11)
 - Node.js 18 o más (sitio web y recorrido de escenarios; usan `fetch`). El `nodejs` de los repositorios de Ubuntu suele ser más viejo: instalar uno actual (NodeSource, `nvm`)
 - Postman (opcional)
@@ -27,7 +31,9 @@ Las dos apps se explican en [`README-aplicaciones.md`](README-aplicaciones.md).
 
 ## Puesta en marcha (en este orden)
 
-Desde la carpeta del repo. En Windows, PowerShell; donde dice `.sh` se puede usar Git Bash.
+Desde la carpeta del repo. Los comandos siguientes están separados por sistema operativo.
+
+### Windows (PowerShell)
 
 ```
 # 1. Compilar las clases Java. Genera target/cursos-flowable.jar, que montan los dos contenedores.
@@ -37,13 +43,45 @@ mvn package -DskipTests
 docker compose up -d
 
 # 3. Usuarios y grupos de Flowable (5 usuarios, 2 grupos, privilegios). Se puede repetir.
-powershell -ExecutionPolicy Bypass -File scripts\crear-usuarios.ps1      # o ./scripts/crear-usuarios.sh
+powershell -ExecutionPolicy Bypass -File scripts\crear-usuarios.ps1
 
 # 4. BD de la institución (crea la base "institucion" y carga datos de prueba). Se puede repetir.
-powershell -ExecutionPolicy Bypass -File scripts\crear-bd.ps1            # o ./scripts/crear-bd.sh
+powershell -ExecutionPolicy Bypass -File scripts\crear-bd.ps1
 
 # 5. Desplegar la regla DMN y el modelo BPMN. Cada vez que cambie el modelo, repetir.
-powershell -ExecutionPolicy Bypass -File scripts\desplegar-modelo.ps1    # o ./scripts/desplegar-modelo.sh
+powershell -ExecutionPolicy Bypass -File scripts\desplegar-modelo.ps1
+```
+
+### Ubuntu (Bash)
+
+Desde una terminal ubicada en la raíz del repositorio:
+
+```
+# 1. Compilar las clases Java. Genera target/cursos-flowable.jar, que montan los dos contenedores.
+mvn package -DskipTests
+
+# 2. Levantar PostgreSQL + Flowable REST + Flowable UI.
+docker compose up -d
+
+# 3. Dar permiso de ejecución a los scripts .sh (sólo hace falta la primera vez).
+chmod +x scripts/crear-usuarios.sh scripts/crear-bd.sh scripts/desplegar-modelo.sh
+
+# 4. Usuarios y grupos de Flowable (5 usuarios, 2 grupos, privilegios). Se puede repetir.
+./scripts/crear-usuarios.sh
+
+# 5. BD de la institución (crea la base "institucion" y carga datos de prueba). Se puede repetir.
+./scripts/crear-bd.sh
+
+# 6. Desplegar la regla DMN y el modelo BPMN. Cada vez que cambie el modelo, repetir.
+./scripts/desplegar-modelo.sh
+```
+
+En Ubuntu, si los scripts todavía no tienen permiso de ejecución, se pueden invocar sin modificar permisos:
+
+```
+bash scripts/crear-usuarios.sh
+bash scripts/crear-bd.sh
+bash scripts/desplegar-modelo.sh
 ```
 
 Esperá un minuto después del `up` hasta que respondan las dos URLs.
@@ -100,10 +138,23 @@ El proceso manda correo al `contacto_email` de la empresa al enviar la propuesta
 
 Requisitos: Node 18 o superior. Con el entorno ya levantado (pasos 1 a 5 de "Puesta en marcha"; el paso 4 crea también la tabla `informe`), desde la raíz del repo:
 
+### Windows (PowerShell)
+
 ```
 cd web
 npm install
-npm start          # http://localhost:3000   (PowerShell, dev: $env:SESSION_SECRET="cualquier-texto-largo"; npm start)
+$env:SESSION_SECRET="cualquier-texto-largo"
+npm start          # http://localhost:3000
+npm test           # 149 pruebas; la de integración usa el Flowable real y limpia lo que crea
+```
+
+### Ubuntu (Bash)
+
+```
+cd web
+npm install
+export SESSION_SECRET="cualquier-texto-largo"
+npm start          # http://localhost:3000
 npm test           # 149 pruebas; la de integración usa el Flowable real y limpia lo que crea
 ```
 
@@ -118,15 +169,39 @@ Variables de entorno (todas con valor por defecto de desarrollo; tabla completa 
 
 ## Simulador de la empresa y app de materiales
 
-Detalle completo, variables de entorno y verificaciones en [`README-aplicaciones.md`](README-aplicaciones.md). Resumen (con el entorno ya levantado, desde la raíz del repo; en Windows ejecutar antes `chcp 65001` para ver bien las tildes):
+Detalle completo, variables de entorno y verificaciones en [`README-aplicaciones.md`](README-aplicaciones.md). Resumen, con el entorno ya levantado y desde la raíz del repo:
+
+### Windows (PowerShell)
+
+Antes de ejecutar las aplicaciones, cambiar la página de códigos para visualizar correctamente las tildes:
 
 ```
+chcp 65001
+
 # Simulador de la empresa por consola (API REST). Muestra sólo las comunicaciones habilitadas.
-export FLOWABLE_REST_USER=jefeAdmin FLOWABLE_REST_PASSWORD=test          # PowerShell: $env:FLOWABLE_REST_USER="jefeAdmin"; ...
+$env:FLOWABLE_REST_USER="jefeAdmin"
+$env:FLOWABLE_REST_PASSWORD="test"
 mvn -q exec:java -Dexec.mainClass=unrc.cursos.simulador.SimuladorMain
 
 # App de escritorio "Preparar materiales" (API Java de Flowable contra la BD del motor).
-export FLOWABLE_DB_USER=flowable FLOWABLE_DB_PASSWORD=flowable
+$env:FLOWABLE_DB_USER="flowable"
+$env:FLOWABLE_DB_PASSWORD="flowable"
+mvn -q exec:java -Dexec.mainClass=unrc.cursos.escritorio.AppMateriales
+```
+
+### Ubuntu (Bash)
+
+Ubuntu normalmente ya utiliza UTF-8, por lo que no hace falta ejecutar un equivalente de `chcp 65001`:
+
+```
+# Simulador de la empresa por consola (API REST). Muestra sólo las comunicaciones habilitadas.
+export FLOWABLE_REST_USER=jefeAdmin
+export FLOWABLE_REST_PASSWORD=test
+mvn -q exec:java -Dexec.mainClass=unrc.cursos.simulador.SimuladorMain
+
+# App de escritorio "Preparar materiales" (API Java de Flowable contra la BD del motor).
+export FLOWABLE_DB_USER=flowable
+export FLOWABLE_DB_PASSWORD=flowable
 mvn -q exec:java -Dexec.mainClass=unrc.cursos.escritorio.AppMateriales
 ```
 
