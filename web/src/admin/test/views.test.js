@@ -3,7 +3,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createViews, escapeHtml, formatDate } = require('../views');
+const {
+  createViews,
+  escapeHtml,
+  formatDate,
+  proposalForm,
+  taskUnsupported,
+} = require('../views');
 
 function fakeRes() {
   return {
@@ -97,6 +103,47 @@ test('home escapa datos de la tarea y muestra estado vacío', () => {
   assert.match(claimForm, /action="\/admin\/tasks\/%3Cscript%3Ealert\(1\)%3C%2Fscript%3E\/claim"/);
 });
 
+test('proposalForm escapa valores y errores', () => {
+  const html = proposalForm({
+    baseUrl: '/admin',
+    user: 'jefeAdmin',
+    groups: ['administracion'],
+    csrf: 't',
+    task: { id: 't1', name: '<b>Registrar</b>' },
+    course: { id: 1, tematica: '<i>Curso</i>' },
+    values: {
+      nombre: '"><script>alert(1)</script>',
+      programa: '<b>programa</b>',
+      presupuesto: '100.00',
+      fecha_inicio: '2026-12-01',
+      fecha_fin: '2026-12-15',
+    },
+    errors: { nombre: '<b>error</b>' },
+  });
+
+  assert.ok(!html.includes('<script>alert(1)</script>'));
+  assert.ok(!html.includes('<b>programa</b>'));
+  assert.ok(!html.includes('<b>error</b>'));
+  assert.match(html, /&lt;b&gt;Registrar&lt;\/b&gt;/);
+  assert.match(html, /&lt;i&gt;Curso&lt;\/i&gt;/);
+  assert.match(html, /&lt;b&gt;programa&lt;\/b&gt;/);
+  assert.match(html, /&lt;b&gt;error&lt;\/b&gt;/);
+  assert.match(html, /action="\/admin\/tasks\/t1\/complete"/);
+});
+
+test('taskUnsupported muestra la tarea y el aviso', () => {
+  const html = taskUnsupported({
+    baseUrl: '/admin',
+    user: 'jefeAdmin',
+    csrf: 't',
+    task: { id: 't1', name: 'Archivar solicitud', taskDefinitionKey: '<Archivar>' },
+  });
+
+  assert.match(html, /Archivar solicitud/);
+  assert.match(html, /&lt;Archivar&gt;/);
+  assert.match(html, /todavía no tiene formulario/);
+});
+
 test('páginas de error usan el status correcto', () => {
   const views = createViews();
 
@@ -119,6 +166,11 @@ test('páginas de error usan el status correcto', () => {
   views.taskNotFound(taskNotFound, { baseUrl: '/admin' });
   assert.equal(taskNotFound.statusCode, 404);
   assert.match(taskNotFound.body, /ya fue completada/);
+
+  const courseNotFound = fakeRes();
+  views.courseNotFound(courseNotFound, { baseUrl: '/admin' });
+  assert.equal(courseNotFound.statusCode, 404);
+  assert.match(courseNotFound.body, /Curso no encontrado/);
 
   const badRequest = fakeRes();
   views.badRequest(badRequest, 'id inválido', { baseUrl: '/admin' });

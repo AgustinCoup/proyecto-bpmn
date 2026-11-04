@@ -6,15 +6,20 @@ const { FlowableError, createFlowableRest } = require('./flowable-rest');
 const { createSessionStore } = require('./session');
 const { createAuth } = require('./auth');
 const { createViews } = require('./views');
+const { createCourseStore } = require('./courses');
+const { formValuesFromCourse, parseProposal } = require('./proposal');
 const {
   fetchTasks,
   fetchTask,
   fetchIdentityLinks,
   canClaimTask,
   claimTask,
+  completeTask,
 } = require('./tasks');
 
 const TASK_ID_PATTERN = /^[A-Za-z0-9_-]{1,100}$/;
+const COURSE_ID_PATTERN = /^[1-9]\d{0,8}$/;
+const PROPOSAL_TASK_KEY = 'Propuesta';
 
 const DEFAULT_CONFIG = {
   baseUrl: process.env.FLOWABLE_URL || 'http://localhost:8080/flowable-rest/service',
@@ -24,6 +29,7 @@ const DEFAULT_CONFIG = {
   cookieName: 'admin_sid',
   cookieSecure: process.env.NODE_ENV === 'production',
   maxTasks: 100,
+  databaseUrl: process.env.INSTITUCION_DATABASE_URL || null,
 };
 
 function asyncHandler(handler) {
@@ -39,6 +45,26 @@ function viewContext(req) {
   };
 }
 
+async function resolveCourseForTask(client, auth, task, courses) {
+  if (!task.processInstanceId) return { error: 'invalid-course-id' };
+
+  const instance = await client(
+    'GET',
+    `/runtime/process-instances/${encodeURIComponent(task.processInstanceId)}`,
+    { auth },
+  );
+  const rawKey = instance && instance.businessKey !== undefined && instance.businessKey !== null
+    ? String(instance.businessKey).trim()
+    : '';
+  if (!COURSE_ID_PATTERN.test(rawKey)) return { error: 'invalid-course-id' };
+
+  const courseId = Number(rawKey);
+  const course = await courses.findById(courseId);
+  if (!course) return { error: 'course-not-found' };
+
+  return { courseId, course };
+}
+
 function createAdminRouter(options = {}) {
   const config = { ...DEFAULT_CONFIG, ...(options.config || {}) };
   const client = options.client || createFlowableRest({
@@ -50,6 +76,9 @@ function createAdminRouter(options = {}) {
     ttlMs: config.sessionTtlMs,
     cookieName: config.cookieName,
     secure: config.cookieSecure,
+  });
+  const courses = options.courses || createCourseStore({
+    connectionString: config.databaseUrl || undefined,
   });
   const views = createViews(config);
   const auth = createAuth({ client, store, views });
@@ -124,6 +153,119 @@ function createAdminRouter(options = {}) {
     }
 
     store.setFlash(req.session, 'ok', 'Tarea reclamada. Ahora está asignada a vos.');
+    return res.redirect(303, `${req.baseUrl || ''}/`);
+  }));
+
+  router.get('/tasks/:id', auth.requireAdmin, asyncHandler(async (req, res) => {
+    const taskId = req.params.id;
+    const context = viewContext(req);
+
+    if (!TASK_ID_PATTERN.test(taskId)) {
+      return views.badRequest(res, 'El identificador de la tarea no es válido.', context);
+    }
+
+    const credentials = { user: req.session.user, password: req.session.password };
+    const task = await fetchTask(client, credentials, taskId);
+
+    if (task.assignee !== req.session.user) {
+      return views.forbidden(
+        res,
+        'Esta tarea no está asignada a vos. Si está disponible para reclamar, hacelo desde la lista.',
+        context,
+      );
+    }
+
+    if (task.taskDefinitionKey !== PROPOSAL_TASK_KEY) {
+      return res.status(200).send(views.taskUnsupported({ ...context, task }));
+    }
+
+    const resolved = await resolveCourseForTask(client, credentials, task, courses);
+    if (resolved.error === 'course-not-found') {
+      return views.courseNotFound(res, context);
+    }
+    if (resolved.error) {
+      return views.badRequest(res, 'El curso asociado a la tarea no es válido.', context);
+    }
+
+    return res.status(200).send(views.proposalForm({
+      ...context,
+      task,
+      course: resolved.course,
+      values: formValuesFromCourse(resolved.course),
+      errors: {},
+    }));
+  }));
+
+  router.post('/tasks/:id/complete', auth.requireAdmin, auth.csrf, asyncHandler(async (req, res) => {
+    const taskId = req.params.id;
+    const context = viewContext(req);
+
+    if (!TASK_ID_PATTERN.test(taskId)) {
+      return views.badRequest(res, 'El identificador de la tarea no es válido.', context);
+    }
+
+    const credentials = { user: req.session.user, password: req.session.password };
+    const task = await fetchTask(client, credentials, taskId);
+
+    if (task.assignee !== req.session.user) {
+      return views.forbidden(
+        res,
+        'Esta tarea no está asignada a vos. Si está disponible para reclamar, hacelo desde la lista.',
+        context,
+      );
+    }
+
+    if (task.taskDefinitionKey !== PROPOSAL_TASK_KEY) {
+      return views.badRequest(
+        res,
+        'Esta tarea todavía no tiene formulario en el sitio.',
+        context,
+      );
+    }
+
+    const resolved = await resolveCourseForTask(client, credentials, task, courses);
+    if (resolved.error === 'course-not-found') {
+      return views.courseNotFound(res, context);
+    }
+    if (resolved.error) {
+      return views.badRequest(res, 'El curso asociado a la tarea no es válido.', context);
+    }
+
+    const parsed = parseProposal(req.body);
+    if (!parsed.valid) {
+      return res.status(400).send(views.proposalForm({
+        ...context,
+        task,
+        course: resolved.course,
+        values: parsed.values,
+        errors: parsed.errors,
+      }));
+    }
+
+    const saved = await courses.saveProposal(resolved.courseId, parsed.proposal);
+    if (!saved) {
+      return views.courseNotFound(res, context);
+    }
+
+    try {
+      await completeTask(client, credentials, taskId);
+    } catch (error) {
+      if (error instanceof FlowableError && error.status === 409) {
+        store.setFlash(
+          req.session,
+          'error',
+          'La tarea ya había sido completada. La propuesta quedó guardada en la base.',
+        );
+        return res.redirect(303, `${req.baseUrl || ''}/`);
+      }
+      throw error;
+    }
+
+    store.setFlash(
+      req.session,
+      'ok',
+      'Propuesta guardada. La tarea se completó y el proceso continuó.',
+    );
     return res.redirect(303, `${req.baseUrl || ''}/`);
   }));
 

@@ -42,10 +42,13 @@ const STYLES = `
   .card { background: #fff; border: 1px solid #d9e1e8; border-radius: 10px; padding: 1.2rem; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
   .card.narrow { max-width: 430px; margin: 8vh auto 0; }
   label { display: block; font-weight: 600; margin: .8rem 0 .3rem; }
-  input[type=text], input[type=password] { width: 100%; padding: .55rem .65rem; border: 1px solid #b8c4cf; border-radius: 7px; font: inherit; }
-  button { font: inherit; border: 0; border-radius: 7px; padding: .5rem .85rem; background: #1d6fa5; color: #fff; cursor: pointer; }
-  button.secondary { background: #dbe4ec; color: #12344d; }
+  input[type=text], input[type=password], input[type=number], input[type=date], textarea { width: 100%; padding: .55rem .65rem; border: 1px solid #b8c4cf; border-radius: 7px; font: inherit; }
+  textarea { resize: vertical; }
+  button, a.button { display: inline-block; font: inherit; border: 0; border-radius: 7px; padding: .5rem .85rem; background: #1d6fa5; color: #fff; cursor: pointer; text-decoration: none; }
+  button.secondary, a.button.secondary { background: #dbe4ec; color: #12344d; }
   button:disabled { opacity: .55; cursor: not-allowed; }
+  .field-error { color: #8a1f1f; font-size: .85rem; margin: .25rem 0 0; }
+  .form-actions { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; margin-top: 1.2rem; }
   .error { background: #fdecec; border: 1px solid #f3b7b7; color: #8a1f1f; padding: .6rem .75rem; border-radius: 7px; margin: .8rem 0; }
   .ok { background: #e8f5ec; border: 1px solid #a9d9b8; color: #1d5b31; padding: .6rem .75rem; border-radius: 7px; margin: .8rem 0; }
   table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #d9e1e8; border-radius: 10px; overflow: hidden; }
@@ -139,7 +142,7 @@ function home({ baseUrl = '', user, groups = [], csrf, tasks = [], flash = null 
                <input type="hidden" name="_csrf" value="${escapeHtml(csrf)}">
                <button type="submit">Reclamar</button>
              </form>`
-          : '<button type="button" disabled>Completar (próximo corte)</button>'}</td>
+          : `<a class="button" href="${escapeHtml(baseUrl)}/tasks/${encodeURIComponent(task.id)}">${task.taskDefinitionKey === 'Propuesta' ? 'Completar' : 'Abrir'}</a>`}</td>
       </tr>`).join('')
     : `<tr><td colspan="5" class="muted">No tenés tareas asignadas ni disponibles en este momento.</td></tr>`;
 
@@ -158,7 +161,7 @@ function home({ baseUrl = '', user, groups = [], csrf, tasks = [], flash = null 
         </thead>
         <tbody>${rows}</tbody>
       </table>
-      <p class="muted">Podés reclamar las tareas disponibles. Completarlas se habilita en el próximo corte.</p>`,
+      <p class="muted">Podés reclamar las tareas disponibles y abrir las tareas que ya tenés asignadas.</p>`,
   });
 }
 
@@ -177,10 +180,91 @@ function messagePage({ baseUrl = '', user, groups = [], csrf, status, title, mes
   });
 }
 
+function fieldError(errors, field) {
+  return errors && errors[field]
+    ? `<p class="field-error">${escapeHtml(errors[field])}</p>`
+    : '';
+}
+
+function proposalForm({
+  baseUrl = '', user, groups = [], csrf, task, course = {}, values = {}, errors = {},
+}) {
+  const hasErrors = Object.keys(errors).length > 0;
+  const courseLabel = course.id
+    ? `Curso #${escapeHtml(course.id)}${course.tematica ? ` · ${escapeHtml(course.tematica)}` : ''}`
+    : 'Curso sin identificar';
+  const presupuestoValue = String(values.presupuesto === undefined || values.presupuesto === null
+    ? ''
+    : values.presupuesto).replace(',', '.');
+
+  return page({
+    title: 'Registrar propuesta',
+    baseUrl,
+    user,
+    groups,
+    csrf,
+    body: `<section class="card">
+      <h1>${escapeHtml(task.name || 'Registrar y Elaborar propuesta')}</h1>
+      <p class="muted">${courseLabel}</p>
+      ${hasErrors ? '<p class="error">Revisá los campos marcados antes de guardar.</p>' : ''}
+      <form method="post" action="${escapeHtml(baseUrl)}/tasks/${encodeURIComponent(task.id)}/complete" class="stack" novalidate>
+        <input type="hidden" name="_csrf" value="${escapeHtml(csrf)}">
+        <div>
+          <label for="nombre">Nombre del curso</label>
+          <input id="nombre" name="nombre" type="text" maxlength="200" required value="${escapeHtml(values.nombre)}">
+          ${fieldError(errors, 'nombre')}
+        </div>
+        <div>
+          <label for="programa">Programa</label>
+          <textarea id="programa" name="programa" rows="8" maxlength="5000" required>${escapeHtml(values.programa)}</textarea>
+          ${fieldError(errors, 'programa')}
+        </div>
+        <div>
+          <label for="presupuesto">Presupuesto (ARS)</label>
+          <input id="presupuesto" name="presupuesto" type="number" min="0.01" max="9999999999.99" step="0.01" required value="${escapeHtml(presupuestoValue)}">
+          ${fieldError(errors, 'presupuesto')}
+        </div>
+        <div>
+          <label for="fecha_inicio">Fecha de inicio</label>
+          <input id="fecha_inicio" name="fecha_inicio" type="date" required value="${escapeHtml(values.fecha_inicio)}">
+          ${fieldError(errors, 'fecha_inicio')}
+        </div>
+        <div>
+          <label for="fecha_fin">Fecha de fin</label>
+          <input id="fecha_fin" name="fecha_fin" type="date" required value="${escapeHtml(values.fecha_fin)}">
+          ${fieldError(errors, 'fecha_fin')}
+        </div>
+        <div class="form-actions">
+          <button type="submit">Guardar propuesta y completar tarea</button>
+          <a class="button secondary" href="${escapeHtml(baseUrl)}/">Cancelar</a>
+        </div>
+      </form>
+    </section>`,
+  });
+}
+
+function taskUnsupported({ baseUrl = '', user, groups = [], csrf, task }) {
+  return page({
+    title: 'Tarea sin formulario',
+    baseUrl,
+    user,
+    groups,
+    csrf,
+    body: `<section class="card narrow">
+      <h1>${escapeHtml(task.name || 'Tarea')}</h1>
+      <p>La tarea <code>${escapeHtml(task.taskDefinitionKey || '')}</code> todavía no tiene formulario en el sitio.</p>
+      <p class="muted">Por ahora se puede completar desde la interfaz de Flowable. Las demás pantallas se agregan en los próximos cortes.</p>
+      <p><a href="${escapeHtml(baseUrl)}/">Volver a mis tareas</a></p>
+    </section>`,
+  });
+}
+
 function createViews() {
   return {
     login,
     home,
+    proposalForm,
+    taskUnsupported,
     forbidden(res, message, context = {}) {
       res.status(403).send(messagePage({
         ...context,
@@ -213,6 +297,14 @@ function createViews() {
         message: 'La tarea no existe o ya fue completada.',
       }));
     },
+    courseNotFound(res, context = {}) {
+      res.status(404).send(messagePage({
+        ...context,
+        status: 404,
+        title: 'Curso no encontrado',
+        message: 'El curso asociado a la tarea no existe en la base de la institución.',
+      }));
+    },
     badRequest(res, message, context = {}) {
       res.status(400).send(messagePage({
         ...context,
@@ -236,4 +328,6 @@ module.exports = {
   escapeHtml,
   formatDate,
   createViews,
+  proposalForm,
+  taskUnsupported,
 };

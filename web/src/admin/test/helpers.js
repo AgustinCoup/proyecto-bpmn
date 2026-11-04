@@ -32,10 +32,11 @@ function cookieHeader(response) {
   return setCookies(response).map((cookie) => cookie.split(';')[0]).join('; ');
 }
 
-async function startApp({ client, sessions = createTestStore(), config = {} } = {}) {
+async function startApp({ client, sessions = createTestStore(), courses, config = {} } = {}) {
   const router = createAdminRouter({
     client,
     sessions,
+    courses,
     config: {
       sessionSecret: TEST_SECRET,
       cookieSecure: false,

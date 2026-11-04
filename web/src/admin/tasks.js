@@ -50,7 +50,8 @@ async function resolveBusinessKeys(client, auth, tasks) {
   return new Map(entries);
 }
 
-async function fetchTasks(client, auth, groups, { max = MAX_TASKS } = {}) {  if (!auth || !auth.user) throw new Error('fetchTasks requiere un usuario autenticado.');
+async function fetchTasks(client, auth, groups, { max = MAX_TASKS } = {}) {
+  if (!auth || !auth.user) throw new Error('fetchTasks requiere un usuario autenticado.');
 
   const queries = [
     { query: { assignee: auth.user }, origin: 'assigned' },
@@ -127,6 +128,13 @@ async function claimTask(client, auth, taskId) {
   });
 }
 
+async function completeTask(client, auth, taskId) {
+  return client('POST', `/runtime/tasks/${encodeURIComponent(taskId)}`, {
+    body: { action: 'complete' },
+    auth,
+  });
+}
+
 module.exports = {
   MAX_TASKS,
   fetchTasks,
@@ -134,6 +142,7 @@ module.exports = {
   fetchIdentityLinks,
   canClaimTask,
   claimTask,
+  completeTask,
   normalizeTask,
   resolveBusinessKeys,
   taskQuery,

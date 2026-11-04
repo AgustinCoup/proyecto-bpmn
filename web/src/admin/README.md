@@ -4,9 +4,10 @@ Pantallas del sitio de la institución para el rol `administracion`. Cubre las t
 usuario de la sección 4.1.3 de la consigna y el escenario 8. Este módulo es dueño de
 `web/src/admin/`; el esqueleto del sitio lo monta en `/admin`.
 
-> **Estado actual: corte 2.** Login contra Flowable, sesión firmada, detección de rol,
-> lista de tareas y **reclamo** de tareas candidatas. Completar y los formularios llegan en
-> los cortes siguientes.
+> **Estado actual: corte 3.** Login contra Flowable, sesión firmada, detección de rol,
+> lista de tareas, reclamo de tareas candidatas y el **formulario de `Propuesta`**, que
+> guarda los datos en la tabla `curso` y completa la tarea. Los demás formularios llegan en
+> los cortes siguientes. No se genera el PDF de la propuesta: está fuera del alcance.
 
 ## Cómo se prueba (mientras no exista el esqueleto)
 
@@ -15,7 +16,7 @@ cuando aparezca `web/app.js` con `lib/flowable.js` y el layout EJS, se monta el 
 desde ahí y se borran `dev-harness.js` y `dev/`.
 
 ```bash
-# una sola vez, para instalar express del arnés
+# una sola vez, para instalar express y pg del arnés
 cd web/src/admin/dev
 npm install
 
@@ -38,6 +39,7 @@ Variables de entorno:
 | `SESSION_SECRET` | aleatorio en desarrollo | Firma de la cookie. En producción es obligatorio. |
 | `NODE_ENV` | — | Con `production` exige `SESSION_SECRET` y marca la cookie `Secure`. |
 | `SESSION_TTL_MS` | 8 horas | Duración de la sesión. |
+| `INSTITUCION_DATABASE_URL` | `postgresql://institucion:institucion@localhost:5432/institucion` | Base de la institución (tabla `curso`). También acepta `DATABASE_URL`. |
 
 ### Pruebas automáticas
 
@@ -47,7 +49,7 @@ node --test test/*.test.js
 node --test --experimental-test-coverage test/*.test.js
 ```
 
-Cobertura del corte 2: **98,60 % de líneas** y **87,45 % de ramas** (incluyendo archivos
+Cobertura del corte 3: **98,52 % de líneas** y **88,42 % de ramas** (incluyendo archivos
 de prueba en el reporte).
 
 ### Probar el reclamo con una tarea de verdad
@@ -74,8 +76,9 @@ Después, en el navegador:
    el botón **“Reclamar”**.
 3. Hacé clic en **“Reclamar”**.
 4. Esperado: volvés a `/admin/`, ves el mensaje verde **“Tarea reclamada. Ahora está
-   asignada a vos.”** y la tarea pasa a **“Asignada a vos”**. El botón de completar sigue
-   deshabilitado (es el próximo corte).
+   asignada a vos.”** y la tarea pasa a **“Asignada a vos”** con el botón **“Abrir”**.
+   Como la tarea de prueba no es `Propuesta`, al abrirla avisa que todavía no tiene
+   formulario.
 5. Para limpiar todo:
 
 ```bash
@@ -84,6 +87,54 @@ node dev/tarea-grupo-prueba.js borrar
 
 Si el sitio está en otro puerto, pasá `ADMIN_URL`, por ejemplo
 `ADMIN_URL=http://localhost:3100/admin/ node dev/tarea-grupo-prueba.js`.
+
+### Probar el formulario de Propuesta con una tarea de verdad
+
+Para no completar las instancias del escenario 8, hay otro proceso temporal que crea un
+curso de prueba en la base `institucion`:
+
+```bash
+cd web/src/admin
+node dev/propuesta-prueba.js
+```
+
+Ese comando:
+
+1. Borra cursos, instancias y deployments de pruebas anteriores del mismo tipo.
+2. Crea un curso temporal en la tabla `curso`.
+3. Despliega un proceso temporal llamado `PropuestaPrueba`.
+4. Inicia una instancia con una tarea `Propuesta` asignada a `jefeAdmin`.
+5. Imprime el id del curso, de la tarea y la URL del sitio.
+
+Después, en el navegador:
+
+1. Entrá a <http://localhost:3000/admin/> con `jefeAdmin` / `test`.
+2. Buscá **“Registrar y Elaborar propuesta”** para el curso de prueba.
+3. Hacé clic en **“Completar”**.
+4. Completá, por ejemplo:
+   - Nombre: `Curso de prueba desde el sitio`.
+   - Programa: `Contenido del curso de prueba.`
+   - Presupuesto: `123456.78`.
+   - Inicio: `2026-12-01`.
+   - Fin: `2026-12-15`.
+5. Guardá. Esperado: volvés a `/admin/`, ves el mensaje verde **“Propuesta guardada. La
+   tarea se completó y el proceso continuó.”** y la tarea desaparece de la lista.
+6. Verificá la base:
+
+```bash
+docker exec flowable-postgres psql -U institucion -d institucion \
+  -c "select id, nombre, programa, presupuesto, fecha_inicio, fecha_fin from curso order by id;"
+```
+
+7. Para borrar todo:
+
+```bash
+node dev/propuesta-prueba.js borrar
+```
+
+Si querés probar con el curso real `1`, abrí su tarea `Propuesta` desde la lista. El
+formulario muestra los datos que ya tenga el curso y, al guardar, actualiza esa fila.
+Eso **sí avanza el proceso real**; el script temporal evita tocarlo.
 
 ### Qué mirar a mano (resto del corte)
 
@@ -95,8 +146,13 @@ Si el sitio está en otro puerto, pasá `ADMIN_URL`, por ejemplo
    módulo de docentes es otro router y todavía no existe.
 5. Manipular la cookie o borrarla: vuelve al login.
 6. `POST` sin `_csrf`: 403.
-7. Cerrar sesión: destruye la sesión del servidor y borra la cookie.
-8. Si Flowable está caído, la lista responde 502 sin filtrar credenciales.
+7. Abrir una tarea ajena por URL: 403, aunque el id exista.
+8. El formulario de `Propuesta` rechaza campos vacíos, presupuesto cero y fecha de fin
+   anterior a la de inicio sin llamar a Flowable.
+9. Al guardar una propuesta válida, primero se actualiza la base y después se completa la
+   tarea en Flowable. Si Flowable falla, la propuesta ya quedó guardada.
+10. Cerrar sesión: destruye la sesión del servidor y borra la cookie.
+11. Si Flowable está caído, la lista responde 502 sin filtrar credenciales.
 
 ## Qué pantalla cubre qué tarea
 
@@ -105,7 +161,9 @@ Si el sitio está en otro puerto, pasá `ADMIN_URL`, por ejemplo
 | `/admin/login`, `/admin/logout` | — (autenticación contra Flowable) | Hecho |
 | `/admin/` | Lista de tareas asignadas y candidatas al grupo `administracion` | Hecho |
 | `POST /admin/tasks/:id/claim` | Reclamar una tarea candidata del grupo | Hecho |
-| Próximo corte | `Propuesta` (Registrar y Elaborar propuesta, `jefeAdmin`) | Pendiente |
+| `GET /admin/tasks/:id` | Abrir una tarea asignada (formulario o aviso) | Hecho |
+| `POST /admin/tasks/:id/complete` | Completar una tarea asignada | Hecho para `Propuesta` |
+| `Propuesta` (Registrar y Elaborar propuesta, `jefeAdmin`) | Guarda nombre, programa, presupuesto y fechas en `curso` | Hecho |
 | Próximo corte | `Revisar` (Revisar propuesta, `jefeAdmin`) | Pendiente |
 | Próximo corte | `Archivar` (Archivar solicitud, `jefeAdmin`) | Pendiente |
 | Próximo corte | `Lista` (Confeccionar lista definitiva, grupo `administracion`) | Pendiente |
@@ -130,6 +188,11 @@ de Flowable (la consigna lo permite). El sitio solo las lista y enlaza.
   grupo; no alcanza con que el botón esté en la pantalla. Si otra persona la reclamó,
   responde 403 o muestra un aviso.
 - Tareas candidatas ya reclamadas por otra persona se descartan; no se exponen por URL.
+- Completar exige que la tarea esté asignada al usuario logueado. No alcanza con el id ni
+  con pertenecer al grupo.
+- El `businessKey` de la instancia se valida como id de curso numérico y la base se
+  consulta con SQL parametrizado.
+- El formulario se valida en el servidor antes de tocar la base o Flowable.
 - Todas las consultas a Flowable se validan del lado del servidor.
 
 ## Estructura
@@ -140,7 +203,14 @@ de Flowable (la consigna lo permite). El sitio solo las lista y enlaza.
 | `auth.js` | Login, logout, sesión y regla de rol `administracion`. |
 | `session.js` | Store en memoria, cookie firmada y CSRF. |
 | `flowable-rest.js` | Cliente REST con la firma de `lib/flowable.js`; se reemplaza por el del esqueleto. |
-| `tasks.js` | Consulta, deduplicación, normalización y reclamo de tareas. |
+| `tasks.js` | Consulta, deduplicación, normalización, reclamo y completado de tareas. |
+| `courses.js` | Acceso parametrizado a la tabla `curso`; el pool de `pg` se crea al primer uso. |
+| `proposal.js` | Validación y normalización del formulario de `Propuesta`. |
 | `views.js` | HTML mínimo con escape; se reemplaza por las vistas EJS del esqueleto. |
-| `dev-harness.js`, `dev/` | Arnés local, **no entregable**. Incluye `dev/tarea-grupo-prueba.js` para probar el reclamo. |
+| `dev-harness.js`, `dev/` | Arnés local, **no entregable**. Incluye `dev/tarea-grupo-prueba.js` y `dev/propuesta-prueba.js`. |
 | `test/` | Pruebas con `node:test` y cliente REST mockeado. |
+
+Cuando aparezca el esqueleto del sitio, su `package.json` tiene que incluir `pg` (el
+arnés ya lo instala en `dev/`). Alternativamente, `createAdminRouter({ courses })` acepta
+un store compatible con `findById` y `saveProposal`, por ejemplo para reutilizar el acceso
+a datos que provea el esqueleto.

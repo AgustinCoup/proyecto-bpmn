@@ -4,6 +4,7 @@
   "private": true,
   "description": "Dependencias solo para el arnés local de web/src/admin. No se entrega.",
   "dependencies": {
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "pg": "^8.23.1"
   }
 }
