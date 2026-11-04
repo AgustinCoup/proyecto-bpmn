@@ -1,0 +1,26 @@
+<%- include('partials/header') %>
+<h1>Mis cursos</h1>
+<p>Empresa: <strong><%= empresaNombre %></strong></p>
+<form method="POST" action="/empresa/logout" style="margin-bottom:1rem;">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <button type="submit" class="btn secondary">Salir</button>
+</form>
+<% if (!cursos || cursos.length === 0) { %>
+  <p>No tiene cursos registrados.</p>
+<% } else { %>
+  <table class="table">
+    <thead><tr><th>#</th><th>Tematica</th><th>Estado</th><th>Actividades en curso</th><th></th></tr></thead>
+    <tbody>
+      <% cursos.forEach(function(c) { %>
+        <tr>
+          <td><%= c.id %></td>
+          <td><%= c.tematica %></td>
+          <td><%= c.estado %></td>
+          <td><%= (c.actividades || []).map(function(a){return a}).join(', ') %></td>
+          <td><a href="/empresa/cursos/<%= c.id %>">Ver detalle</a></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } %>
+<%- include('partials/footer') %>

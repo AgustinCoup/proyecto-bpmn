@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title : 'Institucion de capacitacion' %></title>
+  <link rel="stylesheet" href="/styles.css">
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">Institucion de capacitacion</a>
+    <nav>
+      <a href="/solicitar">Solicitar curso</a>
+      <a href="/empresa/login">Acceso empresas</a>
+    </nav>
+  </header>
+  <main class="container">
+    <% if (typeof flash !== 'undefined' && flash) { %>
+      <div class="flash <%= flash.type %>"><%= flash.message %></div>
+    <% } %>

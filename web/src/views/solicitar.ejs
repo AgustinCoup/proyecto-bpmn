@@ -1,0 +1,56 @@
+<%- include('partials/header') %>
+<h1>Solicitud de curso</h1>
+<form method="POST" action="/solicitar" class="form">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <label>Nombre de la empresa
+    <input type="text" name="nombreEmpresa" value="<%= (form && form.nombreEmpresa) || '' %>" required maxlength="200">
+    <% if (errors && errors.nombreEmpresa) { %><span class="err"><%= errors.nombreEmpresa %></span><% } %>
+  </label>
+  <label>CUIT
+    <input type="text" name="cuit" value="<%= (form && form.cuit) || '' %>" required placeholder="30-12345678-9">
+    <% if (errors && errors.cuit) { %><span class="err"><%= errors.cuit %></span><% } %>
+  </label>
+  <label>Nombre de contacto
+    <input type="text" name="contacto" value="<%= (form && form.contacto) || '' %>" required maxlength="150">
+    <% if (errors && errors.contacto) { %><span class="err"><%= errors.contacto %></span><% } %>
+  </label>
+  <label>Email de contacto
+    <input type="email" name="email" value="<%= (form && form.email) || '' %>" required maxlength="150">
+    <% if (errors && errors.email) { %><span class="err"><%= errors.email %></span><% } %>
+  </label>
+  <label>Telefono de contacto
+    <input type="text" name="telefono" value="<%= (form && form.telefono) || '' %>" maxlength="50">
+  </label>
+  <label>Tematica
+    <input type="text" name="tematica" value="<%= (form && form.tematica) || '' %>" required maxlength="200">
+    <% if (errors && errors.tematica) { %><span class="err"><%= errors.tematica %></span><% } %>
+  </label>
+  <label>Descripcion
+    <textarea name="descripcion" required maxlength="5000"><%= (form && form.descripcion) || '' %></textarea>
+    <% if (errors && errors.descripcion) { %><span class="err"><%= errors.descripcion %></span><% } %>
+  </label>
+  <label>Cantidad estimada de participantes
+    <input type="number" name="cantidadParticipantes" value="<%= (form && form.cantidadParticipantes) || '' %>" required min="1">
+    <% if (errors && errors.cantidadParticipantes) { %><span class="err"><%= errors.cantidadParticipantes %></span><% } %>
+  </label>
+  <label>Descripcion de fechas preferidas
+    <input type="text" name="fechasPreferidas" value="<%= (form && form.fechasPreferidas) || '' %>" required maxlength="255">
+    <% if (errors && errors.fechasPreferidas) { %><span class="err"><%= errors.fechasPreferidas %></span><% } %>
+  </label>
+  <% if (devMode) { %>
+  <fieldset class="dev">
+    <legend>Modo desarrollo</legend>
+    <label>plazoRespuesta (duracion ISO)
+      <input type="text" name="plazoRespuesta" value="<%= (form && form.plazoRespuesta) || '' %>" placeholder="PT1M">
+    </label>
+    <label>simularFaltaAulas
+      <select name="simularFaltaAulas">
+        <option value="">no</option>
+        <option value="true" <%= (form && form.simularFaltaAulas === 'true') ? 'selected' : '' %>>si</option>
+      </select>
+    </label>
+  </fieldset>
+  <% } %>
+  <button type="submit" class="btn">Enviar solicitud</button>
+</form>
+<%- include('partials/footer') %>

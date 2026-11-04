@@ -1,0 +1,14 @@
+<%- include('partials/header') %>
+<h1>Acceso de empresas</h1>
+<form method="POST" action="/empresa/login" class="form">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <label>Usuario
+    <input type="text" name="usuario" required maxlength="100">
+  </label>
+  <label>Clave
+    <input type="password" name="clave" required>
+  </label>
+  <% if (error) { %><div class="err"><%= error %></div><% } %>
+  <button type="submit" class="btn">Ingresar</button>
+</form>
+<%- include('partials/footer') %>

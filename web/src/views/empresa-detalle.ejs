@@ -1,0 +1,15 @@
+<%- include('partials/header') %>
+<h1>Curso #<%= curso.id %></h1>
+<dl class="detail">
+  <dt>Tematica</dt><dd><%= curso.tematica %></dd>
+  <dt>Descripcion</dt><dd><%= curso.descripcion %></dd>
+  <dt>Cantidad de participantes</dt><dd><%= curso.cantidad_participantes %></dd>
+  <dt>Fechas preferidas</dt><dd><%= curso.fechas_preferidas %></dd>
+  <dt>Estado</dt><dd><%= estado %></dd>
+</dl>
+<% if (actividades && actividades.length) { %>
+  <h2>Actividades pendientes o en curso</h2>
+  <ul><% actividades.forEach(function(a){ %><li><%= a %></li><% }) %></ul>
+<% } %>
+<p><a href="/empresa">Volver</a></p>
+<%- include('partials/footer') %>
