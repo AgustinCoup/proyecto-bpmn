@@ -219,3 +219,45 @@ test('ruta desconocida y cabeceras de seguridad', async (t) => {
   assert.equal(missing.status, 404);
   assert.match(missing.text, /no existe en este módulo/);
 });
+
+test('tras 5 intentos fallidos el login se bloquea aunque la clave sea correcta', async (t) => {
+  let valid = false;
+  const client = fakeClient((method, path) => {
+    if (path.startsWith('/identity/users/')) {
+      if (!valid) throw new FlowableError('Unauthorized', { status: 401 });
+      return { id: 'jefeAdmin' };
+    }
+    if (path === '/identity/groups') return { data: [{ id: 'administracion' }] };
+    throw new Error(`No debería llamarse: ${method} ${path}`);
+  });
+  const app = await startApp({ client });
+  t.after(() => app.close());
+
+  for (let i = 0; i < 5; i += 1) {
+    const { posted } = await login(app.base, { clave: `mala${i}` });
+    assert.equal(posted.status, 401);
+  }
+  valid = true;
+  const blocked = await login(app.base);
+  assert.equal(blocked.posted.status, 429);
+  assert.match(blocked.posted.text, /Demasiados intentos/);
+  // otro usuario no queda afectado
+  const other = await login(app.base, { usuario: 'admin2' });
+  assert.equal(other.posted.status, 303);
+});
+
+test('el limitador expira por ventana de tiempo y se reinicia tras un acierto', () => {
+  const { createLoginThrottle } = require('../auth');
+  let now = 0;
+  const throttle = createLoginThrottle({ now: () => now, windowMs: 1000, maxFailures: 2 });
+  throttle.recordFailure('a');
+  assert.equal(throttle.isBlocked('a'), false);
+  throttle.recordFailure('a');
+  assert.equal(throttle.isBlocked('a'), true);
+  now = 1001;
+  assert.equal(throttle.isBlocked('a'), false);
+  throttle.recordFailure('b');
+  throttle.recordFailure('b');
+  throttle.reset('b');
+  assert.equal(throttle.isBlocked('b'), false);
+});

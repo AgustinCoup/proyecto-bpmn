@@ -4,12 +4,11 @@ Pantallas del sitio de la institución para el rol `administracion`. Cubre las t
 usuario de la sección 4.1.3 de la consigna y el escenario 8. Este módulo es dueño de
 `web/src/admin/`; el esqueleto del sitio lo monta en `/admin`.
 
-> **Estado actual: corte 6.** Login contra Flowable, sesión firmada, detección de rol,
-> lista de tareas, reclamo de tareas candidatas y los **formularios de `Propuesta`,
-> `Revisar`, `Lista`, `Evaluar Recursos` y `Archivar`**. Los dos primeros guardan los
-> datos en la tabla `curso`; `Lista` y `Evaluar Recursos` actualizan variables de la
-> instancia antes de completar; `Archivar` confirma el cierre. No se genera el PDF de la
-> propuesta: está fuera del alcance.
+> **Estado actual: completo para `/admin`.** Login contra Flowable, sesión firmada, rol, lista
+> de tareas, reclamo y los formularios de `Propuesta`, `Revisar`, `Archivar`, `Lista`,
+> `Evaluar Recursos` y `EnviarInforme` (con descarga del PDF). Las tareas del equipo docente
+> viven en [`../docentes/`](../docentes/README.md). No se genera el PDF de la propuesta
+> (fuera de alcance); sí el del informe de resultados.
 
 ## Cómo se prueba (mientras no exista el esqueleto)
 
@@ -18,9 +17,12 @@ cuando aparezca `web/app.js` con `lib/flowable.js` y el layout EJS, se monta el 
 desde ahí y se borran `dev-harness.js` y `dev/`.
 
 ```bash
-# una sola vez, para instalar express y pg del arnés
+# una sola vez, para instalar express, pg y pdfkit del arnés
 cd web/src/admin/dev
 npm install
+
+# una sola vez, la tabla `informe` (no toca schema.sql ni datos.sql)
+docker exec -i flowable-postgres psql -U institucion -d institucion < db/migraciones/001-informe.sql
 
 # levantar el arnés (Flowable ya tiene que estar arriba)
 cd web/src/admin
@@ -39,6 +41,7 @@ Variables de entorno:
 | `PORT` | `3000` | Puerto del arnés. |
 | `FLOWABLE_URL` | `http://localhost:8080/flowable-rest/service` | Base de la API REST. |
 | `SESSION_SECRET` | aleatorio en desarrollo | Firma de la cookie. En producción es obligatorio. |
+| `FLOWABLE_UI_URL` | `http://localhost:8081/flowable-ui` | Enlace para las tareas que se hacen desde la UI de Flowable. |
 | `NODE_ENV` | — | Con `production` exige `SESSION_SECRET` y marca la cookie `Secure`. |
 | `SESSION_TTL_MS` | 8 horas | Duración de la sesión. |
 | `INSTITUCION_DATABASE_URL` | `postgresql://institucion:institucion@localhost:5432/institucion` | Base de la institución (tabla `curso`). También acepta `DATABASE_URL`. |
@@ -46,13 +49,35 @@ Variables de entorno:
 ### Pruebas automáticas
 
 ```bash
-cd web/src/admin
-node --test test/*.test.js
-node --test --experimental-test-coverage test/*.test.js
+cd web/src
+node --test admin/test/*.test.js docentes/test/*.test.js
+node --test --experimental-test-coverage admin/test/*.test.js docentes/test/*.test.js
 ```
 
-Cobertura del corte 5: **98,80 % de líneas** y **89,70 % de ramas** (incluyendo archivos
-de prueba en el reporte).
+128 pruebas con el cliente REST simulado. Cobertura: **97,7 % de líneas, 87,7 % de ramas**
+(el reporte incluye los archivos de prueba).
+
+### Escenario 8 contra el entorno real
+
+Con Docker arriba, el modelo y la BD desplegados y el arnés levantado
+(`PORT=3100 node dev-harness.js`):
+
+```bash
+cd web/src/admin
+node dev/escenario8-e2e.js
+```
+
+Recorre solicitud → `Propuesta` → aceptación con fecha → nómina → `Lista` → `Evaluar Recursos`
+→ `Material`/`Equipo` → `Definir Docente` → `Dictar` → `Informe` (PDF) → `EnviarInforme` →
+cierre con `curso.estado = FINALIZADO`, usando el sitio para todo lo de administración y
+docentes y REST solo para la empresa (lo que hace el simulador) y la UI de Flowable. También
+verifica los permisos (403 a quien no es el asignado o no reclamó, 400 a entradas inválidas).
+Al terminar borra las instancias y restaura `db/datos.sql` (**borra los datos locales de
+`institucion`**).
+
+Requisito: la fila del curso tiene que tener `process_instance_id` igual a la instancia para
+que el listener de fin de proceso actualice el estado; el script lo asigna (lo hace el sitio
+público al crear la solicitud).
 
 ### Probar el reclamo con una tarea de verdad
 
@@ -228,8 +253,8 @@ curso lo escribe el Execution Listener de fin de proceso, no el sitio.
 2. Login con `jefeAdmin` / `test` redirige a `/admin/` y lista las tareas asignadas y las
    candidatas al grupo `administracion`. El curso se resuelve con el `businessKey`.
 3. Clave incorrecta: mensaje genérico, no se crea sesión.
-4. `docente1` / `test`: 403 porque no pertenece a `administracion`. **Es esperado:** el
-   módulo de docentes es otro router y todavía no existe.
+4. `docente1` / `test`: 403 porque no pertenece a `administracion` (los docentes entran por
+   `/docentes`).
 5. Manipular la cookie o borrarla: vuelve al login.
 6. `POST` sin `_csrf`: 403.
 7. Abrir una tarea ajena por URL: 403, aunque el id exista.
@@ -256,10 +281,12 @@ curso lo escribe el Execution Listener de fin de proceso, no el sitio.
 | `Propuesta` (Registrar y Elaborar propuesta, `jefeAdmin`) | Guarda nombre, programa, presupuesto y fechas en `curso` | Hecho |
 | `Revisar` (Revisar propuesta, `jefeAdmin`) | Muestra `observaciones`/`propuestaVersion` y guarda los cambios en `curso` | Hecho |
 | `Archivar` (Archivar solicitud, `jefeAdmin`) | Muestra `resultado` y confirma el cierre; no escribe en la base | Hecho |
-| `Lista` (Confeccionar lista definitiva, grupo `administracion`) | Guarda `Lista definitiva` como JSON en Flowable | Hecho |
-| `Activity_12i2hpf` (Evaluar Recursos, grupo `administracion`) | Guarda `requiereAula`, `requierePlataforma` y `requiereEquipamiento` | Hecho |
-| Próximo corte | `EnviarInforme` (Enviar informe, `jefeAdmin`) | Pendiente |
-| UI de Flowable | `Material`, `Virtual`, `Equipo`, `Activity_1m08pcl` | Enlace desde el sitio |
+| `Lista` (Confeccionar lista definitiva, grupo `administracion`) | Guarda la variable `listaDefinitiva` (JSON) al completar | Hecho |
+| `Activity_12i2hpf` (Evaluar Recursos, grupo `administracion`) | Envía siempre `requiereAula`, `requierePlataforma` y `requiereEquipamiento`; exige al menos una | Hecho |
+| `EnviarInforme` (Enviar informe, `jefeAdmin`) | Muestra el curso, enlaza al PDF y completa (el listener del modelo pone `resultado = FINALIZADO`) | Hecho |
+| `GET /admin/informes/:id.pdf` | Descarga del PDF del informe (adjunto, nombre fijo derivado del id del curso) | Hecho |
+| UI de Flowable | `Material`, `Virtual`, `Equipo`, `Activity_1m08pcl` | El sitio las lista y la pantalla de la tarea enlaza a la UI |
+| `/docentes/…` | `Activity_1018bdz`, `Dictar`, `Informe` | Ver [`../docentes/README.md`](../docentes/README.md) |
 
 Las tareas `Material`, `Virtual`, `Equipo` y `Activity_1m08pcl` se completan desde la UI
 de Flowable (la consigna lo permite). El sitio solo las lista y enlaza.
@@ -287,6 +314,16 @@ de Flowable (la consigna lo permite). El sitio solo las lista y enlaza.
   validan, se acotan y se escapan antes de mostrarlas; el sitio no las envía.
 - `Archivar` solo completa la tarea si el resultado es `RECHAZADO` o `SIN_RESPUESTA`.
 - Todas las consultas a Flowable se validan del lado del servidor.
+- Las variables viajan **en la misma llamada que completa la tarea** (`POST /runtime/tasks/{id}`
+  con `variables`), no con un `POST …/variables` previo: así el motor las escribe y avanza en una
+  sola transacción. Antes, un fallo a mitad dejaba la variable creada y el reintento recibía 409
+  («la tarea ya había sido completada»): era la causa de que la lista definitiva «fallara».
+- Límite de intentos de login: 5 fallos por (IP, usuario) en 10 minutos → 429 (en memoria).
+- Descarga de informes: solo con sesión del grupo, id numérico validado con regex, se comprueba
+  que el contenido empiece con `%PDF-`, `Content-Disposition: attachment` con nombre derivado
+  solo de números, `nosniff` y `Content-Security-Policy: sandbox`.
+- No se aceptan archivos subidos: el PDF lo genera el servidor con pdfkit a partir de campos de
+  texto validados (largo, tipo, caracteres de control). No hay superficie de *upload*.
 
 ## Estructura
 
@@ -301,13 +338,15 @@ de Flowable (la consigna lo permite). El sitio solo las lista y enlaza.
 | `proposal.js` | Validación y normalización de los formularios de `Propuesta` y `Revisar`. |
 | `review.js` | Normaliza `observaciones` y `propuestaVersion` de la tarea `Revisar`. |
 | `archive.js` | Normaliza `resultado` y decide si la solicitud se puede archivar. |
-| `participants.js` | Lee la nómina y valida/serializa la `Lista definitiva`. |
+| `participants.js` | Lee la nómina y valida/serializa la `listaDefinitiva`. |
 | `resources.js` | Valida las salidas booleanas de `Evaluar Recursos`. |
-| `views.js` | HTML mínimo con escape; se reemplaza por las vistas EJS del esqueleto. |
+| `views.js`, `views-report.js`, `layout.js` | HTML mínimo con escape; se reemplaza por las vistas EJS del esqueleto. |
+| `claim.js`, `router-common.js`, `db.js` | Reclamo, cabeceras/404/errores, curso de la tarea y pool de `pg`: se comparten con `docentes/`. |
+| `reports.js`, `report.js`, `pdf.js` | Tabla `informe`, validación del formulario del informe y generación del PDF. |
 | `dev-harness.js`, `dev/` | Arnés local, **no entregable**. Incluye `dev/tarea-grupo-prueba.js`, `dev/propuesta-prueba.js`, `dev/revision-prueba.js` y `dev/archivar-prueba.js`. |
 | `test/` | Pruebas con `node:test` y cliente REST mockeado. |
 
-Cuando aparezca el esqueleto del sitio, su `package.json` tiene que incluir `pg` (el
+Cuando aparezca el esqueleto del sitio, su `package.json` tiene que incluir `pg` y `pdfkit` (el
 arnés ya lo instala en `dev/`). Alternativamente, `createAdminRouter({ courses })` acepta
 un store compatible con `findById` y `saveProposal`, por ejemplo para reutilizar el acceso
 a datos que provea el esqueleto.

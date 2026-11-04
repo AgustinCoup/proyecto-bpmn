@@ -21,7 +21,47 @@ function contextFor(req) {
   };
 }
 
-function createAuth({ client, store, views }) {
+const LOGIN_WINDOW_MS = 10 * 60 * 1000;
+const LOGIN_MAX_FAILURES = 5;
+const LOGIN_MAX_TRACKED = 2000;
+
+/** Límite de intentos fallidos por (IP, usuario), en memoria. Frena la fuerza bruta. */
+function createLoginThrottle({
+  now = () => Date.now(), windowMs = LOGIN_WINDOW_MS, maxFailures = LOGIN_MAX_FAILURES,
+} = {}) {
+  const failures = new Map();
+
+  function entry(key) {
+    const found = failures.get(key);
+    if (found && now() - found.first > windowMs) {
+      failures.delete(key);
+      return null;
+    }
+    return found || null;
+  }
+
+  return {
+    isBlocked: (key) => {
+      const found = entry(key);
+      return Boolean(found) && found.count >= maxFailures;
+    },
+    recordFailure: (key) => {
+      const found = entry(key);
+      if (found) {
+        found.count += 1;
+        return;
+      }
+      if (failures.size >= LOGIN_MAX_TRACKED) failures.delete(failures.keys().next().value);
+      failures.set(key, { count: 1, first: now() });
+    },
+    reset: (key) => failures.delete(key),
+  };
+}
+
+function createAuth({
+  client, store, views, group = ADMIN_GROUP, moduleName = 'administración',
+  throttle = createLoginThrottle(),
+}) {
   function loadSession(req, res, next) {
     const sid = store.readSid(req);
     const session = sid ? store.get(sid) : null;
@@ -42,7 +82,7 @@ function createAuth({ client, store, views }) {
   }
 
   function loginPage(req, res) {
-    if (req.session && req.session.user && hasGroup(req.session.groups, ADMIN_GROUP)) {
+    if (req.session && req.session.user && hasGroup(req.session.groups, group)) {
       return res.redirect(303, urlFor(req, '/'));
     }
 
@@ -74,6 +114,11 @@ function createAuth({ client, store, views }) {
       return showError(400, 'Usuario o clave demasiado largos.');
     }
 
+    const throttleKey = `${req.ip}|${usuario.toLowerCase()}`;
+    if (throttle.isBlocked(throttleKey)) {
+      return showError(429, 'Demasiados intentos fallidos. Esperá unos minutos e intentá de nuevo.');
+    }
+
     try {
       // Valida la clave contra Flowable con Basic Auth del propio usuario.
       await client('GET', `/identity/users/${encodeURIComponent(usuario)}`, {
@@ -88,19 +133,21 @@ function createAuth({ client, store, views }) {
         ? groupsResponse.data.map((group) => group && group.id).filter(Boolean)
         : [];
 
-      if (!hasGroup(groups, ADMIN_GROUP)) {
+      if (!hasGroup(groups, group)) {
         return views.forbidden(
           res,
-          'El usuario no pertenece al grupo administracion. Este módulo es solo para administración.',
+          `El usuario no pertenece al grupo ${group}. Este módulo es solo para ${moduleName}.`,
           { baseUrl: req.baseUrl || '' },
         );
       }
 
+      throttle.reset(throttleKey);
       // Rotamos el id de sesión para evitar fijación de sesión.
       store.rotate(req, res, { user: usuario, password: clave, groups });
       return res.redirect(303, urlFor(req, '/'));
     } catch (error) {
       if (error instanceof FlowableError && [401, 403, 404].includes(error.status)) {
+        throttle.recordFailure(throttleKey);
         return showError(401, 'Usuario o clave inválidos.');
       }
       return next(error);
@@ -114,12 +161,12 @@ function createAuth({ client, store, views }) {
     return res.redirect(303, urlFor(req, '/login'));
   }
 
-  function requireAdmin(req, res, next) {
+  function requireGroup(req, res, next) {
     if (!req.session || !req.session.user) {
       return res.redirect(303, urlFor(req, '/login'));
     }
-    if (!hasGroup(req.session.groups, ADMIN_GROUP)) {
-      return views.forbidden(res, 'No tenés permiso para acceder al módulo de administración.', contextFor(req));
+    if (!hasGroup(req.session.groups, group)) {
+      return views.forbidden(res, `No tenés permiso para acceder al módulo de ${moduleName}.`, contextFor(req));
     }
     return next();
   }
@@ -130,13 +177,16 @@ function createAuth({ client, store, views }) {
     loginPage,
     login,
     logout,
-    requireAdmin,
+    requireGroup,
+    requireAdmin: requireGroup,
     hasGroup,
   };
 }
 
 module.exports = {
   ADMIN_GROUP,
+  createLoginThrottle,
+  contextFor,
   createAuth,
   hasGroup,
 };

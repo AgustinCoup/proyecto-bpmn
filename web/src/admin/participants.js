@@ -5,11 +5,15 @@
  *
  * La empresa envía `participantes` como un array JSON de nombres (texto). El
  * administrativo revisa esa nómina y la guarda como lista definitiva en la
- * variable de proceso `Lista definitiva`, también como JSON. La lista sobrevive
- * al subproceso `Preparar` para que la use `Dictar`.
+ * variable de proceso `listaDefinitiva`, también como JSON.
+ *
+ * Ojo: NO se llama `Lista definitiva` (el nombre del dataObject del modelo).
+ * Esa variable es local al subproceso `Preparar` y desaparece cuando éste
+ * termina, antes de que `Dictar` pueda leerla (verificado contra Flowable 6.8).
+ * `listaDefinitiva` se crea en la instancia raíz y sobrevive.
  */
 
-const FINAL_LIST_VARIABLE = 'Lista definitiva';
+const FINAL_LIST_VARIABLE = 'listaDefinitiva';
 const MAX_PARTICIPANTS = 500;
 const MAX_PARTICIPANT_LENGTH = 200;
 
@@ -46,6 +50,9 @@ function parseParticipantes(value) {
     return { list: [], error: 'La nómina recibida no es un JSON válido.' };
   }
 
+  if (!Array.isArray(parsed)) {
+    return { list: [], error: 'La nómina recibida no es un array de nombres.' };
+  }
   return parseParticipantes(parsed);
 }
 

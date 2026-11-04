@@ -146,24 +146,34 @@ async function claimTask(client, auth, taskId) {
   });
 }
 
-async function completeTask(client, auth, taskId) {
-  return client('POST', `/runtime/tasks/${encodeURIComponent(taskId)}`, {
-    body: { action: 'complete' },
-    auth,
-  });
+function restType(value) {
+  if (typeof value === 'boolean') return 'boolean';
+  if (Number.isInteger(value)) return 'integer';
+  return 'string';
 }
 
-async function setProcessVariables(client, auth, processInstanceId, variables) {
-  const entries = Object.entries(variables || {}).map(([name, value]) => ({
+function toRestVariables(variables) {
+  return Object.entries(variables || {}).map(([name, value]) => ({
     name,
-    type: typeof value === 'boolean' ? 'boolean' : 'string',
+    type: restType(value),
     value,
   }));
-  return client(
-    'POST',
-    `/runtime/process-instances/${encodeURIComponent(processInstanceId)}/variables`,
-    { body: entries, auth },
-  );
+}
+
+/**
+ * Completa la tarea. Las variables viajan en la misma llamada, así que el
+ * motor las escribe y avanza el proceso en una sola transacción: si algo falla
+ * no queda nada a medias y el formulario se puede reenviar sin conflictos
+ * (un `POST .../variables` devuelve 409 si la variable ya existe).
+ */
+async function completeTask(client, auth, taskId, variables) {
+  const body = { action: 'complete' };
+  const entries = toRestVariables(variables);
+  if (entries.length) body.variables = entries;
+  return client('POST', `/runtime/tasks/${encodeURIComponent(taskId)}`, {
+    body,
+    auth,
+  });
 }
 
 module.exports = {
@@ -175,7 +185,6 @@ module.exports = {
   canClaimTask,
   claimTask,
   completeTask,
-  setProcessVariables,
   normalizeTask,
   resolveBusinessKeys,
   taskQuery,

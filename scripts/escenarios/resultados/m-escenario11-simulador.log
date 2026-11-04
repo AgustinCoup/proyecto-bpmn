@@ -1,0 +1,32 @@
+== Simulador de comunicaciones de la empresa ==
+
+Solicitudes activas:
+  1) instancia 47171bde-d861-11f1-b5d0-c2a75c28cbc1 | businessKey 811 | cursoId 811 | empresaId 1 | estado EN_ACUERDO
+     proceso: Organizar curso de capacitación | iniciada: 2026-11-04T15:06:14.132Z
+Elegi una solicitud (numero, r para actualizar, q para salir): 
+Solicitud: instancia 47171bde-d861-11f1-b5d0-c2a75c28cbc1 | businessKey 811 | cursoId 811 | empresaId 1 | estado EN_ACUERDO
+
+  Actividades activas: Plazo, Aceptar, Rechazar, Modificar
+  Mensajes esperando: Aceptación, Rechazo, Solicitud de modificaciones
+  Comunicaciones habilitadas:
+    1) Aceptar la propuesta (variable: fechaCurso)
+    2) Rechazar la propuesta
+    3) Pedir modificaciones (variable: observaciones)
+Elegi una accion (numero, r para actualizar, q para volver): Fecha acordada (ISO 8601 con zona, ej. 2026-12-01T09:00:00Z): Comunicacion enviada: Aceptar la propuesta.
+Enter para actualizar el estado...
+  Actividades activas: Preparar, Event_1g4xmqo, Nomina, Material, Activity_12i2hpf
+  Mensajes esperando: Cancelación
+  Comunicaciones habilitadas:
+    1) Enviar nomina de participantes (variable: participantes)
+    2) Cancelar durante la preparacion
+Elegi una accion (numero, r para actualizar, q para volver): Nomina de participantes (JSON array, ej. ["Ana","Beto"]): Comunicacion enviada: Enviar nomina de participantes.
+Enter para actualizar el estado...
+  Actividades activas: Preparar, Event_1g4xmqo, Lista, Material, Activity_12i2hpf
+  Mensajes esperando: Cancelación
+  Comunicaciones habilitadas:
+    1) Cancelar durante la preparacion
+Elegi una accion (numero, r para actualizar, q para volver): 
+Solicitudes activas:
+  1) instancia 47171bde-d861-11f1-b5d0-c2a75c28cbc1 | businessKey 811 | cursoId 811 | empresaId 1 | estado EN_PREPARACION
+     proceso: Organizar curso de capacitación | iniciada: 2026-11-04T15:06:14.132Z
+Elegi una solicitud (numero, r para actualizar, q para salir): 

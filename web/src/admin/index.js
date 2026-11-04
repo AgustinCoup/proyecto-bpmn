@@ -5,30 +5,34 @@ const express = require('express');
 const { FlowableError, createFlowableRest } = require('./flowable-rest');
 const { createSessionStore } = require('./session');
 const { createAuth } = require('./auth');
+const { TASK_ID_PATTERN, createClaimHandler, viewContext } = require('./claim');
+const {
+  asyncHandler, mountFallbacks, resolveCourseForTask, securityHeaders,
+} = require('./router-common');
 const { createViews } = require('./views');
 const { createCourseStore } = require('./courses');
+const { createReportStore, parseReportId, sendReportPdf } = require('./reports');
+const { sendReportForm } = require('./views-report');
 const { formValuesFromCourse, parseProposal } = require('./proposal');
 const { reviewContext } = require('./review');
 const { ARCHIVE_TASK_KEY, archiveContext } = require('./archive');
-const { parseLista, parseParticipantes, serializeList, formValuesFromList } = require('./participants');
+const {
+  FINAL_LIST_VARIABLE, parseLista, parseParticipantes, serializeList, formValuesFromList,
+} = require('./participants');
 const { parseResources, resourceValuesFromVariables } = require('./resources');
 const {
   fetchTasks,
   fetchTask,
-  fetchIdentityLinks,
   fetchProcessVariables,
-  canClaimTask,
-  claimTask,
   completeTask,
-  setProcessVariables,
 } = require('./tasks');
 
-const TASK_ID_PATTERN = /^[A-Za-z0-9_-]{1,100}$/;
-const COURSE_ID_PATTERN = /^[1-9]\d{0,8}$/;
 const PROPOSAL_TASK_KEY = 'Propuesta';
 const REVIEW_TASK_KEY = 'Revisar';
 const LIST_TASK_KEY = 'Lista';
 const RESOURCE_TASK_KEY = 'Activity_12i2hpf';
+const SEND_REPORT_TASK_KEY = 'EnviarInforme';
+const REPORT_FILE_PATTERN = /^(\d{1,9})\.pdf$/;
 const PROPOSAL_FORM_TASKS = new Set([PROPOSAL_TASK_KEY, REVIEW_TASK_KEY]);
 
 const DEFAULT_CONFIG = {
@@ -40,39 +44,16 @@ const DEFAULT_CONFIG = {
   cookieSecure: process.env.NODE_ENV === 'production',
   maxTasks: 100,
   databaseUrl: process.env.INSTITUCION_DATABASE_URL || null,
+  flowableUiUrl: process.env.FLOWABLE_UI_URL || 'http://localhost:8081/flowable-ui',
 };
 
-function asyncHandler(handler) {
-  return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
-}
-
-function viewContext(req) {
-  return {
-    baseUrl: req.baseUrl || '',
-    user: req.session ? req.session.user : null,
-    groups: req.session ? req.session.groups : [],
-    csrf: req.session ? req.session.csrfToken : null,
-  };
-}
-
-async function resolveCourseForTask(client, auth, task, courses) {
-  if (!task.processInstanceId) return { error: 'invalid-course-id' };
-
-  const instance = await client(
-    'GET',
-    `/runtime/process-instances/${encodeURIComponent(task.processInstanceId)}`,
-    { auth },
-  );
-  const rawKey = instance && instance.businessKey !== undefined && instance.businessKey !== null
-    ? String(instance.businessKey).trim()
-    : '';
-  if (!COURSE_ID_PATTERN.test(rawKey)) return { error: 'invalid-course-id' };
-
-  const courseId = Number(rawKey);
-  const course = await courses.findById(courseId);
-  if (!course) return { error: 'course-not-found' };
-
-  return { courseId, course };
+/** Id del informe guardado (variable `informePdf`) solo si existe en la base. */
+async function findSavedReportId(client, auth, task, reports) {
+  const variables = await fetchProcessVariables(client, auth, task.processInstanceId);
+  const reportId = parseReportId(variables.get('informePdf'));
+  if (!reportId) return null;
+  const report = await reports.findById(reportId);
+  return report ? reportId : null;
 }
 
 function createAdminRouter(options = {}) {
@@ -90,18 +71,15 @@ function createAdminRouter(options = {}) {
   const courses = options.courses || createCourseStore({
     connectionString: config.databaseUrl || undefined,
   });
-  const views = createViews(config);
+  const reports = options.reports || createReportStore({
+    connectionString: config.databaseUrl || undefined,
+  });
+  const views = { ...createViews(config), sendReportForm };
   const auth = createAuth({ client, store, views });
 
   const router = express.Router();
 
-  router.use((req, res, next) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Referrer-Policy', 'same-origin');
-    res.setHeader('Cache-Control', 'no-store');
-    next();
-  });
+  router.use(securityHeaders);
   router.use(express.urlencoded({ extended: false, limit: '100kb' }));
   router.use(auth.loadSession);
 
@@ -123,48 +101,21 @@ function createAdminRouter(options = {}) {
     }));
   }));
 
-  router.post('/tasks/:id/claim', auth.requireAdmin, auth.csrf, asyncHandler(async (req, res) => {
-    const taskId = req.params.id;
-    const context = viewContext(req);
-
-    if (!TASK_ID_PATTERN.test(taskId)) {
-      return views.badRequest(res, 'El identificador de la tarea no es válido.', context);
-    }
-
-    const credentials = { user: req.session.user, password: req.session.password };
-    const task = await fetchTask(client, credentials, taskId);
-
-    if (task.assignee && task.assignee !== req.session.user) {
-      return views.forbidden(res, 'La tarea ya está asignada a otra persona.', context);
-    }
-
-    if (task.assignee === req.session.user) {
-      store.setFlash(req.session, 'ok', 'La tarea ya estaba asignada a vos.');
-      return res.redirect(303, `${req.baseUrl || ''}/`);
-    }
-
-    const links = await fetchIdentityLinks(client, credentials, taskId);
-    if (!canClaimTask(task, links, req.session.user, req.session.groups)) {
-      return views.forbidden(
-        res,
-        'No podés reclamar esta tarea: no es candidata para tu usuario ni para tu grupo.',
-        context,
-      );
-    }
-
-    try {
-      await claimTask(client, credentials, taskId);
-    } catch (error) {
-      if (error instanceof FlowableError && error.status === 409) {
-        store.setFlash(req.session, 'error', 'Otra persona reclamó la tarea antes que vos.');
-        return res.redirect(303, `${req.baseUrl || ''}/`);
-      }
-      throw error;
-    }
-
-    store.setFlash(req.session, 'ok', 'Tarea reclamada. Ahora está asignada a vos.');
-    return res.redirect(303, `${req.baseUrl || ''}/`);
+  router.get('/informes/:file', auth.requireAdmin, asyncHandler(async (req, res) => {
+    const match = REPORT_FILE_PATTERN.exec(req.params.file);
+    const reportId = match ? parseReportId(match[1]) : null;
+    if (!reportId) return views.badRequest(res, 'El identificador del informe no es válido.', viewContext(req));
+    const report = await reports.findById(reportId);
+    if (!report || !sendReportPdf(res, report)) return views.notFound(res, viewContext(req));
+    return undefined;
   }));
+
+  router.post(
+    '/tasks/:id/claim',
+    auth.requireAdmin,
+    auth.csrf,
+    asyncHandler(createClaimHandler({ client, store, views })),
+  );
 
   router.get('/tasks/:id', auth.requireAdmin, asyncHandler(async (req, res) => {
     const taskId = req.params.id;
@@ -207,6 +158,21 @@ function createAdminRouter(options = {}) {
       }));
     }
 
+    if (task.taskDefinitionKey === SEND_REPORT_TASK_KEY) {
+      const resolvedReport = await resolveCourseForTask(client, credentials, task, courses);
+      if (resolvedReport.error === 'course-not-found') return views.courseNotFound(res, context);
+      if (resolvedReport.error) {
+        return views.badRequest(res, 'El curso asociado a la tarea no es válido.', context);
+      }
+      const reportId = await findSavedReportId(client, credentials, task, reports);
+      return res.status(200).send(views.sendReportForm({
+        ...context,
+        task,
+        course: resolvedReport.course,
+        reportId,
+      }));
+    }
+
     if (task.taskDefinitionKey === LIST_TASK_KEY || task.taskDefinitionKey === RESOURCE_TASK_KEY) {
       const variables = await fetchProcessVariables(
         client,
@@ -231,7 +197,7 @@ function createAdminRouter(options = {}) {
     }
 
     if (!PROPOSAL_FORM_TASKS.has(task.taskDefinitionKey)) {
-      return res.status(200).send(views.taskUnsupported({ ...context, task }));
+      return res.status(200).send(views.taskUnsupported({ ...context, task, flowableUiUrl: config.flowableUiUrl }));
     }
 
     const resolved = await resolveCourseForTask(client, credentials, task, courses);
@@ -282,9 +248,10 @@ function createAdminRouter(options = {}) {
     }
 
     const isArchive = task.taskDefinitionKey === ARCHIVE_TASK_KEY;
+    const isSendReport = task.taskDefinitionKey === SEND_REPORT_TASK_KEY;
     const isList = task.taskDefinitionKey === LIST_TASK_KEY;
     const isResources = task.taskDefinitionKey === RESOURCE_TASK_KEY;
-    if (!isArchive && !isList && !isResources && !PROPOSAL_FORM_TASKS.has(task.taskDefinitionKey)) {
+    if (!isArchive && !isSendReport && !isList && !isResources && !PROPOSAL_FORM_TASKS.has(task.taskDefinitionKey)) {
       return views.badRequest(
         res,
         'Esta tarea todavía no tiene formulario en el sitio.',
@@ -330,15 +297,35 @@ function createAdminRouter(options = {}) {
       return res.redirect(303, `${req.baseUrl || ''}/`);
     }
 
+    if (isSendReport) {
+      const reportId = await findSavedReportId(client, credentials, task, reports);
+      if (!reportId) {
+        return res.status(409).send(views.sendReportForm({
+          ...context, task, course: resolved.course, reportId: null,
+        }));
+      }
+      try {
+        await completeTask(client, credentials, taskId);
+      } catch (error) {
+        if (error instanceof FlowableError && error.status === 409) {
+          store.setFlash(req.session, 'error', 'La tarea ya había sido completada.');
+          return res.redirect(303, `${req.baseUrl || ''}/`);
+        }
+        throw error;
+      }
+      store.setFlash(req.session, 'ok', 'Informe enviado a la empresa. El expediente quedó archivado.');
+      return res.redirect(303, `${req.baseUrl || ''}/`);
+    }
+
     if (isList || isResources) {
-      const variables = await fetchProcessVariables(
-        client,
-        credentials,
-        task.processInstanceId,
-      );
       const parsed = isList ? parseLista(req.body) : parseResources(req.body);
       if (!parsed.valid) {
         if (isList) {
+          const variables = await fetchProcessVariables(
+            client,
+            credentials,
+            task.processInstanceId,
+          );
           const source = parseParticipantes(variables.get('participantes'));
           return res.status(400).send(views.listForm({
             ...context,
@@ -358,16 +345,10 @@ function createAdminRouter(options = {}) {
       }
 
       const processVariables = isList
-        ? { 'Lista definitiva': serializeList(parsed.list) }
+        ? { [FINAL_LIST_VARIABLE]: serializeList(parsed.list) }
         : parsed.resources;
       try {
-        await setProcessVariables(
-          client,
-          credentials,
-          task.processInstanceId,
-          processVariables,
-        );
-        await completeTask(client, credentials, taskId);
+        await completeTask(client, credentials, taskId, processVariables);
       } catch (error) {
         if (error instanceof FlowableError && error.status === 409) {
           store.setFlash(req.session, 'error', 'La tarea ya había sido completada.');
@@ -437,32 +418,7 @@ function createAdminRouter(options = {}) {
     return res.redirect(303, `${req.baseUrl || ''}/`);
   }));
 
-  router.use((req, res) => views.notFound(res, viewContext(req)));
-
-  router.use((error, req, res, next) => {
-    if (res.headersSent) return next(error);
-
-    if (error instanceof FlowableError) {
-      if (error.status === 401) {
-        const sid = store.readSid(req);
-        if (sid) store.destroy(sid);
-        store.clearCookie(res);
-        return res.redirect(303, `${req.baseUrl || ''}/login?expirada=1`);
-      }
-      if (error.status === 404) {
-        return views.taskNotFound(res, viewContext(req));
-      }
-      console.error(`[admin] Flowable respondió ${error.status}: ${error.message}`);
-      return views.badGateway(
-        res,
-        'No se pudo consultar Flowable. Verificá que el servidor esté disponible e intentá de nuevo.',
-        viewContext(req),
-      );
-    }
-
-    console.error('[admin] Error inesperado:', error && error.stack ? error.stack : error);
-    return views.error(res, 'Ocurrió un error inesperado.', viewContext(req));
-  });
+  mountFallbacks(router, { store, views, label: 'admin' });
 
   return router;
 }

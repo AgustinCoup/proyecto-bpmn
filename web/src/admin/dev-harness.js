@@ -16,15 +16,17 @@ require('./dev/register-deps');
 
 const express = require('express');
 const adminRouter = require('./index');
+const docentesRouter = require('../docentes');
 
 const app = express();
 app.disable('x-powered-by');
 app.use('/admin', adminRouter);
+app.use('/docentes', docentesRouter);
 app.get('/', (req, res) => res.redirect('/admin/'));
 
 const port = Number(process.env.PORT) || 3000;
 const server = app.listen(port, () => {
-  console.log(`[admin] Arnés en http://localhost:${port}/admin/login`);
+  console.log(`[admin] Arnés en http://localhost:${port}/admin/login y /docentes/login`);
   console.log(`[admin] Flowable: ${process.env.FLOWABLE_URL || 'http://localhost:8080/flowable-rest/service'}`);
 });
 

@@ -7,9 +7,7 @@
  * para que las pruebas y las pantallas que no tocan la base no necesiten `pg`.
  */
 
-const DEFAULT_DATABASE_URL = process.env.INSTITUCION_DATABASE_URL
-  || process.env.DATABASE_URL
-  || 'postgresql://institucion:institucion@localhost:5432/institucion';
+const { DEFAULT_DATABASE_URL, createPoolProvider } = require('./db');
 
 const COURSE_COLUMNS = [
   'id',
@@ -29,24 +27,7 @@ const COURSE_COLUMNS = [
 ].join(', ');
 
 function createCourseStore({ pool = null, connectionString = DEFAULT_DATABASE_URL } = {}) {
-  let activePool = pool;
-  let ownsPool = false;
-
-  function getPool() {
-    if (activePool) return activePool;
-
-    let pg;
-    try {
-      // Se carga solo cuando hace falta: el arnés instala `pg` en dev/.
-      pg = require('pg');
-    } catch {
-      throw new Error('Falta la dependencia "pg" para acceder a la base institucion.');
-    }
-
-    activePool = new pg.Pool({ connectionString, max: 4 });
-    ownsPool = true;
-    return activePool;
-  }
+  const { getPool, close } = createPoolProvider({ pool, connectionString });
 
   async function findById(courseId) {
     const result = await getPool().query(
@@ -76,14 +57,6 @@ function createCourseStore({ pool = null, connectionString = DEFAULT_DATABASE_UR
       ],
     );
     return result && Array.isArray(result.rows) ? result.rows[0] || null : null;
-  }
-
-  async function close() {
-    if (!ownsPool || !activePool || typeof activePool.end !== 'function') return;
-    const poolToClose = activePool;
-    activePool = null;
-    ownsPool = false;
-    await poolToClose.end();
   }
 
   return {

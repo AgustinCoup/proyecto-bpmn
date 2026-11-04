@@ -147,7 +147,7 @@ test('GET rechaza una tarea que no está asignada al usuario', async (t) => {
 
 test('GET de una tarea asignada sin formulario muestra un aviso', async (t) => {
   const client = proposalClient({
-    task: { ...PROPOSAL_TASK, name: 'Enviar informe', taskDefinitionKey: 'EnviarInforme' },
+    task: { ...PROPOSAL_TASK, name: 'Enviar informe', taskDefinitionKey: 'TareaDesconocida' },
   });
   const courses = fakeCourses();
   const app = await startApp({ client, courses });
@@ -160,6 +160,22 @@ test('GET de una tarea asignada sin formulario muestra un aviso', async (t) => {
   assert.match(detail.text, /Enviar informe/);
   assert.match(detail.text, /todavía no tiene formulario/);
   assert.deepEqual(courses.calls.find, []);
+});
+
+test('GET de una tarea de la UI de Flowable enlaza a esa interfaz', async (t) => {
+  const client = proposalClient({
+    task: { ...PROPOSAL_TASK, name: 'Preparar materiales', taskDefinitionKey: 'Material' },
+  });
+  const app = await startApp({ client, courses: fakeCourses() });
+  t.after(() => app.close());
+
+  const { cookie } = await loginAndToken(app);
+  const detail = await request(app.base, '/admin/tasks/t1', { cookie });
+
+  assert.equal(detail.status, 200);
+  assert.match(detail.text, /interfaz de Flowable/);
+  assert.match(detail.text, /href="http:\/\/localhost:8081\/flowable-ui"/);
+  assert.match(detail.text, /rel="noopener noreferrer"/);
 });
 
 test('GET valida el id de tarea y el businessKey del curso', async (t) => {
@@ -269,7 +285,7 @@ test('POST rechaza tareas ajenas, sin formulario o sin CSRF', async (t) => {
   assert.deepEqual(otherCourses.calls.save, []);
 
   const unsupportedClient = proposalClient({
-    task: { ...PROPOSAL_TASK, taskDefinitionKey: 'EnviarInforme' },
+    task: { ...PROPOSAL_TASK, taskDefinitionKey: 'Material' },
   });
   const unsupportedCourses = fakeCourses();
   const unsupportedApp = await startApp({ client: unsupportedClient, courses: unsupportedCourses });
