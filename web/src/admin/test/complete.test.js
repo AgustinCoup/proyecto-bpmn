@@ -42,6 +42,17 @@ const REVIEW_VARIABLES = [
   { name: 'propuestaVersion', type: 'integer', value: 1 },
 ];
 
+const ARCHIVE_TASK = {
+  ...PROPOSAL_TASK,
+  id: 't3',
+  name: 'Archivar solicitud',
+  taskDefinitionKey: 'Archivar',
+};
+
+const ARCHIVE_VARIABLES = [
+  { name: 'resultado', type: 'string', value: 'SIN_RESPUESTA' },
+];
+
 function proposalClient({
   task = PROPOSAL_TASK,
   businessKey = '1',
@@ -136,7 +147,7 @@ test('GET rechaza una tarea que no está asignada al usuario', async (t) => {
 
 test('GET de una tarea asignada sin formulario muestra un aviso', async (t) => {
   const client = proposalClient({
-    task: { ...PROPOSAL_TASK, name: 'Archivar solicitud', taskDefinitionKey: 'Archivar' },
+    task: { ...PROPOSAL_TASK, name: 'Enviar informe', taskDefinitionKey: 'EnviarInforme' },
   });
   const courses = fakeCourses();
   const app = await startApp({ client, courses });
@@ -146,7 +157,7 @@ test('GET de una tarea asignada sin formulario muestra un aviso', async (t) => {
   const detail = await request(app.base, '/admin/tasks/t1', { cookie });
 
   assert.equal(detail.status, 200);
-  assert.match(detail.text, /Archivar solicitud/);
+  assert.match(detail.text, /Enviar informe/);
   assert.match(detail.text, /todavía no tiene formulario/);
   assert.deepEqual(courses.calls.find, []);
 });
@@ -258,7 +269,7 @@ test('POST rechaza tareas ajenas, sin formulario o sin CSRF', async (t) => {
   assert.deepEqual(otherCourses.calls.save, []);
 
   const unsupportedClient = proposalClient({
-    task: { ...PROPOSAL_TASK, taskDefinitionKey: 'Archivar' },
+    task: { ...PROPOSAL_TASK, taskDefinitionKey: 'EnviarInforme' },
   });
   const unsupportedCourses = fakeCourses();
   const unsupportedApp = await startApp({ client: unsupportedClient, courses: unsupportedCourses });
@@ -494,4 +505,154 @@ test('GET de Revisar responde 502 si no puede leer las variables del proceso', a
 
   assert.equal(detail.status, 502);
   assert.match(detail.text, /Flowable no está disponible/);
+});
+
+test('GET de una tarea Archivar muestra el resultado y la propuesta', async (t) => {
+  const client = proposalClient({ task: ARCHIVE_TASK, variables: ARCHIVE_VARIABLES });
+  const courses = fakeCourses({ course: { ...COURSE, estado: 'EN_PROCESO' } });
+  const app = await startApp({ client, courses });
+  t.after(() => app.close());
+
+  const { cookie } = await loginAndToken(app);
+  const detail = await request(app.base, '/admin/tasks/t3', { cookie });
+
+  assert.equal(detail.status, 200);
+  assert.match(detail.text, /Archivar solicitud/);
+  assert.match(detail.text, /Curso #1 · Seguridad e Higiene/);
+  assert.match(detail.text, /SIN_RESPUESTA/);
+  assert.match(detail.text, /no respondió después de dos recordatorios/);
+  assert.match(detail.text, /Curso de seguridad/);
+  assert.match(detail.text, /\$ 150000\.00/);
+  assert.match(detail.text, /action="\/admin\/tasks\/t3\/complete"/);
+  assert.match(detail.text, /Archivar solicitud y cerrar/);
+  assert.ok(client.calls.some((call) => call.path === '/runtime/process-instances/pi1/variables'));
+});
+
+test('GET de Archivar con un resultado inesperado no ofrece completar', async (t) => {
+  const client = proposalClient({
+    task: ARCHIVE_TASK,
+    variables: [{ name: 'resultado', value: 'FINALIZADO' }],
+  });
+  const courses = fakeCourses();
+  const app = await startApp({ client, courses });
+  t.after(() => app.close());
+
+  const { cookie } = await loginAndToken(app);
+  const detail = await request(app.base, '/admin/tasks/t3', { cookie });
+
+  assert.equal(detail.status, 200);
+  assert.match(detail.text, /no está en un estado archivable/);
+  assert.match(detail.text, /FINALIZADO/);
+  assert.ok(!detail.text.includes('/admin/tasks/t3/complete'));
+});
+
+test('GET de Archivar valida el businessKey y la existencia del curso', async (t) => {
+  const badClient = proposalClient({ task: ARCHIVE_TASK, businessKey: 'no-numero' });
+  const badCourses = fakeCourses();
+  const badApp = await startApp({ client: badClient, courses: badCourses });
+  t.after(() => badApp.close());
+
+  const badSession = await loginAndToken(badApp);
+  const badCourse = await request(badApp.base, '/admin/tasks/t3', { cookie: badSession.cookie });
+  assert.equal(badCourse.status, 400);
+  assert.match(badCourse.text, /curso asociado a la tarea no es válido/);
+
+  const missingClient = proposalClient({ task: ARCHIVE_TASK });
+  const missingCourses = fakeCourses({ course: null });
+  const missingApp = await startApp({ client: missingClient, courses: missingCourses });
+  t.after(() => missingApp.close());
+
+  const missingSession = await loginAndToken(missingApp);
+  const missing = await request(missingApp.base, '/admin/tasks/t3', { cookie: missingSession.cookie });
+  assert.equal(missing.status, 404);
+  assert.match(missing.text, /Curso no encontrado/);
+});
+
+test('POST válido de Archivar completa la tarea sin tocar la base', async (t) => {
+  const client = proposalClient({ task: ARCHIVE_TASK, variables: ARCHIVE_VARIABLES });
+  const courses = fakeCourses();
+  const app = await startApp({ client, courses });
+  t.after(() => app.close());
+
+  const { cookie, csrf } = await loginAndToken(app);
+  const completed = await request(app.base, '/admin/tasks/t3/complete', {
+    method: 'POST',
+    cookie,
+    form: { _csrf: csrf },
+  });
+
+  assert.equal(completed.status, 303);
+  assert.equal(completed.location, '/admin/');
+  assert.deepEqual(courses.calls.save, []);
+
+  const post = client.calls.find((call) => call.method === 'POST' && call.path === '/runtime/tasks/t3');
+  assert.deepEqual(post.options.body, { action: 'complete' });
+
+  const home = await request(app.base, '/admin/', { cookie });
+  assert.match(home.text, /Solicitud archivada/);
+  assert.match(home.text, /expediente quedó cerrado/);
+});
+
+test('POST de Archivar con resultado inesperado responde 409 y no completa', async (t) => {
+  const client = proposalClient({
+    task: ARCHIVE_TASK,
+    variables: [{ name: 'resultado', value: 'FINALIZADO' }],
+  });
+  const courses = fakeCourses();
+  const app = await startApp({ client, courses });
+  t.after(() => app.close());
+
+  const { cookie, csrf } = await loginAndToken(app);
+  const completed = await request(app.base, '/admin/tasks/t3/complete', {
+    method: 'POST',
+    cookie,
+    form: { _csrf: csrf },
+  });
+
+  assert.equal(completed.status, 409);
+  assert.match(completed.text, /no está en un estado archivable/);
+  assert.ok(!client.calls.some((call) => call.method === 'POST' && call.path === '/runtime/tasks/t3'));
+});
+
+test('POST de Archivar si Flowable responde 409 avisa que ya se completó', async (t) => {
+  const client = proposalClient({
+    task: ARCHIVE_TASK,
+    variables: ARCHIVE_VARIABLES,
+    completeError: new FlowableError('Conflict', { status: 409 }),
+  });
+  const courses = fakeCourses();
+  const app = await startApp({ client, courses });
+  t.after(() => app.close());
+
+  const { cookie, csrf } = await loginAndToken(app);
+  const completed = await request(app.base, '/admin/tasks/t3/complete', {
+    method: 'POST',
+    cookie,
+    form: { _csrf: csrf },
+  });
+
+  assert.equal(completed.status, 303);
+  const home = await request(app.base, '/admin/', { cookie });
+  assert.match(home.text, /La tarea ya había sido completada/);
+});
+
+test('POST de Archivar si Flowable falla muestra 502', async (t) => {
+  const client = proposalClient({
+    task: ARCHIVE_TASK,
+    variables: ARCHIVE_VARIABLES,
+    completeError: new FlowableError('sin conexión', { status: 502 }),
+  });
+  const courses = fakeCourses();
+  const app = await startApp({ client, courses });
+  t.after(() => app.close());
+
+  const { cookie, csrf } = await loginAndToken(app);
+  const completed = await request(app.base, '/admin/tasks/t3/complete', {
+    method: 'POST',
+    cookie,
+    form: { _csrf: csrf },
+  });
+
+  assert.equal(completed.status, 502);
+  assert.match(completed.text, /Flowable no está disponible/);
 });

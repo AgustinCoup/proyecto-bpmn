@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  archiveForm,
   createViews,
   escapeHtml,
   formatDate,
@@ -176,6 +177,56 @@ test('reviewForm muestra observaciones y versión, y escapa todo', () => {
   assert.match(without, /No se pudo leer la versión actual/);
 });
 
+test('archiveForm muestra el resultado, la propuesta y permite archivar', () => {
+  const html = archiveForm({
+    baseUrl: '/admin',
+    user: 'jefeAdmin',
+    groups: ['administracion'],
+    csrf: 't',
+    task: { id: 't3', name: 'Archivar solicitud' },
+    course: {
+      id: 9,
+      tematica: '<i>Curso</i>',
+      nombre: '<b>Nombre</b>',
+      presupuesto: '123456.78',
+      fecha_inicio: '2026-12-01T00:00:00.000Z',
+      fecha_fin: '2026-12-15T00:00:00.000Z',
+      estado: 'EN_PROCESO',
+    },
+    result: 'SIN_RESPUESTA',
+    resultLabel: 'La empresa no respondió después de dos recordatorios.',
+    archivable: true,
+  });
+
+  assert.ok(!html.includes('<i>Curso</i>'));
+  assert.ok(!html.includes('<b>Nombre</b>'));
+  assert.match(html, /&lt;i&gt;Curso&lt;\/i&gt;/);
+  assert.match(html, /&lt;b&gt;Nombre&lt;\/b&gt;/);
+  assert.match(html, /SIN_RESPUESTA/);
+  assert.match(html, /no respondió después de dos recordatorios/);
+  assert.match(html, /\$ 123456\.78/);
+  assert.match(html, /action="\/admin\/tasks\/t3\/complete"/);
+  assert.match(html, /Archivar solicitud y cerrar/);
+});
+
+test('archiveForm bloquea resultados que no se pueden archivar', () => {
+  const html = archiveForm({
+    baseUrl: '/admin',
+    user: 'jefeAdmin',
+    csrf: 't',
+    task: { id: 't3', name: 'Archivar solicitud' },
+    course: { id: 9 },
+    result: 'FINALIZADO',
+    resultLabel: 'El proceso llegó a archivar sin un resultado conocido.',
+    archivable: false,
+  });
+
+  assert.match(html, /no está en un estado archivable/);
+  assert.match(html, /FINALIZADO/);
+  assert.ok(!html.includes('/admin/tasks/t3/complete'));
+  assert.match(html, /Volver a mis tareas/);
+});
+
 test('home etiqueta la acción de Revisar', () => {
   const html = createViews().home({
     baseUrl: '/admin',
@@ -184,6 +235,14 @@ test('home etiqueta la acción de Revisar', () => {
     tasks: [{ id: 't2', name: 'Revisar propuesta', taskDefinitionKey: 'Revisar', claimable: false }],
   });
   assert.match(html, /href="\/admin\/tasks\/t2">Revisar<\/a>/);
+
+  const archive = createViews().home({
+    baseUrl: '/admin',
+    user: 'jefeAdmin',
+    csrf: 't',
+    tasks: [{ id: 't3', name: 'Archivar solicitud', taskDefinitionKey: 'Archivar', claimable: false }],
+  });
+  assert.match(archive, /href="\/admin\/tasks\/t3">Archivar<\/a>/);
 });
 
 test('taskUnsupported muestra la tarea y el aviso', () => {

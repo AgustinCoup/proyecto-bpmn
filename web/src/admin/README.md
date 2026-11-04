@@ -4,11 +4,11 @@ Pantallas del sitio de la institución para el rol `administracion`. Cubre las t
 usuario de la sección 4.1.3 de la consigna y el escenario 8. Este módulo es dueño de
 `web/src/admin/`; el esqueleto del sitio lo monta en `/admin`.
 
-> **Estado actual: corte 4.** Login contra Flowable, sesión firmada, detección de rol,
-> lista de tareas, reclamo de tareas candidatas y los **formularios de `Propuesta` y
-> `Revisar`**, que guardan los datos en la tabla `curso` y completan la tarea. Los demás
-> formularios llegan en los cortes siguientes. No se genera el PDF de la propuesta: está
-> fuera del alcance.
+> **Estado actual: corte 5.** Login contra Flowable, sesión firmada, detección de rol,
+> lista de tareas, reclamo de tareas candidatas y los **formularios de `Propuesta`,
+> `Revisar` y `Archivar`**. Los dos primeros guardan los datos en la tabla `curso`; el
+> último confirma el cierre. Los demás formularios llegan en los cortes siguientes. No se
+> genera el PDF de la propuesta: está fuera del alcance.
 
 ## Cómo se prueba (mientras no exista el esqueleto)
 
@@ -50,7 +50,7 @@ node --test test/*.test.js
 node --test --experimental-test-coverage test/*.test.js
 ```
 
-Cobertura del corte 4: **98,68 % de líneas** y **89,59 % de ramas** (incluyendo archivos
+Cobertura del corte 5: **98,80 % de líneas** y **89,70 % de ramas** (incluyendo archivos
 de prueba en el reporte).
 
 ### Probar el reclamo con una tarea de verdad
@@ -183,6 +183,44 @@ node dev/revision-prueba.js borrar
 (`GET /runtime/process-instances/{id}/variables`). El sitio no las envía de vuelta: el
 task listener del modelo incrementa la versión al completar la tarea.
 
+### Probar el formulario de Archivar con una tarea de verdad
+
+`Archivar` se alcanza cuando la empresa rechaza la propuesta (`RECHAZADO`) o no responde
+después de dos recordatorios (`SIN_RESPUESTA`). El proceso temporal deja ese resultado y
+la tarea lista:
+
+```bash
+cd web/src/admin
+node dev/archivar-prueba.js                    # RECHAZADO
+node dev/archivar-prueba.js crear SIN_RESPUESTA
+```
+
+Ese comando:
+
+1. Borra cursos, instancias y deployments de pruebas anteriores del mismo tipo.
+2. Crea un curso temporal con una propuesta cargada.
+3. Despliega un proceso temporal llamado `ArchivarPrueba` que setea `resultado`.
+4. Inicia una instancia con una tarea `Archivar` asignada a `jefeAdmin`.
+5. Imprime el id del curso, de la tarea y la URL del sitio.
+
+Después, en el navegador:
+
+1. Entrá a <http://localhost:3000/admin/> con `jefeAdmin` / `test`.
+2. Buscá **“Archivar solicitud”** y hacé clic en **“Archivar”**.
+3. Esperado: ves el resultado (`RECHAZADO` o `SIN_RESPUESTA`), su explicación, el resumen
+   de la propuesta y el botón **“Archivar solicitud y cerrar”**.
+4. Confirmá. Esperado: volvés a `/admin/`, ves **“Solicitud archivada. El expediente quedó
+   cerrado.”** y la tarea desaparece.
+5. Para borrar todo:
+
+```bash
+node dev/archivar-prueba.js borrar
+```
+
+Si `resultado` no es `RECHAZADO` ni `SIN_RESPUESTA`, el sitio muestra el resultado pero no
+ofrece completar la tarea (responde 409 si se intenta por `POST`). El estado final del
+curso lo escribe el Execution Listener de fin de proceso, no el sitio.
+
 ### Qué mirar a mano (resto del corte)
 
 1. `GET /admin/login` muestra el formulario y una cookie `admin_sid` httpOnly firmada.
@@ -198,10 +236,12 @@ task listener del modelo incrementa la versión al completar la tarea.
    anterior a la de inicio sin llamar a Flowable.
 9. El formulario de `Revisar` muestra `observaciones` y `propuestaVersion` escapados, y
    aplica las mismas validaciones antes de guardar o completar.
-10. Al guardar una propuesta o una revisión válida, primero se actualiza la base y después
+10. El formulario de `Archivar` muestra `resultado` y solo permite completar si vale
+    `RECHAZADO` o `SIN_RESPUESTA`; no escribe en la base.
+11. Al guardar una propuesta o una revisión válida, primero se actualiza la base y después
     se completa la tarea en Flowable. Si Flowable falla, los datos ya quedaron guardados.
-11. Cerrar sesión: destruye la sesión del servidor y borra la cookie.
-12. Si Flowable está caído, la lista responde 502 sin filtrar credenciales.
+12. Cerrar sesión: destruye la sesión del servidor y borra la cookie.
+13. Si Flowable está caído, la lista responde 502 sin filtrar credenciales.
 
 ## Qué pantalla cubre qué tarea
 
@@ -211,10 +251,10 @@ task listener del modelo incrementa la versión al completar la tarea.
 | `/admin/` | Lista de tareas asignadas y candidatas al grupo `administracion` | Hecho |
 | `POST /admin/tasks/:id/claim` | Reclamar una tarea candidata del grupo | Hecho |
 | `GET /admin/tasks/:id` | Abrir una tarea asignada (formulario o aviso) | Hecho |
-| `POST /admin/tasks/:id/complete` | Completar una tarea asignada | Hecho para `Propuesta` y `Revisar` |
+| `POST /admin/tasks/:id/complete` | Completar una tarea asignada | Hecho para `Propuesta`, `Revisar` y `Archivar` |
 | `Propuesta` (Registrar y Elaborar propuesta, `jefeAdmin`) | Guarda nombre, programa, presupuesto y fechas en `curso` | Hecho |
 | `Revisar` (Revisar propuesta, `jefeAdmin`) | Muestra `observaciones`/`propuestaVersion` y guarda los cambios en `curso` | Hecho |
-| Próximo corte | `Archivar` (Archivar solicitud, `jefeAdmin`) | Pendiente |
+| `Archivar` (Archivar solicitud, `jefeAdmin`) | Muestra `resultado` y confirma el cierre; no escribe en la base | Hecho |
 | Próximo corte | `Lista` (Confeccionar lista definitiva, grupo `administracion`) | Pendiente |
 | Próximo corte | `Activity_12i2hpf` (Evaluar Recursos, grupo `administracion`) | Pendiente |
 | Próximo corte | `EnviarInforme` (Enviar informe, `jefeAdmin`) | Pendiente |
@@ -242,8 +282,9 @@ de Flowable (la consigna lo permite). El sitio solo las lista y enlaza.
 - El `businessKey` de la instancia se valida como id de curso numérico y la base se
   consulta con SQL parametrizado.
 - El formulario se valida en el servidor antes de tocar la base o Flowable.
-- Las variables `observaciones` y `propuestaVersion` se leen de Flowable, se acotan y se
-  escapan antes de mostrarlas; el sitio no las envía.
+- Las variables `observaciones`, `propuestaVersion` y `resultado` se leen de Flowable, se
+  validan, se acotan y se escapan antes de mostrarlas; el sitio no las envía.
+- `Archivar` solo completa la tarea si el resultado es `RECHAZADO` o `SIN_RESPUESTA`.
 - Todas las consultas a Flowable se validan del lado del servidor.
 
 ## Estructura
@@ -258,8 +299,9 @@ de Flowable (la consigna lo permite). El sitio solo las lista y enlaza.
 | `courses.js` | Acceso parametrizado a la tabla `curso`; el pool de `pg` se crea al primer uso. |
 | `proposal.js` | Validación y normalización de los formularios de `Propuesta` y `Revisar`. |
 | `review.js` | Normaliza `observaciones` y `propuestaVersion` de la tarea `Revisar`. |
+| `archive.js` | Normaliza `resultado` y decide si la solicitud se puede archivar. |
 | `views.js` | HTML mínimo con escape; se reemplaza por las vistas EJS del esqueleto. |
-| `dev-harness.js`, `dev/` | Arnés local, **no entregable**. Incluye `dev/tarea-grupo-prueba.js`, `dev/propuesta-prueba.js` y `dev/revision-prueba.js`. |
+| `dev-harness.js`, `dev/` | Arnés local, **no entregable**. Incluye `dev/tarea-grupo-prueba.js`, `dev/propuesta-prueba.js`, `dev/revision-prueba.js` y `dev/archivar-prueba.js`. |
 | `test/` | Pruebas con `node:test` y cliente REST mockeado. |
 
 Cuando aparezca el esqueleto del sitio, su `package.json` tiene que incluir `pg` (el

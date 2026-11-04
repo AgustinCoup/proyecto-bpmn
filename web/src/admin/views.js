@@ -58,6 +58,7 @@ const STYLES = `
   code { background: #eef3f7; padding: .1rem .3rem; border-radius: 4px; font-size: .85em; }
   .badge { display: inline-block; padding: .15rem .45rem; border-radius: 999px; font-size: .78rem; background: #e6eef5; color: #24455f; }
   .badge.warn { background: #fff1d6; color: #7a4a00; }
+  .badge.danger { background: #fdecec; color: #8a1f1f; }
   .actions { white-space: nowrap; }
   .stack > * + * { margin-top: .65rem; }
   .review-note { background: #f7fafc; border-left: 4px solid #1d6fa5; padding: .7rem .85rem; margin: .5rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -120,6 +121,13 @@ function login({ baseUrl = '', csrf, error, expired }) {
   });
 }
 
+function taskActionLabel(taskDefinitionKey) {
+  if (taskDefinitionKey === 'Propuesta') return 'Completar';
+  if (taskDefinitionKey === 'Revisar') return 'Revisar';
+  if (taskDefinitionKey === 'Archivar') return 'Archivar';
+  return 'Abrir';
+}
+
 function home({ baseUrl = '', user, groups = [], csrf, tasks = [], flash = null }) {
   const assigned = tasks.filter((task) => !task.claimable).length;
   const available = tasks.length - assigned;
@@ -143,7 +151,7 @@ function home({ baseUrl = '', user, groups = [], csrf, tasks = [], flash = null 
                <input type="hidden" name="_csrf" value="${escapeHtml(csrf)}">
                <button type="submit">Reclamar</button>
              </form>`
-          : `<a class="button" href="${escapeHtml(baseUrl)}/tasks/${encodeURIComponent(task.id)}">${task.taskDefinitionKey === 'Propuesta' ? 'Completar' : task.taskDefinitionKey === 'Revisar' ? 'Revisar' : 'Abrir'}</a>`}</td>
+          : `<a class="button" href="${escapeHtml(baseUrl)}/tasks/${encodeURIComponent(task.id)}">${taskActionLabel(task.taskDefinitionKey)}</a>`}</td>
       </tr>`).join('')
     : `<tr><td colspan="5" class="muted">No tenés tareas asignadas ni disponibles en este momento.</td></tr>`;
 
@@ -289,6 +297,52 @@ function reviewForm({
   });
 }
 
+function archiveForm({
+  baseUrl = '', user, groups = [], csrf, task, course = {}, result = '',
+  resultLabel: label = '', archivable = false,
+}) {
+  const budget = course.presupuesto === undefined || course.presupuesto === null || course.presupuesto === ''
+    ? '—'
+    : `$ ${course.presupuesto}`;
+  const summary = `<ul class="muted">
+        <li>Nombre: ${escapeHtml(course.nombre || '—')}</li>
+        <li>Presupuesto: ${escapeHtml(budget)}</li>
+        <li>Fechas: ${escapeHtml(formatDate(course.fecha_inicio))} — ${escapeHtml(formatDate(course.fecha_fin))}</li>
+      </ul>`;
+  const warning = archivable
+    ? ''
+    : `<p class="error">La solicitud no está en un estado archivable (resultado: <code>${escapeHtml(result || 'sin resultado')}</code>). No se puede completar desde el sitio.</p>`;
+  const action = archivable
+    ? `<form method="post" action="${escapeHtml(baseUrl)}/tasks/${encodeURIComponent(task.id)}/complete">
+        <input type="hidden" name="_csrf" value="${escapeHtml(csrf)}">
+        <div class="form-actions">
+          <button type="submit">Archivar solicitud y cerrar</button>
+          <a class="button secondary" href="${escapeHtml(baseUrl)}/">Cancelar</a>
+        </div>
+      </form>`
+    : `<p><a class="button secondary" href="${escapeHtml(baseUrl)}/">Volver a mis tareas</a></p>`;
+
+  return page({
+    title: 'Archivar solicitud',
+    baseUrl,
+    user,
+    groups,
+    csrf,
+    body: `<section class="card">
+      <h1>${escapeHtml(task.name || 'Archivar solicitud')}</h1>
+      <p class="muted">${courseLabel(course)} · Estado del curso: ${escapeHtml(course.estado || '—')}</p>
+      <h2>Resultado</h2>
+      <p><span class="badge danger">${escapeHtml(result || 'SIN RESULTADO')}</span></p>
+      <p>${escapeHtml(label)}</p>
+      <h2>Propuesta</h2>
+      ${summary}
+      <p class="muted">Al archivar, la solicitud se cierra y el curso no se dicta.</p>
+      ${warning}
+      ${action}
+    </section>`,
+  });
+}
+
 function taskUnsupported({ baseUrl = '', user, groups = [], csrf, task }) {
   return page({
     title: 'Tarea sin formulario',
@@ -309,6 +363,7 @@ function createViews() {
   return {
     login,
     home,
+    archiveForm,
     proposalForm,
     reviewForm,
     taskUnsupported,
@@ -374,6 +429,7 @@ function createViews() {
 module.exports = {
   escapeHtml,
   formatDate,
+  archiveForm,
   createViews,
   proposalForm,
   reviewForm,

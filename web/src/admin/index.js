@@ -9,6 +9,7 @@ const { createViews } = require('./views');
 const { createCourseStore } = require('./courses');
 const { formValuesFromCourse, parseProposal } = require('./proposal');
 const { reviewContext } = require('./review');
+const { ARCHIVE_TASK_KEY, archiveContext } = require('./archive');
 const {
   fetchTasks,
   fetchTask,
@@ -179,6 +180,28 @@ function createAdminRouter(options = {}) {
       );
     }
 
+    if (task.taskDefinitionKey === ARCHIVE_TASK_KEY) {
+      const resolvedArchive = await resolveCourseForTask(client, credentials, task, courses);
+      if (resolvedArchive.error === 'course-not-found') {
+        return views.courseNotFound(res, context);
+      }
+      if (resolvedArchive.error) {
+        return views.badRequest(res, 'El curso asociado a la tarea no es válido.', context);
+      }
+
+      const variables = await fetchProcessVariables(
+        client,
+        credentials,
+        task.processInstanceId,
+      );
+      return res.status(200).send(views.archiveForm({
+        ...context,
+        task,
+        course: resolvedArchive.course,
+        ...archiveContext(variables),
+      }));
+    }
+
     if (!PROPOSAL_FORM_TASKS.has(task.taskDefinitionKey)) {
       return res.status(200).send(views.taskUnsupported({ ...context, task }));
     }
@@ -230,15 +253,14 @@ function createAdminRouter(options = {}) {
       );
     }
 
-    if (!PROPOSAL_FORM_TASKS.has(task.taskDefinitionKey)) {
+    const isArchive = task.taskDefinitionKey === ARCHIVE_TASK_KEY;
+    if (!isArchive && !PROPOSAL_FORM_TASKS.has(task.taskDefinitionKey)) {
       return views.badRequest(
         res,
         'Esta tarea todavía no tiene formulario en el sitio.',
         context,
       );
     }
-
-    const isReview = task.taskDefinitionKey === REVIEW_TASK_KEY;
 
     const resolved = await resolveCourseForTask(client, credentials, task, courses);
     if (resolved.error === 'course-not-found') {
@@ -247,6 +269,38 @@ function createAdminRouter(options = {}) {
     if (resolved.error) {
       return views.badRequest(res, 'El curso asociado a la tarea no es válido.', context);
     }
+
+    if (isArchive) {
+      const variables = await fetchProcessVariables(
+        client,
+        credentials,
+        task.processInstanceId,
+      );
+      const archive = archiveContext(variables);
+      if (!archive.archivable) {
+        return res.status(409).send(views.archiveForm({
+          ...context,
+          task,
+          course: resolved.course,
+          ...archive,
+        }));
+      }
+
+      try {
+        await completeTask(client, credentials, taskId);
+      } catch (error) {
+        if (error instanceof FlowableError && error.status === 409) {
+          store.setFlash(req.session, 'error', 'La tarea ya había sido completada.');
+          return res.redirect(303, `${req.baseUrl || ''}/`);
+        }
+        throw error;
+      }
+
+      store.setFlash(req.session, 'ok', 'Solicitud archivada. El expediente quedó cerrado.');
+      return res.redirect(303, `${req.baseUrl || ''}/`);
+    }
+
+    const isReview = task.taskDefinitionKey === REVIEW_TASK_KEY;
 
     const parsed = parseProposal(req.body);
     if (!parsed.valid) {
