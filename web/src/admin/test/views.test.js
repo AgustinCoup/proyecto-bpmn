@@ -8,6 +8,7 @@ const {
   escapeHtml,
   formatDate,
   proposalForm,
+  reviewForm,
   taskUnsupported,
 } = require('../views');
 
@@ -129,6 +130,60 @@ test('proposalForm escapa valores y errores', () => {
   assert.match(html, /&lt;b&gt;programa&lt;\/b&gt;/);
   assert.match(html, /&lt;b&gt;error&lt;\/b&gt;/);
   assert.match(html, /action="\/admin\/tasks\/t1\/complete"/);
+});
+
+test('reviewForm muestra observaciones y versión, y escapa todo', () => {
+  const html = reviewForm({
+    baseUrl: '/admin',
+    user: 'jefeAdmin',
+    groups: ['administracion'],
+    csrf: 't',
+    task: { id: 't2', name: 'Revisar propuesta' },
+    course: { id: 7, tematica: '<i>Curso</i>' },
+    values: {
+      nombre: 'Curso',
+      programa: 'Programa',
+      presupuesto: '100.00',
+      fecha_inicio: '2026-12-01',
+      fecha_fin: '2026-12-15',
+    },
+    observations: '<script>alert(1)</script>\nSegunda línea',
+    version: 1,
+    nextVersion: 2,
+  });
+
+  assert.ok(!html.includes('<script>alert(1)</script>'));
+  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  assert.match(html, /Segunda línea/);
+  assert.match(html, /&lt;i&gt;Curso&lt;\/i&gt;/);
+  assert.match(html, /Versión actual: 1/);
+  assert.match(html, /se enviará la versión 2/);
+  assert.match(html, /class="review-note"/);
+  assert.match(html, /action="\/admin\/tasks\/t2\/complete"/);
+  assert.match(html, /Guardar cambios y enviar nueva versión/);
+
+  const without = reviewForm({
+    baseUrl: '/admin',
+    user: 'jefeAdmin',
+    csrf: 't',
+    task: { id: 't2', name: 'Revisar propuesta' },
+    course: { id: 7 },
+    observations: '',
+    version: null,
+    nextVersion: null,
+  });
+  assert.match(without, /La empresa no dejó observaciones/);
+  assert.match(without, /No se pudo leer la versión actual/);
+});
+
+test('home etiqueta la acción de Revisar', () => {
+  const html = createViews().home({
+    baseUrl: '/admin',
+    user: 'jefeAdmin',
+    csrf: 't',
+    tasks: [{ id: 't2', name: 'Revisar propuesta', taskDefinitionKey: 'Revisar', claimable: false }],
+  });
+  assert.match(html, /href="\/admin\/tasks\/t2">Revisar<\/a>/);
 });
 
 test('taskUnsupported muestra la tarea y el aviso', () => {

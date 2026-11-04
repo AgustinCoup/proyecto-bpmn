@@ -60,6 +60,7 @@ const STYLES = `
   .badge.warn { background: #fff1d6; color: #7a4a00; }
   .actions { white-space: nowrap; }
   .stack > * + * { margin-top: .65rem; }
+  .review-note { background: #f7fafc; border-left: 4px solid #1d6fa5; padding: .7rem .85rem; margin: .5rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 `;
 
 function page({ title, baseUrl = '', user, groups = [], csrf, body, showLogout = true }) {
@@ -142,7 +143,7 @@ function home({ baseUrl = '', user, groups = [], csrf, tasks = [], flash = null 
                <input type="hidden" name="_csrf" value="${escapeHtml(csrf)}">
                <button type="submit">Reclamar</button>
              </form>`
-          : `<a class="button" href="${escapeHtml(baseUrl)}/tasks/${encodeURIComponent(task.id)}">${task.taskDefinitionKey === 'Propuesta' ? 'Completar' : 'Abrir'}</a>`}</td>
+          : `<a class="button" href="${escapeHtml(baseUrl)}/tasks/${encodeURIComponent(task.id)}">${task.taskDefinitionKey === 'Propuesta' ? 'Completar' : task.taskDefinitionKey === 'Revisar' ? 'Revisar' : 'Abrir'}</a>`}</td>
       </tr>`).join('')
     : `<tr><td colspan="5" class="muted">No tenés tareas asignadas ni disponibles en este momento.</td></tr>`;
 
@@ -186,30 +187,18 @@ function fieldError(errors, field) {
     : '';
 }
 
-function proposalForm({
-  baseUrl = '', user, groups = [], csrf, task, course = {}, values = {}, errors = {},
-}) {
-  const hasErrors = Object.keys(errors).length > 0;
-  const courseLabel = course.id
+function courseLabel(course = {}) {
+  return course.id
     ? `Curso #${escapeHtml(course.id)}${course.tematica ? ` · ${escapeHtml(course.tematica)}` : ''}`
     : 'Curso sin identificar';
+}
+
+function proposalFields(values = {}, errors = {}) {
   const presupuestoValue = String(values.presupuesto === undefined || values.presupuesto === null
     ? ''
     : values.presupuesto).replace(',', '.');
 
-  return page({
-    title: 'Registrar propuesta',
-    baseUrl,
-    user,
-    groups,
-    csrf,
-    body: `<section class="card">
-      <h1>${escapeHtml(task.name || 'Registrar y Elaborar propuesta')}</h1>
-      <p class="muted">${courseLabel}</p>
-      ${hasErrors ? '<p class="error">Revisá los campos marcados antes de guardar.</p>' : ''}
-      <form method="post" action="${escapeHtml(baseUrl)}/tasks/${encodeURIComponent(task.id)}/complete" class="stack" novalidate>
-        <input type="hidden" name="_csrf" value="${escapeHtml(csrf)}">
-        <div>
+  return `<div>
           <label for="nombre">Nombre del curso</label>
           <input id="nombre" name="nombre" type="text" maxlength="200" required value="${escapeHtml(values.nombre)}">
           ${fieldError(errors, 'nombre')}
@@ -233,9 +222,66 @@ function proposalForm({
           <label for="fecha_fin">Fecha de fin</label>
           <input id="fecha_fin" name="fecha_fin" type="date" required value="${escapeHtml(values.fecha_fin)}">
           ${fieldError(errors, 'fecha_fin')}
-        </div>
+        </div>`;
+}
+
+function proposalForm({
+  baseUrl = '', user, groups = [], csrf, task, course = {}, values = {}, errors = {},
+}) {
+  const hasErrors = Object.keys(errors).length > 0;
+
+  return page({
+    title: 'Registrar propuesta',
+    baseUrl,
+    user,
+    groups,
+    csrf,
+    body: `<section class="card">
+      <h1>${escapeHtml(task.name || 'Registrar y Elaborar propuesta')}</h1>
+      <p class="muted">${courseLabel(course)}</p>
+      ${hasErrors ? '<p class="error">Revisá los campos marcados antes de guardar.</p>' : ''}
+      <form method="post" action="${escapeHtml(baseUrl)}/tasks/${encodeURIComponent(task.id)}/complete" class="stack" novalidate>
+        <input type="hidden" name="_csrf" value="${escapeHtml(csrf)}">
+        ${proposalFields(values, errors)}
         <div class="form-actions">
           <button type="submit">Guardar propuesta y completar tarea</button>
+          <a class="button secondary" href="${escapeHtml(baseUrl)}/">Cancelar</a>
+        </div>
+      </form>
+    </section>`,
+  });
+}
+
+function reviewForm({
+  baseUrl = '', user, groups = [], csrf, task, course = {}, values = {}, errors = {},
+  observations = '', version = null, nextVersion = null,
+}) {
+  const hasErrors = Object.keys(errors).length > 0;
+  const versionLabel = version === null
+    ? 'No se pudo leer la versión actual de la propuesta.'
+    : `Versión actual: ${version}${nextVersion === null ? '' : ` · al guardar se enviará la versión ${nextVersion}`}.`;
+  const note = observations
+    ? `<div class="review-note">${escapeHtml(observations)}</div>`
+    : '<p class="muted">La empresa no dejó observaciones en este pedido.</p>';
+
+  return page({
+    title: 'Revisar propuesta',
+    baseUrl,
+    user,
+    groups,
+    csrf,
+    body: `<section class="card">
+      <h1>${escapeHtml(task.name || 'Revisar propuesta')}</h1>
+      <p class="muted">${courseLabel(course)} · ${escapeHtml(versionLabel)}</p>
+      <h2>Pedido de la empresa</h2>
+      ${note}
+      <p class="muted">Ajustá la propuesta según el pedido. Al completar la tarea se envía una nueva versión a la empresa.</p>
+      ${hasErrors ? '<p class="error">Revisá los campos marcados antes de guardar.</p>' : ''}
+      <form method="post" action="${escapeHtml(baseUrl)}/tasks/${encodeURIComponent(task.id)}/complete" class="stack" novalidate>
+        <input type="hidden" name="_csrf" value="${escapeHtml(csrf)}">
+        ${proposalFields(values, errors)}
+        <div class="form-actions">
+          <button type="submit">Guardar cambios y enviar nueva versión</button>
           <a class="button secondary" href="${escapeHtml(baseUrl)}/">Cancelar</a>
         </div>
       </form>
@@ -264,6 +310,7 @@ function createViews() {
     login,
     home,
     proposalForm,
+    reviewForm,
     taskUnsupported,
     forbidden(res, message, context = {}) {
       res.status(403).send(messagePage({
@@ -329,5 +376,6 @@ module.exports = {
   formatDate,
   createViews,
   proposalForm,
+  reviewForm,
   taskUnsupported,
 };

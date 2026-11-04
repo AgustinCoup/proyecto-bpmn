@@ -30,18 +30,39 @@ const PROPOSAL_TASK = {
   processInstanceId: 'pi1',
 };
 
+const REVIEW_TASK = {
+  ...PROPOSAL_TASK,
+  id: 't2',
+  name: 'Revisar propuesta',
+  taskDefinitionKey: 'Revisar',
+};
+
+const REVIEW_VARIABLES = [
+  { name: 'observaciones', type: 'string', value: 'La empresa pide ajustar el presupuesto.' },
+  { name: 'propuestaVersion', type: 'integer', value: 1 },
+];
+
 function proposalClient({
   task = PROPOSAL_TASK,
   businessKey = '1',
   completeError = null,
+  variables = [],
+  variablesError = null,
 } = {}) {
+  const taskId = task.id;
   return fakeClient((method, path) => {
     if (method === 'GET' && path.startsWith('/identity/users/')) return { id: 'jefeAdmin' };
     if (method === 'GET' && path === '/identity/groups') return { data: [{ id: 'administracion' }] };
     if (method === 'GET' && path === '/runtime/tasks') return { data: [] };
-    if (method === 'GET' && path === '/runtime/tasks/t1') return task;
-    if (method === 'GET' && path === '/runtime/process-instances/pi1') return { businessKey };
-    if (method === 'POST' && path === '/runtime/tasks/t1') {
+    if (method === 'GET' && path === `/runtime/tasks/${taskId}`) return task;
+    if (method === 'GET' && path === `/runtime/process-instances/${task.processInstanceId}`) {
+      return { businessKey };
+    }
+    if (method === 'GET' && path === `/runtime/process-instances/${task.processInstanceId}/variables`) {
+      if (variablesError) throw variablesError;
+      return variables;
+    }
+    if (method === 'POST' && path === `/runtime/tasks/${taskId}`) {
       if (completeError) throw completeError;
       return null;
     }
@@ -387,4 +408,90 @@ test('POST si Flowable falla muestra 502', async (t) => {
   assert.equal(completed.status, 502);
   assert.match(completed.text, /Flowable no está disponible/);
   assert.equal(courses.calls.save.length, 1);
+});
+
+test('GET de una tarea Revisar muestra observaciones, versión y datos del curso', async (t) => {
+  const client = proposalClient({ task: REVIEW_TASK, variables: REVIEW_VARIABLES });
+  const courses = fakeCourses();
+  const app = await startApp({ client, courses });
+  t.after(() => app.close());
+
+  const { cookie } = await loginAndToken(app);
+  const detail = await request(app.base, '/admin/tasks/t2', { cookie });
+
+  assert.equal(detail.status, 200);
+  assert.match(detail.text, /Revisar propuesta/);
+  assert.match(detail.text, /Curso #1 · Seguridad e Higiene/);
+  assert.match(detail.text, /La empresa pide ajustar el presupuesto\./);
+  assert.match(detail.text, /Versión actual: 1/);
+  assert.match(detail.text, /se enviará la versión 2/);
+  assert.match(detail.text, /value="Curso de seguridad"/);
+  assert.match(detail.text, /action="\/admin\/tasks\/t2\/complete"/);
+  assert.ok(client.calls.some((call) => call.path === '/runtime/process-instances/pi1/variables'));
+});
+
+test('POST válido de Revisar guarda los cambios y completa la tarea', async (t) => {
+  const client = proposalClient({ task: REVIEW_TASK, variables: REVIEW_VARIABLES });
+  const courses = fakeCourses();
+  const app = await startApp({ client, courses });
+  t.after(() => app.close());
+
+  const { cookie, csrf } = await loginAndToken(app);
+  const updated = { ...VALID_FORM, presupuesto: '175000.00' };
+  const completed = await request(app.base, '/admin/tasks/t2/complete', {
+    method: 'POST',
+    cookie,
+    form: { ...updated, _csrf: csrf },
+  });
+
+  assert.equal(completed.status, 303);
+  assert.equal(completed.location, '/admin/');
+  assert.equal(courses.calls.save.length, 1);
+  assert.equal(courses.calls.save[0].courseId, 1);
+  assert.equal(courses.calls.save[0].proposal.presupuesto, '175000.00');
+
+  const post = client.calls.find((call) => call.method === 'POST' && call.path === '/runtime/tasks/t2');
+  assert.deepEqual(post.options.body, { action: 'complete' });
+
+  const home = await request(app.base, '/admin/', { cookie });
+  assert.match(home.text, /Revisión guardada/);
+  assert.match(home.text, /nueva versión a la empresa/);
+});
+
+test('POST inválido de Revisar vuelve al formulario sin guardar ni completar', async (t) => {
+  const client = proposalClient({ task: REVIEW_TASK, variables: REVIEW_VARIABLES });
+  const courses = fakeCourses();
+  const app = await startApp({ client, courses });
+  t.after(() => app.close());
+
+  const { cookie, csrf } = await loginAndToken(app);
+  const invalid = await request(app.base, '/admin/tasks/t2/complete', {
+    method: 'POST',
+    cookie,
+    form: { ...VALID_FORM, nombre: '', _csrf: csrf },
+  });
+
+  assert.equal(invalid.status, 400);
+  assert.match(invalid.text, /Revisá los campos marcados/);
+  assert.match(invalid.text, /Ingresá el nombre del curso/);
+  assert.match(invalid.text, /La empresa pide ajustar el presupuesto\./);
+  assert.match(invalid.text, /Versión actual: 1/);
+  assert.deepEqual(courses.calls.save, []);
+  assert.ok(!client.calls.some((call) => call.method === 'POST' && call.path === '/runtime/tasks/t2'));
+});
+
+test('GET de Revisar responde 502 si no puede leer las variables del proceso', async (t) => {
+  const client = proposalClient({
+    task: REVIEW_TASK,
+    variablesError: new FlowableError('sin conexión', { status: 502 }),
+  });
+  const courses = fakeCourses();
+  const app = await startApp({ client, courses });
+  t.after(() => app.close());
+
+  const { cookie } = await loginAndToken(app);
+  const detail = await request(app.base, '/admin/tasks/t2', { cookie });
+
+  assert.equal(detail.status, 502);
+  assert.match(detail.text, /Flowable no está disponible/);
 });

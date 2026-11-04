@@ -4,10 +4,11 @@ Pantallas del sitio de la institución para el rol `administracion`. Cubre las t
 usuario de la sección 4.1.3 de la consigna y el escenario 8. Este módulo es dueño de
 `web/src/admin/`; el esqueleto del sitio lo monta en `/admin`.
 
-> **Estado actual: corte 3.** Login contra Flowable, sesión firmada, detección de rol,
-> lista de tareas, reclamo de tareas candidatas y el **formulario de `Propuesta`**, que
-> guarda los datos en la tabla `curso` y completa la tarea. Los demás formularios llegan en
-> los cortes siguientes. No se genera el PDF de la propuesta: está fuera del alcance.
+> **Estado actual: corte 4.** Login contra Flowable, sesión firmada, detección de rol,
+> lista de tareas, reclamo de tareas candidatas y los **formularios de `Propuesta` y
+> `Revisar`**, que guardan los datos en la tabla `curso` y completan la tarea. Los demás
+> formularios llegan en los cortes siguientes. No se genera el PDF de la propuesta: está
+> fuera del alcance.
 
 ## Cómo se prueba (mientras no exista el esqueleto)
 
@@ -49,7 +50,7 @@ node --test test/*.test.js
 node --test --experimental-test-coverage test/*.test.js
 ```
 
-Cobertura del corte 3: **98,52 % de líneas** y **88,42 % de ramas** (incluyendo archivos
+Cobertura del corte 4: **98,68 % de líneas** y **89,59 % de ramas** (incluyendo archivos
 de prueba en el reporte).
 
 ### Probar el reclamo con una tarea de verdad
@@ -136,6 +137,52 @@ Si querés probar con el curso real `1`, abrí su tarea `Propuesta` desde la lis
 formulario muestra los datos que ya tenga el curso y, al guardar, actualiza esa fila.
 Eso **sí avanza el proceso real**; el script temporal evita tocarlo.
 
+### Probar el formulario de Revisar con una tarea de verdad
+
+La tarea `Revisar` aparece cuando la empresa pide modificaciones. Para no esperar ese
+mensaje ni tocar las instancias del escenario 8, hay un proceso temporal que crea el
+pedido y la tarea:
+
+```bash
+cd web/src/admin
+node dev/revision-prueba.js
+```
+
+Ese comando:
+
+1. Borra cursos, instancias y deployments de pruebas anteriores del mismo tipo.
+2. Crea un curso temporal con una propuesta ya cargada en la tabla `curso`.
+3. Despliega un proceso temporal llamado `RevisionPrueba` que deja `observaciones` y
+   `propuestaVersion = 1`.
+4. Inicia una instancia con una tarea `Revisar` asignada a `jefeAdmin`.
+5. Imprime el id del curso, de la tarea y la URL del sitio.
+
+Después, en el navegador:
+
+1. Entrá a <http://localhost:3000/admin/> con `jefeAdmin` / `test`.
+2. Buscá **“Revisar propuesta”** para el curso de prueba y hacé clic en **“Revisar”**.
+3. Esperado: ves el pedido de la empresa, la **versión actual 1** y el aviso de que al
+   guardar se enviará la **versión 2**, con los datos actuales de la propuesta editables.
+4. Cambiá, por ejemplo, el presupuesto a `175000.00` y guardá.
+5. Esperado: volvés a `/admin/`, ves el mensaje verde **“Revisión guardada. La tarea se
+   completó y se envió una nueva versión a la empresa.”** y la tarea desaparece.
+6. Verificá la base:
+
+```bash
+docker exec flowable-postgres psql -U institucion -d institucion \
+  -c "select id, nombre, presupuesto from curso order by id;"
+```
+
+7. Para borrar todo:
+
+```bash
+node dev/revision-prueba.js borrar
+```
+
+`observaciones` y `propuestaVersion` se leen de las variables de la instancia
+(`GET /runtime/process-instances/{id}/variables`). El sitio no las envía de vuelta: el
+task listener del modelo incrementa la versión al completar la tarea.
+
 ### Qué mirar a mano (resto del corte)
 
 1. `GET /admin/login` muestra el formulario y una cookie `admin_sid` httpOnly firmada.
@@ -149,10 +196,12 @@ Eso **sí avanza el proceso real**; el script temporal evita tocarlo.
 7. Abrir una tarea ajena por URL: 403, aunque el id exista.
 8. El formulario de `Propuesta` rechaza campos vacíos, presupuesto cero y fecha de fin
    anterior a la de inicio sin llamar a Flowable.
-9. Al guardar una propuesta válida, primero se actualiza la base y después se completa la
-   tarea en Flowable. Si Flowable falla, la propuesta ya quedó guardada.
-10. Cerrar sesión: destruye la sesión del servidor y borra la cookie.
-11. Si Flowable está caído, la lista responde 502 sin filtrar credenciales.
+9. El formulario de `Revisar` muestra `observaciones` y `propuestaVersion` escapados, y
+   aplica las mismas validaciones antes de guardar o completar.
+10. Al guardar una propuesta o una revisión válida, primero se actualiza la base y después
+    se completa la tarea en Flowable. Si Flowable falla, los datos ya quedaron guardados.
+11. Cerrar sesión: destruye la sesión del servidor y borra la cookie.
+12. Si Flowable está caído, la lista responde 502 sin filtrar credenciales.
 
 ## Qué pantalla cubre qué tarea
 
@@ -162,9 +211,9 @@ Eso **sí avanza el proceso real**; el script temporal evita tocarlo.
 | `/admin/` | Lista de tareas asignadas y candidatas al grupo `administracion` | Hecho |
 | `POST /admin/tasks/:id/claim` | Reclamar una tarea candidata del grupo | Hecho |
 | `GET /admin/tasks/:id` | Abrir una tarea asignada (formulario o aviso) | Hecho |
-| `POST /admin/tasks/:id/complete` | Completar una tarea asignada | Hecho para `Propuesta` |
+| `POST /admin/tasks/:id/complete` | Completar una tarea asignada | Hecho para `Propuesta` y `Revisar` |
 | `Propuesta` (Registrar y Elaborar propuesta, `jefeAdmin`) | Guarda nombre, programa, presupuesto y fechas en `curso` | Hecho |
-| Próximo corte | `Revisar` (Revisar propuesta, `jefeAdmin`) | Pendiente |
+| `Revisar` (Revisar propuesta, `jefeAdmin`) | Muestra `observaciones`/`propuestaVersion` y guarda los cambios en `curso` | Hecho |
 | Próximo corte | `Archivar` (Archivar solicitud, `jefeAdmin`) | Pendiente |
 | Próximo corte | `Lista` (Confeccionar lista definitiva, grupo `administracion`) | Pendiente |
 | Próximo corte | `Activity_12i2hpf` (Evaluar Recursos, grupo `administracion`) | Pendiente |
@@ -193,6 +242,8 @@ de Flowable (la consigna lo permite). El sitio solo las lista y enlaza.
 - El `businessKey` de la instancia se valida como id de curso numérico y la base se
   consulta con SQL parametrizado.
 - El formulario se valida en el servidor antes de tocar la base o Flowable.
+- Las variables `observaciones` y `propuestaVersion` se leen de Flowable, se acotan y se
+  escapan antes de mostrarlas; el sitio no las envía.
 - Todas las consultas a Flowable se validan del lado del servidor.
 
 ## Estructura
@@ -203,11 +254,12 @@ de Flowable (la consigna lo permite). El sitio solo las lista y enlaza.
 | `auth.js` | Login, logout, sesión y regla de rol `administracion`. |
 | `session.js` | Store en memoria, cookie firmada y CSRF. |
 | `flowable-rest.js` | Cliente REST con la firma de `lib/flowable.js`; se reemplaza por el del esqueleto. |
-| `tasks.js` | Consulta, deduplicación, normalización, reclamo y completado de tareas. |
+| `tasks.js` | Consulta, deduplicación, normalización, reclamo, variables y completado de tareas. |
 | `courses.js` | Acceso parametrizado a la tabla `curso`; el pool de `pg` se crea al primer uso. |
-| `proposal.js` | Validación y normalización del formulario de `Propuesta`. |
+| `proposal.js` | Validación y normalización de los formularios de `Propuesta` y `Revisar`. |
+| `review.js` | Normaliza `observaciones` y `propuestaVersion` de la tarea `Revisar`. |
 | `views.js` | HTML mínimo con escape; se reemplaza por las vistas EJS del esqueleto. |
-| `dev-harness.js`, `dev/` | Arnés local, **no entregable**. Incluye `dev/tarea-grupo-prueba.js` y `dev/propuesta-prueba.js`. |
+| `dev-harness.js`, `dev/` | Arnés local, **no entregable**. Incluye `dev/tarea-grupo-prueba.js`, `dev/propuesta-prueba.js` y `dev/revision-prueba.js`. |
 | `test/` | Pruebas con `node:test` y cliente REST mockeado. |
 
 Cuando aparezca el esqueleto del sitio, su `package.json` tiene que incluir `pg` (el

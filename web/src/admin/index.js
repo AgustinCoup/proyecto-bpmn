@@ -8,10 +8,12 @@ const { createAuth } = require('./auth');
 const { createViews } = require('./views');
 const { createCourseStore } = require('./courses');
 const { formValuesFromCourse, parseProposal } = require('./proposal');
+const { reviewContext } = require('./review');
 const {
   fetchTasks,
   fetchTask,
   fetchIdentityLinks,
+  fetchProcessVariables,
   canClaimTask,
   claimTask,
   completeTask,
@@ -20,6 +22,8 @@ const {
 const TASK_ID_PATTERN = /^[A-Za-z0-9_-]{1,100}$/;
 const COURSE_ID_PATTERN = /^[1-9]\d{0,8}$/;
 const PROPOSAL_TASK_KEY = 'Propuesta';
+const REVIEW_TASK_KEY = 'Revisar';
+const PROPOSAL_FORM_TASKS = new Set([PROPOSAL_TASK_KEY, REVIEW_TASK_KEY]);
 
 const DEFAULT_CONFIG = {
   baseUrl: process.env.FLOWABLE_URL || 'http://localhost:8080/flowable-rest/service',
@@ -175,7 +179,7 @@ function createAdminRouter(options = {}) {
       );
     }
 
-    if (task.taskDefinitionKey !== PROPOSAL_TASK_KEY) {
+    if (!PROPOSAL_FORM_TASKS.has(task.taskDefinitionKey)) {
       return res.status(200).send(views.taskUnsupported({ ...context, task }));
     }
 
@@ -187,13 +191,24 @@ function createAdminRouter(options = {}) {
       return views.badRequest(res, 'El curso asociado a la tarea no es válido.', context);
     }
 
-    return res.status(200).send(views.proposalForm({
+    const form = {
       ...context,
       task,
       course: resolved.course,
       values: formValuesFromCourse(resolved.course),
       errors: {},
-    }));
+    };
+
+    if (task.taskDefinitionKey === REVIEW_TASK_KEY) {
+      const variables = await fetchProcessVariables(
+        client,
+        credentials,
+        task.processInstanceId,
+      );
+      return res.status(200).send(views.reviewForm({ ...form, ...reviewContext(variables) }));
+    }
+
+    return res.status(200).send(views.proposalForm(form));
   }));
 
   router.post('/tasks/:id/complete', auth.requireAdmin, auth.csrf, asyncHandler(async (req, res) => {
@@ -215,13 +230,15 @@ function createAdminRouter(options = {}) {
       );
     }
 
-    if (task.taskDefinitionKey !== PROPOSAL_TASK_KEY) {
+    if (!PROPOSAL_FORM_TASKS.has(task.taskDefinitionKey)) {
       return views.badRequest(
         res,
         'Esta tarea todavía no tiene formulario en el sitio.',
         context,
       );
     }
+
+    const isReview = task.taskDefinitionKey === REVIEW_TASK_KEY;
 
     const resolved = await resolveCourseForTask(client, credentials, task, courses);
     if (resolved.error === 'course-not-found') {
@@ -233,13 +250,22 @@ function createAdminRouter(options = {}) {
 
     const parsed = parseProposal(req.body);
     if (!parsed.valid) {
-      return res.status(400).send(views.proposalForm({
+      const form = {
         ...context,
         task,
         course: resolved.course,
         values: parsed.values,
         errors: parsed.errors,
-      }));
+      };
+      if (isReview) {
+        const variables = await fetchProcessVariables(
+          client,
+          credentials,
+          task.processInstanceId,
+        );
+        return res.status(400).send(views.reviewForm({ ...form, ...reviewContext(variables) }));
+      }
+      return res.status(400).send(views.proposalForm(form));
     }
 
     const saved = await courses.saveProposal(resolved.courseId, parsed.proposal);
@@ -254,7 +280,9 @@ function createAdminRouter(options = {}) {
         store.setFlash(
           req.session,
           'error',
-          'La tarea ya había sido completada. La propuesta quedó guardada en la base.',
+          isReview
+            ? 'La tarea ya había sido completada. Los cambios quedaron guardados en la base.'
+            : 'La tarea ya había sido completada. La propuesta quedó guardada en la base.',
         );
         return res.redirect(303, `${req.baseUrl || ''}/`);
       }
@@ -264,7 +292,9 @@ function createAdminRouter(options = {}) {
     store.setFlash(
       req.session,
       'ok',
-      'Propuesta guardada. La tarea se completó y el proceso continuó.',
+      isReview
+        ? 'Revisión guardada. La tarea se completó y se envió una nueva versión a la empresa.'
+        : 'Propuesta guardada. La tarea se completó y el proceso continuó.',
     );
     return res.redirect(303, `${req.baseUrl || ''}/`);
   }));

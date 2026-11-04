@@ -9,6 +9,7 @@ const {
   fetchTasks,
   fetchTask,
   fetchIdentityLinks,
+  fetchProcessVariables,
   canClaimTask,
   claimTask,
   normalizeTask,
@@ -183,4 +184,33 @@ test('fetchTask, identitylinks y claim usan el usuario autenticado', async () =>
 test('fetchIdentityLinks tolera una respuesta que no es lista', async () => {
   const client = fakeClient(() => ({ data: [] }));
   assert.deepEqual(await fetchIdentityLinks(client, AUTH, 't1'), []);
+});
+
+test('fetchProcessVariables arma un Map y tolera respuestas incompletas', async () => {
+  const client = fakeClient((method, path) => {
+    assert.equal(method, 'GET');
+    assert.equal(path, '/runtime/process-instances/pi%201/variables');
+    return [
+      { name: 'observaciones', type: 'string', value: 'Ajustar fechas' },
+      { name: 'propuestaVersion', type: 'integer', value: 2 },
+      { name: '__proto__', value: 'ignorado' },
+      { name: '', value: 'vacío' },
+      { value: 'sin nombre' },
+      null,
+    ];
+  });
+
+  const variables = await fetchProcessVariables(client, AUTH, 'pi 1');
+  assert.equal(variables.get('observaciones'), 'Ajustar fechas');
+  assert.equal(variables.get('propuestaVersion'), 2);
+  assert.equal(variables.get('__proto__'), 'ignorado');
+  assert.equal(variables.has(''), false);
+  assert.deepEqual(client.calls[0].options.auth, AUTH);
+
+  const wrapped = fakeClient(() => ({ data: [{ name: 'observaciones', value: 'otra' }] }));
+  const other = await fetchProcessVariables(wrapped, AUTH, 'pi2');
+  assert.equal(other.get('observaciones'), 'otra');
+
+  const empty = fakeClient(() => null);
+  assert.equal((await fetchProcessVariables(empty, AUTH, 'pi3')).size, 0);
 });

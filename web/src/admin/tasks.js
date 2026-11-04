@@ -112,6 +112,24 @@ async function fetchIdentityLinks(client, auth, taskId) {
   return Array.isArray(links) ? links : [];
 }
 
+async function fetchProcessVariables(client, auth, processInstanceId) {
+  const response = await client(
+    'GET',
+    `/runtime/process-instances/${encodeURIComponent(processInstanceId)}/variables`,
+    { auth },
+  );
+  const list = Array.isArray(response)
+    ? response
+    : (response && Array.isArray(response.data) ? response.data : []);
+
+  const variables = new Map();
+  for (const variable of list) {
+    if (!variable || typeof variable.name !== 'string' || !variable.name) continue;
+    variables.set(variable.name, variable.value);
+  }
+  return variables;
+}
+
 function canClaimTask(task, links, user, groups) {
   if (!task || task.assignee) return false;
   const groupList = Array.isArray(groups) ? groups : [];
@@ -140,6 +158,7 @@ module.exports = {
   fetchTasks,
   fetchTask,
   fetchIdentityLinks,
+  fetchProcessVariables,
   canClaimTask,
   claimTask,
   completeTask,
