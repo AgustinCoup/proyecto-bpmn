@@ -153,6 +153,19 @@ async function completeTask(client, auth, taskId) {
   });
 }
 
+async function setProcessVariables(client, auth, processInstanceId, variables) {
+  const entries = Object.entries(variables || {}).map(([name, value]) => ({
+    name,
+    type: typeof value === 'boolean' ? 'boolean' : 'string',
+    value,
+  }));
+  return client(
+    'POST',
+    `/runtime/process-instances/${encodeURIComponent(processInstanceId)}/variables`,
+    { body: entries, auth },
+  );
+}
+
 module.exports = {
   MAX_TASKS,
   fetchTasks,
@@ -162,6 +175,7 @@ module.exports = {
   canClaimTask,
   claimTask,
   completeTask,
+  setProcessVariables,
   normalizeTask,
   resolveBusinessKeys,
   taskQuery,

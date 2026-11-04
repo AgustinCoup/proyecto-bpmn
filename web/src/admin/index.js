@@ -10,6 +10,8 @@ const { createCourseStore } = require('./courses');
 const { formValuesFromCourse, parseProposal } = require('./proposal');
 const { reviewContext } = require('./review');
 const { ARCHIVE_TASK_KEY, archiveContext } = require('./archive');
+const { parseLista, parseParticipantes, serializeList, formValuesFromList } = require('./participants');
+const { parseResources, resourceValuesFromVariables } = require('./resources');
 const {
   fetchTasks,
   fetchTask,
@@ -18,12 +20,15 @@ const {
   canClaimTask,
   claimTask,
   completeTask,
+  setProcessVariables,
 } = require('./tasks');
 
 const TASK_ID_PATTERN = /^[A-Za-z0-9_-]{1,100}$/;
 const COURSE_ID_PATTERN = /^[1-9]\d{0,8}$/;
 const PROPOSAL_TASK_KEY = 'Propuesta';
 const REVIEW_TASK_KEY = 'Revisar';
+const LIST_TASK_KEY = 'Lista';
+const RESOURCE_TASK_KEY = 'Activity_12i2hpf';
 const PROPOSAL_FORM_TASKS = new Set([PROPOSAL_TASK_KEY, REVIEW_TASK_KEY]);
 
 const DEFAULT_CONFIG = {
@@ -202,6 +207,29 @@ function createAdminRouter(options = {}) {
       }));
     }
 
+    if (task.taskDefinitionKey === LIST_TASK_KEY || task.taskDefinitionKey === RESOURCE_TASK_KEY) {
+      const variables = await fetchProcessVariables(
+        client,
+        credentials,
+        task.processInstanceId,
+      );
+      if (task.taskDefinitionKey === LIST_TASK_KEY) {
+        const parsed = parseParticipantes(variables.get('participantes'));
+        return res.status(200).send(views.listForm({
+          ...context,
+          task,
+          participants: parsed.list,
+          participantsError: parsed.error,
+          values: formValuesFromList(parsed.list),
+        }));
+      }
+      return res.status(200).send(views.resourcesForm({
+        ...context,
+        task,
+        values: resourceValuesFromVariables(variables),
+      }));
+    }
+
     if (!PROPOSAL_FORM_TASKS.has(task.taskDefinitionKey)) {
       return res.status(200).send(views.taskUnsupported({ ...context, task }));
     }
@@ -254,7 +282,9 @@ function createAdminRouter(options = {}) {
     }
 
     const isArchive = task.taskDefinitionKey === ARCHIVE_TASK_KEY;
-    if (!isArchive && !PROPOSAL_FORM_TASKS.has(task.taskDefinitionKey)) {
+    const isList = task.taskDefinitionKey === LIST_TASK_KEY;
+    const isResources = task.taskDefinitionKey === RESOURCE_TASK_KEY;
+    if (!isArchive && !isList && !isResources && !PROPOSAL_FORM_TASKS.has(task.taskDefinitionKey)) {
       return views.badRequest(
         res,
         'Esta tarea todavía no tiene formulario en el sitio.',
@@ -297,6 +327,60 @@ function createAdminRouter(options = {}) {
       }
 
       store.setFlash(req.session, 'ok', 'Solicitud archivada. El expediente quedó cerrado.');
+      return res.redirect(303, `${req.baseUrl || ''}/`);
+    }
+
+    if (isList || isResources) {
+      const variables = await fetchProcessVariables(
+        client,
+        credentials,
+        task.processInstanceId,
+      );
+      const parsed = isList ? parseLista(req.body) : parseResources(req.body);
+      if (!parsed.valid) {
+        if (isList) {
+          const source = parseParticipantes(variables.get('participantes'));
+          return res.status(400).send(views.listForm({
+            ...context,
+            task,
+            participants: source.list,
+            participantsError: source.error,
+            values: parsed.values,
+            errors: parsed.errors,
+          }));
+        }
+        return res.status(400).send(views.resourcesForm({
+          ...context,
+          task,
+          values: parsed.values,
+          errors: parsed.errors,
+        }));
+      }
+
+      const processVariables = isList
+        ? { 'Lista definitiva': serializeList(parsed.list) }
+        : parsed.resources;
+      try {
+        await setProcessVariables(
+          client,
+          credentials,
+          task.processInstanceId,
+          processVariables,
+        );
+        await completeTask(client, credentials, taskId);
+      } catch (error) {
+        if (error instanceof FlowableError && error.status === 409) {
+          store.setFlash(req.session, 'error', 'La tarea ya había sido completada.');
+          return res.redirect(303, `${req.baseUrl || ''}/`);
+        }
+        throw error;
+      }
+
+      store.setFlash(
+        req.session,
+        'ok',
+        isList ? 'Lista definitiva guardada. La tarea se completó.' : 'Recursos guardados. La tarea se completó.',
+      );
       return res.redirect(303, `${req.baseUrl || ''}/`);
     }
 

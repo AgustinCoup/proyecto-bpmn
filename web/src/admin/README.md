@@ -4,11 +4,12 @@ Pantallas del sitio de la institución para el rol `administracion`. Cubre las t
 usuario de la sección 4.1.3 de la consigna y el escenario 8. Este módulo es dueño de
 `web/src/admin/`; el esqueleto del sitio lo monta en `/admin`.
 
-> **Estado actual: corte 5.** Login contra Flowable, sesión firmada, detección de rol,
+> **Estado actual: corte 6.** Login contra Flowable, sesión firmada, detección de rol,
 > lista de tareas, reclamo de tareas candidatas y los **formularios de `Propuesta`,
-> `Revisar` y `Archivar`**. Los dos primeros guardan los datos en la tabla `curso`; el
-> último confirma el cierre. Los demás formularios llegan en los cortes siguientes. No se
-> genera el PDF de la propuesta: está fuera del alcance.
+> `Revisar`, `Lista`, `Evaluar Recursos` y `Archivar`**. Los dos primeros guardan los
+> datos en la tabla `curso`; `Lista` y `Evaluar Recursos` actualizan variables de la
+> instancia antes de completar; `Archivar` confirma el cierre. No se genera el PDF de la
+> propuesta: está fuera del alcance.
 
 ## Cómo se prueba (mientras no exista el esqueleto)
 
@@ -251,12 +252,12 @@ curso lo escribe el Execution Listener de fin de proceso, no el sitio.
 | `/admin/` | Lista de tareas asignadas y candidatas al grupo `administracion` | Hecho |
 | `POST /admin/tasks/:id/claim` | Reclamar una tarea candidata del grupo | Hecho |
 | `GET /admin/tasks/:id` | Abrir una tarea asignada (formulario o aviso) | Hecho |
-| `POST /admin/tasks/:id/complete` | Completar una tarea asignada | Hecho para `Propuesta`, `Revisar` y `Archivar` |
+| `POST /admin/tasks/:id/complete` | Completar una tarea asignada | Hecho para `Propuesta`, `Revisar`, `Lista`, `Evaluar Recursos` y `Archivar` |
 | `Propuesta` (Registrar y Elaborar propuesta, `jefeAdmin`) | Guarda nombre, programa, presupuesto y fechas en `curso` | Hecho |
 | `Revisar` (Revisar propuesta, `jefeAdmin`) | Muestra `observaciones`/`propuestaVersion` y guarda los cambios en `curso` | Hecho |
 | `Archivar` (Archivar solicitud, `jefeAdmin`) | Muestra `resultado` y confirma el cierre; no escribe en la base | Hecho |
-| Próximo corte | `Lista` (Confeccionar lista definitiva, grupo `administracion`) | Pendiente |
-| Próximo corte | `Activity_12i2hpf` (Evaluar Recursos, grupo `administracion`) | Pendiente |
+| `Lista` (Confeccionar lista definitiva, grupo `administracion`) | Guarda `Lista definitiva` como JSON en Flowable | Hecho |
+| `Activity_12i2hpf` (Evaluar Recursos, grupo `administracion`) | Guarda `requiereAula`, `requierePlataforma` y `requiereEquipamiento` | Hecho |
 | Próximo corte | `EnviarInforme` (Enviar informe, `jefeAdmin`) | Pendiente |
 | UI de Flowable | `Material`, `Virtual`, `Equipo`, `Activity_1m08pcl` | Enlace desde el sitio |
 
@@ -300,6 +301,8 @@ de Flowable (la consigna lo permite). El sitio solo las lista y enlaza.
 | `proposal.js` | Validación y normalización de los formularios de `Propuesta` y `Revisar`. |
 | `review.js` | Normaliza `observaciones` y `propuestaVersion` de la tarea `Revisar`. |
 | `archive.js` | Normaliza `resultado` y decide si la solicitud se puede archivar. |
+| `participants.js` | Lee la nómina y valida/serializa la `Lista definitiva`. |
+| `resources.js` | Valida las salidas booleanas de `Evaluar Recursos`. |
 | `views.js` | HTML mínimo con escape; se reemplaza por las vistas EJS del esqueleto. |
 | `dev-harness.js`, `dev/` | Arnés local, **no entregable**. Incluye `dev/tarea-grupo-prueba.js`, `dev/propuesta-prueba.js`, `dev/revision-prueba.js` y `dev/archivar-prueba.js`. |
 | `test/` | Pruebas con `node:test` y cliente REST mockeado. |

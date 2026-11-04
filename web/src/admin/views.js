@@ -343,6 +343,69 @@ function archiveForm({
   });
 }
 
+function listForm({
+  baseUrl = '', user, groups = [], csrf, task, values = {}, errors = {},
+  participants = [], participantsError = '',
+}) {
+  const hasErrors = Object.keys(errors).length > 0;
+  const sourceNotice = participantsError
+    ? `<p class="error">${escapeHtml(participantsError)}</p>`
+    : `<p class="muted">La nómina recibida tiene ${participants.length} participante(s).</p>`;
+  return page({
+    title: 'Lista definitiva',
+    baseUrl,
+    user,
+    groups,
+    csrf,
+    body: `<section class="card">
+      <h1>${escapeHtml(task.name || 'Confeccionar lista definitiva')}</h1>
+      <p class="muted">Revisá la nómina recibida y corregila si hace falta. Un participante por línea.</p>
+      ${sourceNotice}
+      ${hasErrors ? '<p class="error">Revisá la lista antes de guardar.</p>' : ''}
+      <form method="post" action="${escapeHtml(baseUrl)}/tasks/${encodeURIComponent(task.id)}/complete" class="stack" novalidate>
+        <input type="hidden" name="_csrf" value="${escapeHtml(csrf)}">
+        <div>
+          <label for="participantes">Lista definitiva</label>
+          <textarea id="participantes" name="participantes" rows="12" maxlength="100000" required>${escapeHtml(values.participantes || '')}</textarea>
+          ${errors.participantes ? `<p class="field-error">${escapeHtml(errors.participantes)}</p>` : ''}
+        </div>
+        <div class="form-actions">
+          <button type="submit">Guardar lista definitiva</button>
+          <a class="button secondary" href="${escapeHtml(baseUrl)}/">Cancelar</a>
+        </div>
+      </form>
+    </section>`,
+  });
+}
+
+function resourcesForm({
+  baseUrl = '', user, groups = [], csrf, task, values = {}, errors = {},
+}) {
+  const checked = (name) => values[name] ? ' checked' : '';
+  return page({
+    title: 'Evaluar recursos',
+    baseUrl,
+    user,
+    groups,
+    csrf,
+    body: `<section class="card">
+      <h1>${escapeHtml(task.name || 'Evaluar Recursos')}</h1>
+      <p class="muted">Seleccioná todos los recursos que necesita el curso.</p>
+      ${errors.resources ? `<p class="error">${escapeHtml(errors.resources)}</p>` : ''}
+      <form method="post" action="${escapeHtml(baseUrl)}/tasks/${encodeURIComponent(task.id)}/complete" class="stack">
+        <input type="hidden" name="_csrf" value="${escapeHtml(csrf)}">
+        <label><input type="checkbox" name="requiereAula"${checked('requiereAula')}> Aula presencial</label>
+        <label><input type="checkbox" name="requierePlataforma"${checked('requierePlataforma')}> Plataforma virtual</label>
+        <label><input type="checkbox" name="requiereEquipamiento"${checked('requiereEquipamiento')}> Equipamiento especial</label>
+        <div class="form-actions">
+          <button type="submit">Guardar recursos</button>
+          <a class="button secondary" href="${escapeHtml(baseUrl)}/">Cancelar</a>
+        </div>
+      </form>
+    </section>`,
+  });
+}
+
 function taskUnsupported({ baseUrl = '', user, groups = [], csrf, task }) {
   return page({
     title: 'Tarea sin formulario',
@@ -364,6 +427,8 @@ function createViews() {
     login,
     home,
     archiveForm,
+    listForm,
+    resourcesForm,
     proposalForm,
     reviewForm,
     taskUnsupported,
@@ -430,6 +495,8 @@ module.exports = {
   escapeHtml,
   formatDate,
   archiveForm,
+  listForm,
+  resourcesForm,
   createViews,
   proposalForm,
   reviewForm,
