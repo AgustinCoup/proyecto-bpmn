@@ -1,0 +1,11 @@
+{
+  "name": "admin-dev-deps",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Dependencias solo para el arnés local de web/src/admin. No se entrega.",
+  "dependencies": {
+    "express": "^4.21.2",
+    "pdfkit": "^0.15.2",
+    "pg": "^8.23.1"
+  }
+}
