@@ -75,6 +75,18 @@ test('POST de EnviarInforme completa la tarea sin variables', async (t) => {
   assert.deepEqual(post.options.body, { action: 'complete' });
 });
 
+test('un informe de OTRO curso no se acepta (ni se muestra ni se completa)', async (t) => {
+  const reports = fakeReports({ 7: { id: 7, curso_id: 2, contenido: PDF } });
+  const {
+    client, app, cookie, csrf,
+  } = await open(t, { reports });
+  const get = await request(app.base, '/admin/tasks/te', { cookie });
+  assert.match(get.text, /No hay un informe guardado/);
+  const post = await request(app.base, '/admin/tasks/te/complete', { method: 'POST', cookie, form: { _csrf: csrf } });
+  assert.equal(post.status, 409);
+  assert.equal(client.calls.some((c) => c.method === 'POST'), false);
+});
+
 test('POST de EnviarInforme sin informe guardado responde 409 y no completa', async (t) => {
   const {
     client, app, cookie, csrf,

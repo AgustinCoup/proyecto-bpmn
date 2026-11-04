@@ -47,13 +47,17 @@ const DEFAULT_CONFIG = {
   flowableUiUrl: process.env.FLOWABLE_UI_URL || 'http://localhost:8081/flowable-ui',
 };
 
-/** Id del informe guardado (variable `informePdf`) solo si existe en la base. */
-async function findSavedReportId(client, auth, task, reports) {
+/**
+ * Id del informe guardado (variable `informePdf`) solo si existe en la base Y
+ * pertenece al curso de la tarea: la variable la puede escribir cualquiera con
+ * acceso a la API REST, así que no alcanza con que el id exista.
+ */
+async function findSavedReportId(client, auth, task, reports, courseId) {
   const variables = await fetchProcessVariables(client, auth, task.processInstanceId);
   const reportId = parseReportId(variables.get('informePdf'));
   if (!reportId) return null;
   const report = await reports.findById(reportId);
-  return report ? reportId : null;
+  return report && Number(report.curso_id) === Number(courseId) ? reportId : null;
 }
 
 function createAdminRouter(options = {}) {
@@ -164,7 +168,7 @@ function createAdminRouter(options = {}) {
       if (resolvedReport.error) {
         return views.badRequest(res, 'El curso asociado a la tarea no es válido.', context);
       }
-      const reportId = await findSavedReportId(client, credentials, task, reports);
+      const reportId = await findSavedReportId(client, credentials, task, reports, resolvedReport.courseId);
       return res.status(200).send(views.sendReportForm({
         ...context,
         task,
@@ -298,7 +302,7 @@ function createAdminRouter(options = {}) {
     }
 
     if (isSendReport) {
-      const reportId = await findSavedReportId(client, credentials, task, reports);
+      const reportId = await findSavedReportId(client, credentials, task, reports, resolved.courseId);
       if (!reportId) {
         return res.status(409).send(views.sendReportForm({
           ...context, task, course: resolved.course, reportId: null,
