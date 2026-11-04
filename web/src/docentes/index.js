@@ -44,14 +44,14 @@ const SUPPORTED_TASKS = new Set([SELECT_TEACHER_KEY, DICTAR_KEY, REPORT_KEY]);
 const REPORT_FILE_PATTERN = /^(\d{1,9})\.pdf$/;
 
 const DEFAULT_CONFIG = {
-  baseUrl: process.env.FLOWABLE_URL || 'http://localhost:8080/flowable-rest/service',
+  baseUrl: process.env.FLOWABLE_REST_URL || process.env.FLOWABLE_URL || 'http://localhost:8080/flowable-rest/service',
   timeoutMs: 10000,
-  sessionSecret: process.env.SESSION_SECRET || null,
+  sessionSecret: process.env.SESSION_SECRET || (process.env.NODE_ENV === 'production' ? null : 'dev-session-secret-change-me'),
   sessionTtlMs: Number(process.env.SESSION_TTL_MS) || 8 * 60 * 60 * 1000,
   cookieName: 'docente_sid',
   cookieSecure: process.env.NODE_ENV === 'production',
   maxTasks: 100,
-  databaseUrl: process.env.INSTITUCION_DATABASE_URL || null,
+  databaseUrl: process.env.INSTITUCION_DB_URL || process.env.INSTITUCION_DATABASE_URL || null,
   appName: APP_NAME,
   moduleName: 'equipo docente',
 };

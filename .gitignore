@@ -1,6 +1,9 @@
 # Salida de compilación de Maven
 target/
 
+# Dependencias de Node del sitio web
+node_modules/
+
 # Pruebas de comportamiento de Flowable
 pruebas-flowable/
 

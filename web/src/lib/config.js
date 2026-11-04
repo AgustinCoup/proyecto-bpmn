@@ -23,4 +23,8 @@ const config = {
   loginWindowMs: Number(env.LOGIN_WINDOW_MS || 15 * 60 * 1000),
 };
 
+if (config.nodeEnv === 'production' && !env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET es obligatorio en produccion.');
+}
+
 module.exports = config;

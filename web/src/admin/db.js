@@ -6,7 +6,8 @@
  * no necesitan `pg`.
  */
 
-const DEFAULT_DATABASE_URL = process.env.INSTITUCION_DATABASE_URL
+const DEFAULT_DATABASE_URL = process.env.INSTITUCION_DB_URL
+  || process.env.INSTITUCION_DATABASE_URL
   || process.env.DATABASE_URL
   || 'postgresql://institucion:institucion@localhost:5432/institucion';
 

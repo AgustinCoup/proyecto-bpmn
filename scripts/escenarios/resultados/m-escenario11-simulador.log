@@ -1,10 +1,10 @@
 == Simulador de comunicaciones de la empresa ==
 
 Solicitudes activas:
-  1) instancia 47171bde-d861-11f1-b5d0-c2a75c28cbc1 | businessKey 811 | cursoId 811 | empresaId 1 | estado EN_ACUERDO
-     proceso: Organizar curso de capacitación | iniciada: 2026-11-04T15:06:14.132Z
+  1) instancia a60c71e8-d876-11f1-8287-d6fd5d79c397 | businessKey 811 | cursoId 811 | empresaId 1 | estado EN_ACUERDO
+     proceso: Organizar curso de capacitación | iniciada: 2026-11-04T17:39:12.877Z
 Elegi una solicitud (numero, r para actualizar, q para salir): 
-Solicitud: instancia 47171bde-d861-11f1-b5d0-c2a75c28cbc1 | businessKey 811 | cursoId 811 | empresaId 1 | estado EN_ACUERDO
+Solicitud: instancia a60c71e8-d876-11f1-8287-d6fd5d79c397 | businessKey 811 | cursoId 811 | empresaId 1 | estado EN_ACUERDO
 
   Actividades activas: Plazo, Aceptar, Rechazar, Modificar
   Mensajes esperando: Aceptación, Rechazo, Solicitud de modificaciones
@@ -27,6 +27,6 @@ Enter para actualizar el estado...
     1) Cancelar durante la preparacion
 Elegi una accion (numero, r para actualizar, q para volver): 
 Solicitudes activas:
-  1) instancia 47171bde-d861-11f1-b5d0-c2a75c28cbc1 | businessKey 811 | cursoId 811 | empresaId 1 | estado EN_PREPARACION
-     proceso: Organizar curso de capacitación | iniciada: 2026-11-04T15:06:14.132Z
+  1) instancia a60c71e8-d876-11f1-8287-d6fd5d79c397 | businessKey 811 | cursoId 811 | empresaId 1 | estado EN_PREPARACION
+     proceso: Organizar curso de capacitación | iniciada: 2026-11-04T17:39:12.877Z
 Elegi una solicitud (numero, r para actualizar, q para salir): 

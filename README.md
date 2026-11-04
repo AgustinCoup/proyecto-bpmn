@@ -103,7 +103,23 @@ El proceso manda correo al `contacto_email` de la empresa al enviar la propuesta
 
 ## Sitio web
 
-TODO web: lo están construyendo otras dos personas en `web/`. Completar acá, cuando esté: requisitos (runtime/versión), cómo instalar dependencias, cómo arrancarlo (comando exacto y puerto), variables de entorno (URL de la API REST de Flowable, credenciales de BD `institucion`) y la URL de entrada. Se apoya en lo que deja el paso 5 de "Puesta en marcha" y no requiere otro paso de preparación. Hasta entonces, el guion de los escenarios 8, 9 y 10 está en [`informe/checklist-manual.md`](informe/checklist-manual.md).
+Requisitos: Node 18 o superior. Con el entorno ya levantado (pasos 1 a 5 de "Puesta en marcha"; el paso 4 crea también la tabla `informe`), desde la raíz del repo:
+
+```
+cd web
+npm install
+npm start          # http://localhost:3000   (PowerShell, dev: $env:SESSION_SECRET="cualquier-texto-largo"; npm start)
+npm test           # 149 pruebas; la de integración usa el Flowable real y limpia lo que crea
+```
+
+| Entrada | URL | Quién |
+|---|---|---|
+| Solicitud pública | `/solicitar` | cualquiera |
+| Acceso de empresas | `/empresa/login` | cuenta de `cuenta_empresa` |
+| Administración | `/admin/login` | `jefeAdmin`, `admin2` (clave `test`) |
+| Equipo docente | `/docentes/login` | `jefeDocente`, `docente1`, `docente2` (clave `test`) |
+
+Variables de entorno (todas con valor por defecto de desarrollo; tabla completa en [`web/README.md`](web/README.md)): `FLOWABLE_REST_URL`, `INSTITUCION_DB_URL`, `SESSION_SECRET`, `PORT`, `PLAZO_RESPUESTA` (acorta el plazo de respuesta en las demostraciones) y `SIMULAR_FALTA_AULAS`. Las tres partes del sitio (pública/empresa, administración y docentes) leen las mismas. En producción `SESSION_SECRET` es obligatorio. El guion de los escenarios 8, 9 y 10 está en [`informe/checklist-manual.md`](informe/checklist-manual.md).
 
 ## Simulador de la empresa y app de materiales
 
@@ -167,5 +183,5 @@ Las pruebas de proceso contra el entorno levantado son `scripts/escenarios/m-esc
 - **Probado de punta a punta:** viabilidad y acuerdo; el curso completo (preparación, confirmación, dictado, informe y fin con compensación; `FINALIZADO`); falta de aulas; cancelación de la empresa con espera de la liberación del equipamiento; rechazo; y los cierres `NO_VIABLE`, `SIN_RESPUESTA`, `CANCELADO` y `RECHAZADO` reflejados en `curso.estado`.
 - Los avisos a la empresa son correos al SMTP falso de la máquina (sección "Avisos por correo"); sin servidor quedan en el log. Credenciales de las cuentas de empresa: simuladas.
 - Todo lo que se aparta de la consigna, con su motivo, está en [`informe/licencias-consigna.md`](informe/licencias-consigna.md).
-- Falta el sitio web (formulario público, pantallas de administración y docentes), que construyen otras dos personas. El informe breve está en `informe/informe.md`.
-- Reglas que debe cumplir el sitio porque el motor no las hace (reclamar antes de completar, validar *Evaluar recursos* y la fecha de aceptación, vincular el curso, informe en PDF): `informe/decisiones-pendientes.md`, "Reglas para el sitio web".
+- El sitio web (`web/`) está construido; los escenarios 8, 9 y 10 se ensayan a mano con `informe/checklist-manual.md`. El informe breve está en `informe/informe.md`.
+- Reglas que debe cumplir el sitio porque el motor no las hace (reclamar antes de completar, validar *Evaluar recursos* y la fecha de aceptación, vincular el curso, informe en PDF): `informe/licencias-consigna.md` (filas 23 y 24).

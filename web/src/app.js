@@ -42,17 +42,9 @@ app.use(rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: true, legacy
 app.use('/', require('./publico'));
 app.use('/empresa', require('./empresa'));
 
-// rutas de otros (si existen)
-try {
-  app.use('/admin', require('./admin'));
-} catch (e) {
-  // modulo no presente aun
-}
-try {
-  app.use('/docentes', require('./docentes'));
-} catch (e) {
-  // modulo no presente aun
-}
+// personal de la institucion (si un modulo falla al cargar, el sitio no arranca)
+app.use('/admin', require('./admin'));
+app.use('/docentes', require('./docentes'));
 
 // 404
 app.use((req, res) => {

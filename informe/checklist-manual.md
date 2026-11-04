@@ -6,7 +6,7 @@ Las pantallas y rutas del sitio son las que debe tener según la consigna §4.1;
 
 ## Preparación (una vez, antes de ensayar)
 
-1. Entorno levantado según `README.md` ("Puesta en marcha", pasos 1 a 5) y sitio web en marcha (`TODO web`: comando de arranque, ver `README.md` §"Sitio web").
+1. Entorno levantado según `README.md` ("Puesta en marcha", pasos 1 a 5) y sitio web en marcha (`cd web && npm install && npm start`, http://localhost:3000; ver `README.md` §"Sitio web").
 2. Sin instancias activas de `Process_Curso` (cuentan para el límite de 5): `node scripts/escenarios/m-limpiar-instancias.js`.
 3. Credenciales de Flowable (clave `test`): `jefeAdmin`, `admin2` (grupo `administracion`); `jefeDocente`, `docente1`, `docente2` (grupo `docentes`).
 4. Una terminal con el simulador de la empresa (`README-aplicaciones.md` §3) y otra con la app Swing (`README-aplicaciones.md` §4) para los pasos que las usan.
@@ -75,7 +75,7 @@ Precondición: dos empresas con cursos propios, por ejemplo la empresa 2 (sin cu
 | 9 | Empresa 2 | sitio | Credenciales incorrectas | Rechazadas, sin revelar si existe el usuario |
 | 10 | Persona de la institución (`jefeAdmin`) | sitio, acceso de empresas ◻ | Intentar ingresar con su usuario de Flowable en la zona de empresas | No debe ver los cursos de una empresa (las cuentas son distintas) |
 
-Nota para el que construye el sitio: el estado del curso para la empresa está en la variable de proceso `estadoCurso` (`EN_ACUERDO`, `EN_PREPARACION`, `CONFIRMADO_PENDIENTE_INICIO`, `EN_DESARROLLO`, `ELABORANDO_INFORME`, `FINALIZADO`, `CANCELADO`); los cierres sin curso (`NO_VIABLE`, `RECHAZADO`, `SIN_RESPUESTA`) están en `curso.estado`. Las actividades paralelas de `Preparar` salen de `/runtime/tasks` y `/runtime/executions`. Ver `informe/decisiones-pendientes.md`, "Reglas para el sitio web".
+Nota para el que construye el sitio: el estado del curso para la empresa está en la variable de proceso `estadoCurso` (`EN_ACUERDO`, `EN_PREPARACION`, `CONFIRMADO_PENDIENTE_INICIO`, `EN_DESARROLLO`, `ELABORANDO_INFORME`, `FINALIZADO`, `CANCELADO`); los cierres sin curso (`NO_VIABLE`, `RECHAZADO`, `SIN_RESPUESTA`) están en `curso.estado`. Las actividades paralelas de `Preparar` salen de `/runtime/tasks` y `/runtime/executions`. Ver `informe/licencias-consigna.md`, "Reglas para el sitio web".
 
 ---
 

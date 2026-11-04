@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Crea la BD "institucion" (usuario institucion) con db/schema.sql y db/datos.sql.
+# Crea la BD "institucion" (usuario institucion) con db/schema.sql, db/datos.sql y db/migraciones/.
 # Idempotente en la creacion; datos.sql REINICIA las tablas (TRUNCATE) con los datos de prueba.
 # Uso: ./scripts/crear-bd.sh      (desde la raiz del repo, con "docker compose up -d" andando)
 set -e
@@ -12,4 +12,5 @@ psql_pg -d flowable -tc "select 1 from pg_database where datname='institucion'" 
 
 docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U institucion -d institucion < db/schema.sql
 docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U institucion -d institucion < db/datos.sql
+docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U institucion -d institucion < db/migraciones/001-informe.sql
 echo "BD institucion lista."

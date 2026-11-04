@@ -36,14 +36,14 @@ const REPORT_FILE_PATTERN = /^(\d{1,9})\.pdf$/;
 const PROPOSAL_FORM_TASKS = new Set([PROPOSAL_TASK_KEY, REVIEW_TASK_KEY]);
 
 const DEFAULT_CONFIG = {
-  baseUrl: process.env.FLOWABLE_URL || 'http://localhost:8080/flowable-rest/service',
+  baseUrl: process.env.FLOWABLE_REST_URL || process.env.FLOWABLE_URL || 'http://localhost:8080/flowable-rest/service',
   timeoutMs: 10000,
-  sessionSecret: process.env.SESSION_SECRET || null,
+  sessionSecret: process.env.SESSION_SECRET || (process.env.NODE_ENV === 'production' ? null : 'dev-session-secret-change-me'),
   sessionTtlMs: Number(process.env.SESSION_TTL_MS) || 8 * 60 * 60 * 1000,
   cookieName: 'admin_sid',
   cookieSecure: process.env.NODE_ENV === 'production',
   maxTasks: 100,
-  databaseUrl: process.env.INSTITUCION_DATABASE_URL || null,
+  databaseUrl: process.env.INSTITUCION_DB_URL || process.env.INSTITUCION_DATABASE_URL || null,
   flowableUiUrl: process.env.FLOWABLE_UI_URL || 'http://localhost:8081/flowable-ui',
 };
 

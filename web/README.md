@@ -18,12 +18,14 @@ npm install
 | `DEV_MODE` | true | Habilita campos de desarrollo en el formulario |
 | `FLOWABLE_REST_URL` | http://localhost:8080/flowable-rest/service | Base de Flowable REST |
 | `INSTITUCION_DB_URL` | postgresql://institucion:institucion@localhost:5432/institucion | BD institucion |
-| `SESSION_SECRET` | dev-session-secret-change-me | Secreto de sesion |
+| `SESSION_SECRET` | dev-session-secret-change-me | Secreto de sesion (las tres partes del sitio; obligatorio en `production`) |
 | `FLOWABLE_SERVICE_USER` / `FLOWABLE_SERVICE_PASS` | rest-admin / test | Credenciales de servicio contra Flowable REST |
 | `PLAZO_RESPUESTA` | (vacio) | Valor por defecto para `plazoRespuesta` en modo dev |
 | `SIMULAR_FALTA_AULAS` | false | Activa `simularFaltaAulas` por defecto en modo dev |
 | `LOGIN_MAX_ATTEMPTS` | 5 | Intentos de login por ventana |
 | `LOGIN_WINDOW_MS` | 900000 | Ventana de bloqueo (ms) |
+
+Compatibilidad: `admin/` y `docentes/` aceptan tambien los nombres viejos `FLOWABLE_URL` e `INSTITUCION_DATABASE_URL`. La tabla `informe` la crea `scripts/crear-bd` (migracion `db/migraciones/001-informe.sql`).
 
 ## Ejecucion
 

@@ -114,7 +114,7 @@ Diagrama: se agregaron formas y aristas para los elementos nuevos y se quitaron 
 
 ### Avisos por correo, envío de la propuesta y estado en vivo (2026-11-04)
 
-Con el OK explícito del usuario (decisiones tomadas tras el recorrido de escenarios, `informe/decisiones-pendientes.md`). Respaldo del modelo anterior: `pruebas-flowable/resultados/modelo-antes-de-cambios-57-64.xml` (local). Pruebas: `pruebas-flowable/m-escenarios.js`.
+Con el OK explícito del usuario (decisiones tomadas tras el recorrido de escenarios, `informe/licencias-consigna.md`). Respaldo del modelo anterior: `pruebas-flowable/resultados/modelo-antes-de-cambios-57-64.xml` (local). Pruebas: `pruebas-flowable/m-escenarios.js`.
 
 | # | Elemento | Qué cambió | Por qué | Provisorio | Evidencia |
 |---|---|---|---|---|---|
