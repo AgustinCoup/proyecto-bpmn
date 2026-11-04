@@ -95,6 +95,26 @@ class ActualizarEstadoCursoListenerTest {
     }
 
     @Test
+    void sinVinculoBuscaElCursoPorSuIdSiNoTieneInstancia() throws SQLException {
+        insertarCurso(7, null, "EN_PROCESO");
+        when(execution.getVariable("cursoId")).thenReturn(7);
+
+        ejecutar("pi-no-vinculada", "NO_VIABLE");
+
+        assertEquals("NO_VIABLE", estadoDe(7));
+    }
+
+    @Test
+    void elRespaldoPorIdNoTocaUnCursoYaVinculadoAOtraInstancia() throws SQLException {
+        insertarCurso(8, "pi-otra", "EN_PROCESO");
+        when(execution.getVariable("cursoId")).thenReturn(8);
+
+        ejecutar("pi-no-vinculada", "NO_VIABLE");
+
+        assertEquals("EN_PROCESO", estadoDe(8));
+    }
+
+    @Test
     void noFallaSiNoExisteElCursoDeLaInstancia() {
         ejecutar("pi-inexistente", "CANCELADO");
     }

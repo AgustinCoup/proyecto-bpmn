@@ -17,14 +17,28 @@ public class ActualizarEstadoCursoListener implements ExecutionListener {
         resultado = resultado.toUpperCase();
 
         String processInstanceId = execution.getProcessInstanceId();
+        Object cursoId = execution.getVariable("cursoId");
 
-        try (Connection conn = abrirConexion();
-             PreparedStatement ps = conn.prepareStatement("UPDATE curso SET estado = ? WHERE process_instance_id = ?")) {
-            ps.setString(1, resultado);
-            ps.setString(2, processInstanceId);
-            ps.executeUpdate();
+        try (Connection conn = abrirConexion()) {
+            int actualizadas = actualizar(conn,
+                    "UPDATE curso SET estado = ? WHERE process_instance_id = ?", resultado, processInstanceId);
+            // Una instancia "no viable" termina dentro del propio POST de inicio, antes de que quien la inició pueda
+            // guardar process_instance_id en el curso: en ese caso se busca el curso por su ID (variable cursoId),
+            // sólo si todavía no está vinculado a ninguna instancia.
+            if (actualizadas == 0 && cursoId instanceof Number) {
+                actualizar(conn, "UPDATE curso SET estado = ? WHERE id = ? AND process_instance_id IS NULL",
+                        resultado, ((Number) cursoId).intValue());
+            }
         } catch (Exception e) {
             throw new RuntimeException("Error al actualizar el estado del curso en la BD", e);
+        }
+    }
+
+    private static int actualizar(Connection conn, String sql, String estado, Object clave) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, estado);
+            ps.setObject(2, clave);
+            return ps.executeUpdate();
         }
     }
 

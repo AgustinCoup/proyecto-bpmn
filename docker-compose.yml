@@ -28,6 +28,11 @@ services:
       INSTITUCION_DB_URL: jdbc:postgresql://postgres:5432/institucion
       INSTITUCION_DB_USER: institucion
       INSTITUCION_DB_PASS: institucion
+      # Avisos por correo a la empresa (NotificarEmpresaDelegate). Por defecto, el SMTP falso (DevNullSmtp) que corre en la
+      # máquina anfitriona, puerto 25. Si no hay servidor, el aviso falla sin afectar al proceso (queda en el log).
+      SMTP_HOST: ${SMTP_HOST:-host.docker.internal}
+      SMTP_PORT: ${SMTP_PORT:-25}
+      SMTP_FROM: ${SMTP_FROM:-institucion@cursos.local}
     ports:
       - "8080:8080"
     volumes:
@@ -50,6 +55,11 @@ services:
       INSTITUCION_DB_URL: jdbc:postgresql://postgres:5432/institucion
       INSTITUCION_DB_USER: institucion
       INSTITUCION_DB_PASS: institucion
+      # Avisos por correo a la empresa (NotificarEmpresaDelegate). Por defecto, el SMTP falso (DevNullSmtp) que corre en la
+      # máquina anfitriona, puerto 25. Si no hay servidor, el aviso falla sin afectar al proceso (queda en el log).
+      SMTP_HOST: ${SMTP_HOST:-host.docker.internal}
+      SMTP_PORT: ${SMTP_PORT:-25}
+      SMTP_FROM: ${SMTP_FROM:-institucion@cursos.local}
     ports:
       - "8081:8080"
     volumes:

@@ -112,6 +112,22 @@ Con esto, los cambios 29 a 33 dejan de ser provisorios: `Aula`, `Activity_16zz91
 
 Diagrama: se agregaron formas y aristas para los elementos nuevos y se quitaron las de los eliminados; **no se abrió en Yaoqiang** todavía (regla de Yaoqiang: abrir sólo para ver).
 
+### Avisos por correo, envío de la propuesta y estado en vivo (2026-11-04)
+
+Con el OK explícito del usuario (decisiones tomadas tras el recorrido de escenarios, `informe/decisiones-pendientes.md`). Respaldo del modelo anterior: `pruebas-flowable/resultados/modelo-antes-de-cambios-57-64.xml` (local). Pruebas: `pruebas-flowable/m-escenarios.js`.
+
+| # | Elemento | Qué cambió | Por qué | Provisorio | Evidencia |
+|---|---|---|---|---|---|
+| 57 | `Enviar` "Enviar propuesta" | De `scriptTask` automática a `userTask` con `flowable:assignee="jefeAdmin"`. Task Listener `complete` (expresión) `recordatorios = 0` y Execution Listener `end` `NotificarEmpresaDelegate` (`tipo=PROPUESTA`). Mismo ID y mismos flujos. | Consigna §1.1 y §2: el jefe administrativo envía la propuesta. Reemplaza la decisión 5 de `Contrato.md` §9 ("queda automática"). | No | `m-escenarios.js` escenarios 1 a 4 y 11: la tarea existe para `jefeAdmin` y el timer `Plazo` arranca al completarla |
+| 58 | `Recordatorio` | De `scriptTask` Groovy a `serviceTask` `unrc.cursos.NotificarEmpresaDelegate` (`tipo=RECORDATORIO`). El contador sube con un Execution Listener `start` (expresión), antes del aviso. | El aviso al cliente pasa a ser un correo real al SMTP de la máquina (consigna: "se envía un recordatorio"). | No | Escenario 4: `recordatorios = 2` y 2 correos "Recordatorio" |
+| 59 | `Activity_0iibzwu` "Notificar Desición" | De `scriptTask` a `serviceTask` `NotificarEmpresaDelegate` (`NO_VIABLE`); `resultado = NO_VIABLE` en un Execution Listener `start`. | Ídem (consigna §1.1: comunica a la empresa). | No | Escenario 5 |
+| 60 | `Activity_12e0et1` "Notificar Cierre" | De `scriptTask` a `serviceTask` `NotificarEmpresaDelegate` (`CIERRE`). | Ídem (consigna §1.3: se notifica el cierre). | No | Escenarios 6 y 7 |
+| 61 | `Confirmar` "Enviar confirmación" | De `scriptTask` a `serviceTask` `NotificarEmpresaDelegate` (`CONFIRMACION`); Execution Listener `end`: `estadoCurso = CONFIRMADO_PENDIENTE_INICIO`. | Ídem (consigna §1.4). Además, ya no queda ninguna tarea de script en el modelo: la app de escritorio no necesita Groovy para seguir el flujo. | No | Escenarios 1 y 11 |
+| 62 | `EnviarInforme` | Execution Listener `end` `NotificarEmpresaDelegate` (`INFORME`). Conserva el Task Listener que setea `resultado = FINALIZADO`. | Consigna §1.4: el jefe administrativo envía el informe a la empresa. | No | Escenario 1 |
+| 63 | `Propuesta`, `Preparar`, `Dictar`, `Event_1g4xmqo`, `InicioFaltaAulas`, `Fin` | Listeners por expresión que setean `estadoCurso`: `EN_ACUERDO` (create de `Propuesta`), `EN_PREPARACION` (start de `Preparar`), `EN_DESARROLLO` y `ELABORANDO_INFORME` (create y complete de `Dictar`), `CANCELADO` (inicios de cancelación y falta de aulas), `FINALIZADO` (start de `Fin`). `CONFIRMADO_PENDIENTE_INICIO` está en la entrada 61. | Consigna §4.1.2: la empresa visualiza el estado del curso. El sitio lee la variable en vez de derivarla. Los cierres `NO_VIABLE`, `RECHAZADO` y `SIN_RESPUESTA` se ven en `curso.estado` (BD). | No | Escenarios 1, 6 y 7 verifican la variable en cada hito |
+
+Fuera del modelo, el mismo día: `NotificarEmpresaDelegate` (clase nueva, 5 tests), `ActualizarEstadoCursoListener` (respaldo por `cursoId` para los cursos `NO_VIABLE`, 2 tests nuevos), `pom.xml` (Groovy en runtime para el motor local de la app de escritorio) y `docker-compose.yml` (variables `SMTP_HOST`, `SMTP_PORT` y `SMTP_FROM` en `flowable-rest` y `flowable-ui`).
+
 ### Objetos de datos
 
 | # | Elemento | Qué cambió | Por qué | Provisorio | Evidencia |

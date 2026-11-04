@@ -63,16 +63,15 @@
       <bpmn:outgoing>Flow_0g8vm9l</bpmn:outgoing>
       <bpmn:messageEventDefinition id="Def_Inicio" messageRef="Msg_sol" />
     </bpmn:startEvent>
-    <!-- Notifica sólo con un log: el envío del recordatorio a la empresa se simula. -->
-    <bpmn:scriptTask id="Recordatorio" name="Enviar recordatorio" scriptFormat="groovy">
+    <!-- Suma 1 al contador (listener de inicio, antes del aviso) y avisa por correo a la empresa (NotificarEmpresaDelegate). -->
+    <bpmn:serviceTask id="Recordatorio" name="Enviar recordatorio" flowable:class="unrc.cursos.NotificarEmpresaDelegate">
+      <bpmn:extensionElements>
+        <flowable:executionListener event="start" expression="${execution.setVariable('recordatorios', recordatorios + 1)}" />
+        <flowable:field name="tipo" stringValue="RECORDATORIO" />
+      </bpmn:extensionElements>
       <bpmn:incoming>OtroRecord</bpmn:incoming>
       <bpmn:outgoing>VolverEsperar</bpmn:outgoing>
-      <bpmn:script><![CDATA[
-def n = execution.getVariable('recordatorios') + 1
-execution.setVariable('recordatorios', n)
-println "[Process_Curso ${execution.getProcessInstanceId()}] Recordatorio ${n} enviado a la empresa (simulado)"
-]]></bpmn:script>
-    </bpmn:scriptTask>
+    </bpmn:serviceTask>
     <bpmn:exclusiveGateway id="Limite" name="¿Se enviaron 2 recordatorios?">
       <bpmn:incoming>PlazoLimite</bpmn:incoming>
       <bpmn:outgoing>SinRespuesta</bpmn:outgoing>
@@ -151,13 +150,15 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Recordatorio ${n} e
       <bpmn:outgoing>LiberacionLista</bpmn:outgoing>
     </bpmn:receiveTask>
     <bpmn:sequenceFlow id="LiberacionLista" sourceRef="EsperarLiberacion" targetRef="Activity_12e0et1" />
-    <!-- Notifica sólo con un log (simulado); el motivo sale de motivoCancelacion. -->
-    <bpmn:scriptTask id="Activity_12e0et1" name="Notificar Cierre" scriptFormat="groovy">
+    <!-- Avisa por correo a la empresa; el texto usa motivoCancelacion. -->
+    <bpmn:serviceTask id="Activity_12e0et1" name="Notificar Cierre" flowable:class="unrc.cursos.NotificarEmpresaDelegate">
+      <bpmn:extensionElements>
+        <flowable:field name="tipo" stringValue="CIERRE" />
+      </bpmn:extensionElements>
       <bpmn:incoming>SinEquipo</bpmn:incoming>
       <bpmn:incoming>LiberacionLista</bpmn:incoming>
       <bpmn:outgoing>Flow_175t1j3</bpmn:outgoing>
-      <bpmn:script><![CDATA[println "[Process_Curso ${execution.getProcessInstanceId()}] Cierre notificado a la empresa por ${execution.getVariable('motivoCancelacion')} (simulado)"]]></bpmn:script>
-    </bpmn:scriptTask>
+    </bpmn:serviceTask>
     <bpmn:endEvent id="Event_0w2kitf">
       <bpmn:incoming>Flow_175t1j3</bpmn:incoming>
     </bpmn:endEvent>
@@ -179,6 +180,10 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Recordatorio ${n} e
       <bpmn:messageEventDefinition id="Def_Rechazar" messageRef="Msg_rechaza" />
     </bpmn:intermediateCatchEvent>
     <bpmn:userTask id="Dictar" name="Desarrollar curso" flowable:assignee="${docenteSeleccionado}">
+      <bpmn:extensionElements>
+        <flowable:taskListener event="create" expression="${task.setVariable('estadoCurso', 'EN_DESARROLLO')}" />
+        <flowable:taskListener event="complete" expression="${task.setVariable('estadoCurso', 'ELABORANDO_INFORME')}" />
+      </bpmn:extensionElements>
       <bpmn:incoming>FechaDictar</bpmn:incoming>
       <bpmn:outgoing>Flow_1sdjeh6</bpmn:outgoing>
       <bpmn:property id="Property_137on16" name="__targetRef_placeholder" />
@@ -197,6 +202,9 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Recordatorio ${n} e
     <bpmn:sequenceFlow id="FechaDictar" sourceRef="Fecha" targetRef="Dictar" />
     <bpmn:sequenceFlow id="Flow_1sdjeh6" sourceRef="Dictar" targetRef="Informe" />
     <bpmn:subProcess id="Preparar" name="Preparar curso">
+      <bpmn:extensionElements>
+        <flowable:executionListener event="start" expression="${execution.setVariable('estadoCurso', 'EN_PREPARACION')}" />
+      </bpmn:extensionElements>
       <bpmn:incoming>Flow_1ffpwga</bpmn:incoming>
       <bpmn:outgoing>Preparado</bpmn:outgoing>
       <bpmn:startEvent id="SubInicio" name="">
@@ -291,6 +299,7 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Recordatorio ${n} e
             <!-- Sólo marca el motivo: las compensaciones se lanzan fuera de Preparar (CompensarCancelacion). -->
             <flowable:executionListener event="end" expression="${execution.setVariable('resultado', 'CANCELADO')}" />
             <flowable:executionListener event="end" expression="${execution.setVariable('motivoCancelacion', 'EMPRESA')}" />
+            <flowable:executionListener event="end" expression="${execution.setVariable('estadoCurso', 'CANCELADO')}" />
           </bpmn:extensionElements>
           <bpmn:outgoing>Flow_099pqle</bpmn:outgoing>
           <bpmn:messageEventDefinition id="MessageEventDefinition_1avzsle" messageRef="Msg_cancel" />
@@ -306,6 +315,7 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Recordatorio ${n} e
           <bpmn:extensionElements>
             <flowable:executionListener event="end" expression="${execution.setVariable('resultado', 'CANCELADO')}" />
             <flowable:executionListener event="end" expression="${execution.setVariable('motivoCancelacion', 'SIN_AULAS')}" />
+            <flowable:executionListener event="end" expression="${execution.setVariable('estadoCurso', 'CANCELADO')}" />
           </bpmn:extensionElements>
           <bpmn:outgoing>FlujoFaltaAulas</bpmn:outgoing>
           <bpmn:errorEventDefinition id="ErrorEventDefinition_FaltaAulas" errorRef="Err_sinAulas" />
@@ -361,6 +371,7 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Recordatorio ${n} e
     <bpmn:userTask id="Propuesta" name="Registrar y Elaborar propuesta" flowable:assignee="jefeAdmin">
       <bpmn:extensionElements>
         <!-- Al completar la propuesta, queda registrada su primera versión. -->
+        <flowable:taskListener event="create" expression="${task.setVariable('estadoCurso', 'EN_ACUERDO')}" />
         <flowable:taskListener event="complete" expression="${task.setVariable('propuestaVersion', 1)}" />
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_0k38d9g</bpmn:incoming>
@@ -394,21 +405,24 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Recordatorio ${n} e
       <bpmn:incoming>Flow_00ve97r</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:sequenceFlow id="Flow_00ve97r" sourceRef="Activity_0iibzwu" targetRef="Event_18edb9q" />
-    <!-- Notifica sólo con un log (simulado). Marca el cierre "no viable" para el Execution Listener de fin. -->
-    <bpmn:scriptTask id="Activity_0iibzwu" name="Notificar Desición" scriptFormat="groovy">
+    <!-- Marca el cierre "no viable" para el Execution Listener de fin (listener de inicio) y avisa por correo a la empresa. -->
+    <bpmn:serviceTask id="Activity_0iibzwu" name="Notificar Desición" flowable:class="unrc.cursos.NotificarEmpresaDelegate">
+      <bpmn:extensionElements>
+        <flowable:executionListener event="start" expression="${execution.setVariable('resultado', 'NO_VIABLE')}" />
+        <flowable:field name="tipo" stringValue="NO_VIABLE" />
+      </bpmn:extensionElements>
       <bpmn:incoming>Flow_0w8xn3l</bpmn:incoming>
       <bpmn:outgoing>Flow_00ve97r</bpmn:outgoing>
-      <bpmn:script><![CDATA[
-execution.setVariable('resultado', 'NO_VIABLE')
-println "[Process_Curso ${execution.getProcessInstanceId()}] Solicitud no viable: se avisa a la empresa (simulado)"
-]]></bpmn:script>
-    </bpmn:scriptTask>
-    <!-- Notifica sólo con un log (simulado). -->
-    <bpmn:scriptTask id="Confirmar" name="Enviar confirmación" scriptFormat="groovy">
+    </bpmn:serviceTask>
+    <!-- Avisa por correo a la empresa y deja el curso confirmado y pendiente de inicio. -->
+    <bpmn:serviceTask id="Confirmar" name="Enviar confirmación" flowable:class="unrc.cursos.NotificarEmpresaDelegate">
+      <bpmn:extensionElements>
+        <flowable:executionListener event="end" expression="${execution.setVariable('estadoCurso', 'CONFIRMADO_PENDIENTE_INICIO')}" />
+        <flowable:field name="tipo" stringValue="CONFIRMACION" />
+      </bpmn:extensionElements>
       <bpmn:incoming>NoCancelado</bpmn:incoming>
       <bpmn:outgoing>Flow_1topamj</bpmn:outgoing>
-      <bpmn:script><![CDATA[println "[Process_Curso ${execution.getProcessInstanceId()}] Confirmación enviada a la empresa (simulado)"]]></bpmn:script>
-    </bpmn:scriptTask>
+    </bpmn:serviceTask>
     <bpmn:dataObjectReference id="DatosInforme" name="Informe de resultados" dataObjectRef="DatosInforme_Object" />
     <bpmn:dataObject id="DatosInforme_Object" name="Informe de resultados" />
     <!-- X2: Flowable ignora el fin con compensación; se lanza la compensación antes de un fin simple. -->
@@ -419,6 +433,9 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Solicitud no viable
     </bpmn:intermediateThrowEvent>
     <bpmn:sequenceFlow id="FinCompensado" sourceRef="CompensarFin" targetRef="Fin" />
     <bpmn:endEvent id="Fin" name="Curso finalizado">
+      <bpmn:extensionElements>
+        <flowable:executionListener event="start" expression="${execution.setVariable('estadoCurso', 'FINALIZADO')}" />
+      </bpmn:extensionElements>
       <bpmn:incoming>FinCompensado</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:userTask id="Revisar" name="Revisar propuesta" flowable:assignee="jefeAdmin">
@@ -438,6 +455,10 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Solicitud no viable
       <bpmn:extensionElements>
         <!-- Cierre normal: lo lee el Execution Listener de fin de proceso. -->
         <flowable:taskListener event="complete" expression="${task.setVariable('resultado', 'FINALIZADO')}" />
+        <!-- Consigna 1.4: el jefe administrativo envía el informe a la empresa (aviso por correo). -->
+        <flowable:executionListener event="end" class="unrc.cursos.NotificarEmpresaDelegate">
+          <flowable:field name="tipo" stringValue="INFORME" />
+        </flowable:executionListener>
       </bpmn:extensionElements>
       <bpmn:incoming>InformeEnviar</bpmn:incoming>
       <bpmn:outgoing>InformeArchivar</bpmn:outgoing>
@@ -460,8 +481,15 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Solicitud no viable
       <bpmn:outgoing>Flow_1ffpwga</bpmn:outgoing>
     </bpmn:serviceTask>
     <bpmn:sequenceFlow id="Flow_1ffpwga" sourceRef="Activity_1eg7zcl" targetRef="Preparar" />
-    <!-- Notifica sólo con un log (simulado). Reinicia el contador: cada versión enviada tiene sus propios 2 recordatorios. -->
-    <bpmn:scriptTask id="Enviar" name="Enviar propuesta" scriptFormat="groovy">
+    <!-- Consigna 1.1/2: el jefe administrativo envía la propuesta. Al completarse reinicia el contador de recordatorios
+         (cada versión enviada tiene los suyos) y avisa por correo a la empresa. -->
+    <bpmn:userTask id="Enviar" name="Enviar propuesta" flowable:assignee="jefeAdmin">
+      <bpmn:extensionElements>
+        <flowable:taskListener event="complete" expression="${task.setVariable('recordatorios', 0)}" />
+        <flowable:executionListener event="end" class="unrc.cursos.NotificarEmpresaDelegate">
+          <flowable:field name="tipo" stringValue="PROPUESTA" />
+        </flowable:executionListener>
+      </bpmn:extensionElements>
       <bpmn:incoming>main2</bpmn:incoming>
       <bpmn:incoming>Flow_0upbxn5</bpmn:incoming>
       <bpmn:outgoing>main3</bpmn:outgoing>
@@ -470,11 +498,7 @@ println "[Process_Curso ${execution.getProcessInstanceId()}] Solicitud no viable
         <bpmn:sourceRef>DatosPropuesta</bpmn:sourceRef>
         <bpmn:targetRef>Property_014d5dd</bpmn:targetRef>
       </bpmn:dataInputAssociation>
-      <bpmn:script><![CDATA[
-execution.setVariable('recordatorios', 0)
-println "[Process_Curso ${execution.getProcessInstanceId()}] Propuesta versión ${execution.getVariable('propuestaVersion')} enviada a la empresa (simulado)"
-]]></bpmn:script>
-    </bpmn:scriptTask>
+    </bpmn:userTask>
   </bpmn:process>
   <bpmn:collaboration id="Collaboration_Cursos">
     <bpmn:participant id="Pool_Institucion" name="Institución de capacitación" processRef="Process_Curso" />
