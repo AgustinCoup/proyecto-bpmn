@@ -6,7 +6,15 @@ const { FlowableError, createFlowableRest } = require('./flowable-rest');
 const { createSessionStore } = require('./session');
 const { createAuth } = require('./auth');
 const { createViews } = require('./views');
-const { fetchTasks } = require('./tasks');
+const {
+  fetchTasks,
+  fetchTask,
+  fetchIdentityLinks,
+  canClaimTask,
+  claimTask,
+} = require('./tasks');
+
+const TASK_ID_PATTERN = /^[A-Za-z0-9_-]{1,100}$/;
 
 const DEFAULT_CONFIG = {
   baseUrl: process.env.FLOWABLE_URL || 'http://localhost:8080/flowable-rest/service',
@@ -69,7 +77,54 @@ function createAdminRouter(options = {}) {
       ['administracion'],
       { max: config.maxTasks },
     );
-    res.status(200).send(views.home({ ...viewContext(req), tasks }));
+    res.status(200).send(views.home({
+      ...viewContext(req),
+      tasks,
+      flash: store.consumeFlash(req.session),
+    }));
+  }));
+
+  router.post('/tasks/:id/claim', auth.requireAdmin, auth.csrf, asyncHandler(async (req, res) => {
+    const taskId = req.params.id;
+    const context = viewContext(req);
+
+    if (!TASK_ID_PATTERN.test(taskId)) {
+      return views.badRequest(res, 'El identificador de la tarea no es válido.', context);
+    }
+
+    const credentials = { user: req.session.user, password: req.session.password };
+    const task = await fetchTask(client, credentials, taskId);
+
+    if (task.assignee && task.assignee !== req.session.user) {
+      return views.forbidden(res, 'La tarea ya está asignada a otra persona.', context);
+    }
+
+    if (task.assignee === req.session.user) {
+      store.setFlash(req.session, 'ok', 'La tarea ya estaba asignada a vos.');
+      return res.redirect(303, `${req.baseUrl || ''}/`);
+    }
+
+    const links = await fetchIdentityLinks(client, credentials, taskId);
+    if (!canClaimTask(task, links, req.session.user, req.session.groups)) {
+      return views.forbidden(
+        res,
+        'No podés reclamar esta tarea: no es candidata para tu usuario ni para tu grupo.',
+        context,
+      );
+    }
+
+    try {
+      await claimTask(client, credentials, taskId);
+    } catch (error) {
+      if (error instanceof FlowableError && error.status === 409) {
+        store.setFlash(req.session, 'error', 'Otra persona reclamó la tarea antes que vos.');
+        return res.redirect(303, `${req.baseUrl || ''}/`);
+      }
+      throw error;
+    }
+
+    store.setFlash(req.session, 'ok', 'Tarea reclamada. Ahora está asignada a vos.');
+    return res.redirect(303, `${req.baseUrl || ''}/`);
   }));
 
   router.use((req, res) => views.notFound(res, viewContext(req)));
@@ -83,6 +138,9 @@ function createAdminRouter(options = {}) {
         if (sid) store.destroy(sid);
         store.clearCookie(res);
         return res.redirect(303, `${req.baseUrl || ''}/login?expirada=1`);
+      }
+      if (error.status === 404) {
+        return views.taskNotFound(res, viewContext(req));
       }
       console.error(`[admin] Flowable respondió ${error.status}: ${error.message}`);
       return views.badGateway(

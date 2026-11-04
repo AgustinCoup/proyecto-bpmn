@@ -162,6 +162,17 @@ function createSessionStore(options = {}) {
     return crypto.timingSafeEqual(provided, expected);
   }
 
+  function setFlash(session, type, message) {
+    if (session) session.flash = { type, message };
+  }
+
+  function consumeFlash(session) {
+    if (!session || !session.flash) return null;
+    const flash = session.flash;
+    delete session.flash;
+    return flash;
+  }
+
   return {
     cookieName,
     ttlMs,
@@ -177,6 +188,8 @@ function createSessionStore(options = {}) {
     rotate,
     csrfToken,
     verifyCsrf,
+    setFlash,
+    consumeFlash,
     parseCookies,
     purgeExpired,
   };

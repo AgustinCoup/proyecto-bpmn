@@ -53,6 +53,7 @@ test('login escapa el error y arma el formulario con CSRF', () => {
 test('home escapa datos de la tarea y muestra estado vacío', () => {
   const views = createViews();
   const malicious = {
+    id: '<script>alert(1)</script>',
     name: '<script>alert(1)</script>',
     taskDefinitionKey: 'X&Y',
     businessKey: '<1>',
@@ -76,6 +77,24 @@ test('home escapa datos de la tarea y muestra estado vacío', () => {
 
   const empty = views.home({ baseUrl: '/admin', user: 'jefeAdmin', csrf: 't', tasks: [] });
   assert.match(empty, /No tenés tareas asignadas ni disponibles/);
+
+  const withFlash = views.home({
+    baseUrl: '/admin',
+    user: 'jefeAdmin',
+    csrf: 't',
+    tasks: [],
+    flash: { type: 'error', message: '<b>falló</b>' },
+  });
+  assert.match(withFlash, /class="error"/);
+  assert.match(withFlash, /&lt;b&gt;falló&lt;\/b&gt;/);
+
+  const claimForm = views.home({
+    baseUrl: '/admin',
+    user: 'jefeAdmin',
+    csrf: 't',
+    tasks: [{ ...malicious, claimable: true }],
+  });
+  assert.match(claimForm, /action="\/admin\/tasks\/%3Cscript%3Ealert\(1\)%3C%2Fscript%3E\/claim"/);
 });
 
 test('páginas de error usan el status correcto', () => {
@@ -95,6 +114,16 @@ test('páginas de error usan el status correcto', () => {
   const notFound = fakeRes();
   views.notFound(notFound, { baseUrl: '/admin' });
   assert.equal(notFound.statusCode, 404);
+
+  const taskNotFound = fakeRes();
+  views.taskNotFound(taskNotFound, { baseUrl: '/admin' });
+  assert.equal(taskNotFound.statusCode, 404);
+  assert.match(taskNotFound.body, /ya fue completada/);
+
+  const badRequest = fakeRes();
+  views.badRequest(badRequest, 'id inválido', { baseUrl: '/admin' });
+  assert.equal(badRequest.statusCode, 400);
+  assert.match(badRequest.body, /id inválido/);
 
   const internal = fakeRes();
   views.error(internal, 'boom', { baseUrl: '/admin' });

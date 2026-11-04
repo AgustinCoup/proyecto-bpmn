@@ -4,8 +4,9 @@ Pantallas del sitio de la institución para el rol `administracion`. Cubre las t
 usuario de la sección 4.1.3 de la consigna y el escenario 8. Este módulo es dueño de
 `web/src/admin/`; el esqueleto del sitio lo monta en `/admin`.
 
-> **Estado actual: corte 1.** Login contra Flowable, sesión firmada, detección de rol y
-> lista de tareas. Reclamar, completar y los formularios llegan en los cortes siguientes.
+> **Estado actual: corte 2.** Login contra Flowable, sesión firmada, detección de rol,
+> lista de tareas y **reclamo** de tareas candidatas. Completar y los formularios llegan en
+> los cortes siguientes.
 
 ## Cómo se prueba (mientras no exista el esqueleto)
 
@@ -46,16 +47,52 @@ node --test test/*.test.js
 node --test --experimental-test-coverage test/*.test.js
 ```
 
-Cobertura del corte 1: **98,38 % de líneas** y **85,71 % de ramas** (incluyendo archivos
+Cobertura del corte 2: **98,60 % de líneas** y **87,45 % de ramas** (incluyendo archivos
 de prueba en el reporte).
 
-### Qué mirar a mano
+### Probar el reclamo con una tarea de verdad
+
+El modelo real no tiene tareas de grupo disponibles ahora mismo. Para no tocar las
+instancias del escenario 8, hay un proceso temporal de prueba:
+
+```bash
+cd web/src/admin
+node dev/tarea-grupo-prueba.js
+```
+
+Ese comando:
+
+1. Borra pruebas anteriores del mismo tipo.
+2. Despliega un proceso temporal llamado `TareaGrupoPrueba`.
+3. Inicia una instancia con una tarea candidata al grupo `administracion`.
+4. Imprime el id de la tarea y la URL del sitio.
+
+Después, en el navegador:
+
+1. Entrá a <http://localhost:3000/admin/> con `jefeAdmin` / `test`.
+2. Buscá la fila **“Tarea de prueba”**. Debe decir **“Disponible para reclamar”** y tener
+   el botón **“Reclamar”**.
+3. Hacé clic en **“Reclamar”**.
+4. Esperado: volvés a `/admin/`, ves el mensaje verde **“Tarea reclamada. Ahora está
+   asignada a vos.”** y la tarea pasa a **“Asignada a vos”**. El botón de completar sigue
+   deshabilitado (es el próximo corte).
+5. Para limpiar todo:
+
+```bash
+node dev/tarea-grupo-prueba.js borrar
+```
+
+Si el sitio está en otro puerto, pasá `ADMIN_URL`, por ejemplo
+`ADMIN_URL=http://localhost:3100/admin/ node dev/tarea-grupo-prueba.js`.
+
+### Qué mirar a mano (resto del corte)
 
 1. `GET /admin/login` muestra el formulario y una cookie `admin_sid` httpOnly firmada.
 2. Login con `jefeAdmin` / `test` redirige a `/admin/` y lista las tareas asignadas y las
    candidatas al grupo `administracion`. El curso se resuelve con el `businessKey`.
 3. Clave incorrecta: mensaje genérico, no se crea sesión.
-4. `docente1` / `test`: 403 porque no pertenece a `administracion`.
+4. `docente1` / `test`: 403 porque no pertenece a `administracion`. **Es esperado:** el
+   módulo de docentes es otro router y todavía no existe.
 5. Manipular la cookie o borrarla: vuelve al login.
 6. `POST` sin `_csrf`: 403.
 7. Cerrar sesión: destruye la sesión del servidor y borra la cookie.
@@ -67,6 +104,7 @@ de prueba en el reporte).
 |---|---|---|
 | `/admin/login`, `/admin/logout` | — (autenticación contra Flowable) | Hecho |
 | `/admin/` | Lista de tareas asignadas y candidatas al grupo `administracion` | Hecho |
+| `POST /admin/tasks/:id/claim` | Reclamar una tarea candidata del grupo | Hecho |
 | Próximo corte | `Propuesta` (Registrar y Elaborar propuesta, `jefeAdmin`) | Pendiente |
 | Próximo corte | `Revisar` (Revisar propuesta, `jefeAdmin`) | Pendiente |
 | Próximo corte | `Archivar` (Archivar solicitud, `jefeAdmin`) | Pendiente |
@@ -88,6 +126,9 @@ de Flowable (la consigna lo permite). El sitio solo las lista y enlaza.
 - Cookie `httpOnly`, `SameSite=Lax`, `Secure` en producción.
 - CSRF por sesión en todos los `POST`.
 - Escape de HTML en todas las vistas.
+- Reclamar valida contra `identitylinks` que la tarea sea candidata del usuario o de su
+  grupo; no alcanza con que el botón esté en la pantalla. Si otra persona la reclamó,
+  responde 403 o muestra un aviso.
 - Tareas candidatas ya reclamadas por otra persona se descartan; no se exponen por URL.
 - Todas las consultas a Flowable se validan del lado del servidor.
 
@@ -99,7 +140,7 @@ de Flowable (la consigna lo permite). El sitio solo las lista y enlaza.
 | `auth.js` | Login, logout, sesión y regla de rol `administracion`. |
 | `session.js` | Store en memoria, cookie firmada y CSRF. |
 | `flowable-rest.js` | Cliente REST con la firma de `lib/flowable.js`; se reemplaza por el del esqueleto. |
-| `tasks.js` | Consulta, deduplicación y normalización de tareas. |
+| `tasks.js` | Consulta, deduplicación, normalización y reclamo de tareas. |
 | `views.js` | HTML mínimo con escape; se reemplaza por las vistas EJS del esqueleto. |
-| `dev-harness.js`, `dev/` | Arnés local, **no entregable**. |
+| `dev-harness.js`, `dev/` | Arnés local, **no entregable**. Incluye `dev/tarea-grupo-prueba.js` para probar el reclamo. |
 | `test/` | Pruebas con `node:test` y cliente REST mockeado. |

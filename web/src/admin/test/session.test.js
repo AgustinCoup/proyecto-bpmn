@@ -103,6 +103,12 @@ test('cookie anónima, rotación de sesión y CSRF', () => {
   assert.equal(store.verifyCsrf(rotated.session, null), false);
   assert.equal(store.verifyCsrf(null, 'x'), false);
 
+  store.setFlash(rotated.session, 'ok', 'todo bien');
+  assert.deepEqual(store.consumeFlash(rotated.session), { type: 'ok', message: 'todo bien' });
+  assert.equal(store.consumeFlash(rotated.session), null);
+  store.setFlash(null, 'ok', 'no hace nada');
+  assert.equal(store.consumeFlash(null), null);
+
   const cleared = fakeRes();
   store.clearCookie(cleared);
   assert.match(cleared.headers['Set-Cookie'][0], /Max-Age=0/);

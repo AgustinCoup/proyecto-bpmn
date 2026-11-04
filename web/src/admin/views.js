@@ -116,9 +116,12 @@ function login({ baseUrl = '', csrf, error, expired }) {
   });
 }
 
-function home({ baseUrl = '', user, groups = [], csrf, tasks = [] }) {
+function home({ baseUrl = '', user, groups = [], csrf, tasks = [], flash = null }) {
   const assigned = tasks.filter((task) => !task.claimable).length;
   const available = tasks.length - assigned;
+  const alert = flash
+    ? `<p class="${flash.type === 'error' ? 'error' : 'ok'}">${escapeHtml(flash.message)}</p>`
+    : '';
 
   const rows = tasks.length
     ? tasks.map((task) => `<tr>
@@ -131,7 +134,12 @@ function home({ baseUrl = '', user, groups = [], csrf, tasks = [] }) {
         <td>${task.claimable
           ? '<span class="badge warn">Disponible para reclamar</span>'
           : '<span class="badge">Asignada a vos</span>'}</td>
-        <td class="actions"><button type="button" disabled>${task.claimable ? 'Reclamar' : 'Completar'} (próximo corte)</button></td>
+        <td class="actions">${task.claimable
+          ? `<form method="post" action="${escapeHtml(baseUrl)}/tasks/${encodeURIComponent(task.id)}/claim">
+               <input type="hidden" name="_csrf" value="${escapeHtml(csrf)}">
+               <button type="submit">Reclamar</button>
+             </form>`
+          : '<button type="button" disabled>Completar (próximo corte)</button>'}</td>
       </tr>`).join('')
     : `<tr><td colspan="5" class="muted">No tenés tareas asignadas ni disponibles en este momento.</td></tr>`;
 
@@ -142,6 +150,7 @@ function home({ baseUrl = '', user, groups = [], csrf, tasks = [] }) {
     groups,
     csrf,
     body: `<h1>Mis tareas</h1>
+      ${alert}
       <p class="muted">${tasks.length} en total: ${assigned} asignada(s) y ${available} disponible(s) para reclamar.</p>
       <table>
         <thead>
@@ -149,7 +158,7 @@ function home({ baseUrl = '', user, groups = [], csrf, tasks = [] }) {
         </thead>
         <tbody>${rows}</tbody>
       </table>
-      <p class="muted">En este corte solo se listan las tareas. Reclamar y completar se habilitan en el próximo.</p>`,
+      <p class="muted">Podés reclamar las tareas disponibles. Completarlas se habilita en el próximo corte.</p>`,
   });
 }
 
@@ -194,6 +203,22 @@ function createViews() {
         status: 404,
         title: 'Página no encontrada',
         message: 'La dirección que pediste no existe en este módulo.',
+      }));
+    },
+    taskNotFound(res, context = {}) {
+      res.status(404).send(messagePage({
+        ...context,
+        status: 404,
+        title: 'Tarea no encontrada',
+        message: 'La tarea no existe o ya fue completada.',
+      }));
+    },
+    badRequest(res, message, context = {}) {
+      res.status(400).send(messagePage({
+        ...context,
+        status: 400,
+        title: 'Solicitud inválida',
+        message,
       }));
     },
     error(res, message, context = {}) {

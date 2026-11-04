@@ -50,8 +50,7 @@ async function resolveBusinessKeys(client, auth, tasks) {
   return new Map(entries);
 }
 
-async function fetchTasks(client, auth, groups, { max = MAX_TASKS } = {}) {
-  if (!auth || !auth.user) throw new Error('fetchTasks requiere un usuario autenticado.');
+async function fetchTasks(client, auth, groups, { max = MAX_TASKS } = {}) {  if (!auth || !auth.user) throw new Error('fetchTasks requiere un usuario autenticado.');
 
   const queries = [
     { query: { assignee: auth.user }, origin: 'assigned' },
@@ -99,9 +98,42 @@ async function fetchTasks(client, auth, groups, { max = MAX_TASKS } = {}) {
   }));
 }
 
+async function fetchTask(client, auth, taskId) {
+  return client('GET', `/runtime/tasks/${encodeURIComponent(taskId)}`, { auth });
+}
+
+async function fetchIdentityLinks(client, auth, taskId) {
+  const links = await client(
+    'GET',
+    `/runtime/tasks/${encodeURIComponent(taskId)}/identitylinks`,
+    { auth },
+  );
+  return Array.isArray(links) ? links : [];
+}
+
+function canClaimTask(task, links, user, groups) {
+  if (!task || task.assignee) return false;
+  const groupList = Array.isArray(groups) ? groups : [];
+  return links.some((link) => link
+    && link.type === 'candidate'
+    && ((link.user && link.user === user)
+      || (link.group && groupList.includes(link.group))));
+}
+
+async function claimTask(client, auth, taskId) {
+  return client('POST', `/runtime/tasks/${encodeURIComponent(taskId)}`, {
+    body: { action: 'claim', assignee: auth.user },
+    auth,
+  });
+}
+
 module.exports = {
   MAX_TASKS,
   fetchTasks,
+  fetchTask,
+  fetchIdentityLinks,
+  canClaimTask,
+  claimTask,
   normalizeTask,
   resolveBusinessKeys,
   taskQuery,

@@ -7,6 +7,10 @@ const { fakeClient } = require('./helpers');
 const {
   MAX_TASKS,
   fetchTasks,
+  fetchTask,
+  fetchIdentityLinks,
+  canClaimTask,
+  claimTask,
   normalizeTask,
   resolveBusinessKeys,
   taskQuery,
@@ -149,4 +153,34 @@ test('fetchTasks exige usuario autenticado y taskQuery completa paginación', as
     sort: 'createTime',
     order: 'desc',
   });
+});
+
+test('fetchTask, identitylinks y claim usan el usuario autenticado', async () => {
+  const client = fakeClient((method, path) => {
+    if (method === 'GET' && path === '/runtime/tasks/t1') return { id: 't1', assignee: null };
+    if (method === 'GET' && path === '/runtime/tasks/t1/identitylinks') {
+      return [{ type: 'candidate', group: 'administracion', user: null }];
+    }
+    if (method === 'POST' && path === '/runtime/tasks/t1') return null;
+    throw new Error(`Llamada no mockeada: ${method} ${path}`);
+  });
+
+  const task = await fetchTask(client, AUTH, 't1');
+  assert.equal(task.id, 't1');
+
+  const links = await fetchIdentityLinks(client, AUTH, 't1');
+  assert.equal(canClaimTask(task, links, 'jefeAdmin', ['administracion']), true);
+  assert.equal(canClaimTask(task, links, 'jefeAdmin', ['docentes']), false);
+  assert.equal(canClaimTask({ ...task, assignee: 'admin2' }, links, 'jefeAdmin', ['administracion']), false);
+  assert.equal(canClaimTask(task, [{ type: 'candidate', user: 'jefeAdmin' }], 'jefeAdmin', []), true);
+
+  await claimTask(client, AUTH, 't1');
+  const post = client.calls.find((call) => call.method === 'POST');
+  assert.deepEqual(post.options.body, { action: 'claim', assignee: 'jefeAdmin' });
+  assert.deepEqual(post.options.auth, AUTH);
+});
+
+test('fetchIdentityLinks tolera una respuesta que no es lista', async () => {
+  const client = fakeClient(() => ({ data: [] }));
+  assert.deepEqual(await fetchIdentityLinks(client, AUTH, 't1'), []);
 });
