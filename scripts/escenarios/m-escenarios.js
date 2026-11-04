@@ -33,7 +33,9 @@ const nota = (k, v) => { actual.evidencia[k] = v; };
 // ---------- SMTP falso (equivale a DevNullSmtp): recoge los avisos por correo del proceso ----------
 const { iniciar: iniciarSumidero, correos } = require('./m-smtp-sumidero');
 let smtpActivo = false;
-const iniciarSmtp = async () => { smtpActivo = await iniciarSumidero(25); return smtpActivo; };
+// Mismo puerto que usan los contenedores (SMTP_PORT, por defecto 25). En Linux el 25 requiere root: usar p. ej. SMTP_PORT=2525.
+const SMTP_PUERTO = Number(process.env.SMTP_PORT) || 25;
+const iniciarSmtp = async () => { smtpActivo = await iniciarSumidero(SMTP_PUERTO); return smtpActivo; };
 // Verifica que desde la marca hayan llegado correos con estos asuntos (sólo si el sumidero está activo).
 async function checkCorreos(desc, desde, asuntos) {
   if (!smtpActivo) return;
@@ -81,8 +83,15 @@ async function tareasActivas(pid) {
 }
 const borrar = (pid) => J.rest('DELETE', `/runtime/process-instances/${pid}`, undefined, { quiet: true });
 
+// El classpath guardado sirve sólo si todos sus JAR existen en esta máquina (uno generado en otro sistema, p. ej. con
+// rutas de Windows, no sirve en Linux).
+function classpathVigente() {
+  if (!fs.existsSync(CP_ARCHIVO)) return false;
+  const entradas = fs.readFileSync(CP_ARCHIVO, 'utf8').trim().split(path.delimiter).filter(Boolean);
+  return entradas.length > 0 && entradas.every((e) => fs.existsSync(e));
+}
 function classpath() {
-  if (!fs.existsSync(CP_ARCHIVO)) {
+  if (!classpathVigente()) {
     execSync(`mvn -q dependency:build-classpath -Dmdep.outputFile="${CP_ARCHIVO}"`, { cwd: RAIZ, stdio: 'inherit' });
   }
   // M_CP_EXTRA: jars adicionales para el lanzador Java (diagnóstico; diagnóstico; ya no hace falta).
@@ -335,7 +344,7 @@ async function limpiezaFinal() {
 (async () => {
   J.log('===== Despliegue: DMN y modelo =====');
   await J.desplegarTodo();
-  J.log(`SMTP de prueba en el puerto 25: ${(await iniciarSmtp()) ? 'activo' : 'NO disponible'}`);
+  J.log(`SMTP de prueba en el puerto ${SMTP_PUERTO}: ${(await iniciarSmtp()) ? 'activo' : 'NO disponible'}`);
   const resumen = [];
   for (const [n, titulo, fn] of ESCENARIOS) {
     if (SOLO.length && !SOLO.includes(n)) continue;

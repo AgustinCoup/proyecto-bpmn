@@ -19,9 +19,9 @@ Las dos apps se explican en [`README-aplicaciones.md`](README-aplicaciones.md).
 
 ## Requisitos
 
-- Docker Desktop (abierto y con el motor corriendo) y los puertos 5432, 8080 y 8081 libres
+- Docker (en Windows/macOS, Docker Desktop abierto y con el motor corriendo; en Linux, Docker Engine con el plugin `compose` y tu usuario en el grupo `docker`) y los puertos 5432, 8080 y 8081 libres
 - Java 11 o más y Maven 3.8+ (verificado con JDK 21 y Maven 3.9; el JAR sale con bytecode de Java 11)
-- Node.js 18 o más (sólo para el recorrido automatizado de escenarios, `scripts/escenarios/`)
+- Node.js 18 o más (sitio web y recorrido de escenarios; usan `fetch`). El `nodejs` de los repositorios de Ubuntu suele ser más viejo: instalar uno actual (NodeSource, `nvm`)
 - Postman (opcional)
 - DevNullSmtp u otro SMTP falso en el puerto 25 de la máquina (opcional): recibe los correos que el proceso manda a la empresa. Sin él, el aviso queda en el log y el proceso sigue
 
@@ -80,18 +80,13 @@ Reglas del JAR (por qué el orden importa):
 
 ## Probar el proceso real
 
-1. **Iniciar una solicitud.** Es un inicio por mensaje; el curso tiene que existir en la BD y la instancia lleva `cursoId` y `empresaId` (empresas de prueba: 1, que ya tiene cuenta, y 2, que no):
-   ```
-   curl -u rest-admin:test -H "Content-Type: application/json" -X POST http://localhost:8080/flowable-rest/service/runtime/process-instances -d "{\"message\":\"Solicitud de curso\",\"businessKey\":\"1\",\"variables\":[{\"name\":\"cursoId\",\"value\":1,\"type\":\"integer\"},{\"name\":\"empresaId\",\"value\":2,\"type\":\"integer\"}]}"
-   ```
-   Con esa instancia ya se evalúa la viabilidad (DMN) y queda la tarea **Registrar y Elaborar propuesta** de `jefeAdmin`; al completarla aparece **Enviar propuesta**, también de `jefeAdmin`, y recién al completarla se manda la propuesta y empieza a correr el plazo de respuesta.
-2. **Tareas de la institución:** en Flowable UI (`jefeAdmin` / `test`, app *Tasks*) o con la app de escritorio para *Preparar materiales*.
-3. **Respuestas de la empresa:** con el simulador por consola (acepta, rechaza, pide modificaciones, envía la nómina). Ver [`README-aplicaciones.md`](README-aplicaciones.md).
-4. **Estado final del curso:** al terminar la instancia, el Execution Listener de fin escribe el resultado en `curso.estado`:
+1. **Iniciar una solicitud:** desde el sitio web (`/solicitar`, sección "Sitio web"), que crea el curso en la BD, inicia la instancia y las vincula. Se evalúa la viabilidad (DMN) y queda la tarea **Registrar y Elaborar propuesta** de `jefeAdmin`; al completarla aparece **Enviar propuesta**, también de `jefeAdmin`, y recién al completarla se manda la propuesta y empieza a correr el plazo de respuesta.
+2. **Tareas de la institución:** en el sitio (`/admin` y `/docentes`), en Flowable UI (`jefeAdmin` / `test`, app *Tasks*) o, para *Preparar materiales*, con la app de escritorio.
+3. **Respuestas de la empresa:** desde el sitio (acceso de empresas) o con el simulador por consola (acepta, rechaza, pide modificaciones, envía la nómina, cancela). Ver [`README-aplicaciones.md`](README-aplicaciones.md).
+4. **Estado final del curso:** al terminar la instancia, el Execution Listener de fin escribe el resultado en `curso.estado`; se ve en el sitio o con:
    ```
    docker compose exec postgres psql -U institucion -d institucion -c "select id, estado, process_instance_id from curso"
    ```
-   (La columna `process_instance_id` la completa quien crea el curso, que será el sitio web; con una instancia iniciada a mano hay que hacer `update curso set process_instance_id='<id>' where id=1`.)
 
 ## Avisos por correo a la empresa
 
@@ -135,7 +130,7 @@ export FLOWABLE_DB_USER=flowable FLOWABLE_DB_PASSWORD=flowable
 mvn -q exec:java -Dexec.mainClass=unrc.cursos.escritorio.AppMateriales
 ```
 
-Nota (2026-11-04): la app puede completar *Preparar materiales* aunque sea la última rama de *Preparar curso*. El motor local de la app sigue el flujo hasta *Enviar confirmación*; el modelo ya no tiene tareas de script, así que no hace falta Groovy.
+La app puede completar *Preparar materiales* aunque sea la última rama de *Preparar curso*: su motor local sigue el flujo hasta *Enviar confirmación*.
 
 ## Recorrido automatizado de los escenarios de la defensa
 
@@ -144,6 +139,8 @@ Nota (2026-11-04): la app puede completar *Preparar materiales* aunque sea la ú
 ```
 node scripts/escenarios/m-escenarios.js        # tarda unos 4 minutos; al final deja Flowable con sólo "Demo processes"
 ```
+
+Necesita Java, Maven y `mvn package -DskipTests` hechos (arma su propio classpath en `scripts/escenarios/resultados/`, que no se versiona). **En Linux** el puerto 25 es privilegiado: elegir uno libre y usar el mismo en los contenedores y en el script, p. ej. `SMTP_PORT=2525 docker compose up -d` y `SMTP_PORT=2525 node scripts/escenarios/m-escenarios.js` (sin eso el script omite sólo las verificaciones de correo).
 
 Después de correrlo hay que volver a desplegar el modelo (`scripts/desplegar-modelo`) si se va a usar a mano. Informe y decisiones pendientes: [`informe/`](informe/).
 
@@ -157,18 +154,10 @@ Después de correrlo hay que volver a desplegar el modelo (`scripts/desplegar-mo
 | Falla al iniciar una solicitud, en *Evaluar Viabilidad* | La DMN no está desplegada; correr `scripts/desplegar-modelo` (despliega la DMN **antes** que el modelo). |
 | 500 en *Habilitar acceso de la empresa* | `empresaId` no existe en la BD; usar 1 o 2 con los datos de prueba, o correr `scripts/crear-bd`. |
 | La solicitud nueva queda `NO_VIABLE` sin motivo aparente | Hay 5 o más instancias activas de `Process_Curso` (incluidas las de pruebas viejas). Borrarlas: `node scripts/escenarios/m-limpiar-instancias.js`. |
+| Linux: `bad interpreter` / `$'\r': command not found` al correr un `.sh` | El archivo quedó con finales de línea de Windows. Con `.gitattributes` ya no pasa al clonar; en una copia vieja: `sed -i 's/\r$//' scripts/*.sh`. Si dice `Permission denied`: `chmod +x scripts/*.sh`. |
+| Linux: el escenario 11 falla con `ClassNotFoundException` o `NoClassDefFoundError` | Un `classpath.txt` viejo con rutas de Windows. Borrar `scripts/escenarios/resultados/classpath.txt` (el script lo regenera solo) y verificar que se hizo `mvn package -DskipTests`. |
+| Linux: los correos no llegan al SMTP de prueba | Puerto 25 privilegiado: usar `SMTP_PORT=2525` (ver "Recorrido automatizado"). Los contenedores llegan a la máquina por `host.docker.internal` (definido en `docker-compose.yml`). |
 | `PKIX path building failed` al bajar dependencias con Maven | Proxy/antivirus con certificado propio en la red. Las dependencias del proyecto ya están en `~/.m2` si se compiló antes; sólo falla al bajar artefactos nuevos. |
-
-## Evidencia de integración del Día 2
-
-Verificación realizada el 2026-11-03 contra Docker, PostgreSQL y Flowable REST:
-
-- `mvn test`: todos los tests unitarios pasaron.
-- `mvn package -DskipTests`: generó `target/cursos-flowable.jar`.
-- `docker compose up -d`: PostgreSQL, Flowable REST y Flowable UI quedaron activos.
-- `scripts/crear-usuarios.sh`, `scripts/crear-bd.sh` y `scripts/desplegar-modelo.sh`: usuarios, grupos, BD institucional, DMN y `Process_Curso` preparados correctamente.
-- Instancia `6467fea6-d7b7-11f1-84f7-5e61841db8c5`: después de aceptar y enviar la nómina, la tarea `Lista` quedó asignada automáticamente a `admin2` por `AsignarMenosCargadoListener`.
-- Instancia `2295de2b-d7b7-11f1-84f7-5e61841db8c5`: al completar `Archivar solicitud` después de los dos recordatorios, `ActualizarEstadoCursoListener` actualizó `curso.estado` a `SIN_RESPUESTA`.
 
 ## Tests
 
