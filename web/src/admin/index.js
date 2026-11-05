@@ -34,6 +34,9 @@ const RESOURCE_TASK_KEY = 'Activity_12i2hpf';
 const SEND_REPORT_TASK_KEY = 'EnviarInforme';
 const REPORT_FILE_PATTERN = /^(\d{1,9})\.pdf$/;
 const PROPOSAL_FORM_TASKS = new Set([PROPOSAL_TASK_KEY, REVIEW_TASK_KEY]);
+// Tareas que solo se confirman, sin campos propios: "Enviar propuesta" dispara
+// el correo a la empresa desde un listener del modelo.
+const SIMPLE_TASK_KEYS = new Set(['Enviar']);
 
 const DEFAULT_CONFIG = {
   baseUrl: process.env.FLOWABLE_REST_URL || process.env.FLOWABLE_URL || 'http://localhost:8080/flowable-rest/service',
@@ -200,6 +203,21 @@ function createAdminRouter(options = {}) {
       }));
     }
 
+    if (SIMPLE_TASK_KEYS.has(task.taskDefinitionKey)) {
+      const resolvedSimple = await resolveCourseForTask(client, credentials, task, courses);
+      if (resolvedSimple.error === 'course-not-found') {
+        return views.courseNotFound(res, context);
+      }
+      if (resolvedSimple.error) {
+        return views.badRequest(res, 'El curso asociado a la tarea no es válido.', context);
+      }
+      return res.status(200).send(views.simpleTaskForm({
+        ...context,
+        task,
+        course: resolvedSimple.course,
+      }));
+    }
+
     if (!PROPOSAL_FORM_TASKS.has(task.taskDefinitionKey)) {
       return res.status(200).send(views.taskUnsupported({ ...context, task, flowableUiUrl: config.flowableUiUrl }));
     }
@@ -255,7 +273,8 @@ function createAdminRouter(options = {}) {
     const isSendReport = task.taskDefinitionKey === SEND_REPORT_TASK_KEY;
     const isList = task.taskDefinitionKey === LIST_TASK_KEY;
     const isResources = task.taskDefinitionKey === RESOURCE_TASK_KEY;
-    if (!isArchive && !isSendReport && !isList && !isResources && !PROPOSAL_FORM_TASKS.has(task.taskDefinitionKey)) {
+    const isSimple = SIMPLE_TASK_KEYS.has(task.taskDefinitionKey);
+    if (!isArchive && !isSendReport && !isList && !isResources && !isSimple && !PROPOSAL_FORM_TASKS.has(task.taskDefinitionKey)) {
       return views.badRequest(
         res,
         'Esta tarea todavía no tiene formulario en el sitio.',
@@ -269,6 +288,21 @@ function createAdminRouter(options = {}) {
     }
     if (resolved.error) {
       return views.badRequest(res, 'El curso asociado a la tarea no es válido.', context);
+    }
+
+    if (isSimple) {
+      try {
+        await completeTask(client, credentials, taskId);
+      } catch (error) {
+        if (error instanceof FlowableError && error.status === 409) {
+          store.setFlash(req.session, 'error', 'La tarea ya había sido completada.');
+          return res.redirect(303, `${req.baseUrl || ''}/`);
+        }
+        throw error;
+      }
+
+      store.setFlash(req.session, 'ok', 'Propuesta enviada a la empresa. La tarea se completó.');
+      return res.redirect(303, `${req.baseUrl || ''}/`);
     }
 
     if (isArchive) {

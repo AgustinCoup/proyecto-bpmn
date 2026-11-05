@@ -19,11 +19,7 @@ Las dos apps se explican en [`README-aplicaciones.md`](README-aplicaciones.md).
 
 ## Requisitos
 
-<<<<<<< HEAD
 - Docker (en Windows/macOS, Docker Desktop abierto y con el motor corriendo; en Linux, Docker Engine con el plugin `compose` y tu usuario en el grupo `docker`) y los puertos 5432, 8080 y 8081 libres
-=======
-- Docker Desktop (Windows) o Docker Engine con Docker Compose (Ubuntu), con el motor corriendo y los puertos 5432, 8080 y 8081 libres
->>>>>>> 8a612c5dd6ecbe60498178759e22fcaef2d099e6
 - Java 11 o más y Maven 3.8+ (verificado con JDK 21 y Maven 3.9; el JAR sale con bytecode de Java 11)
 - Node.js 18 o más (sitio web y recorrido de escenarios; usan `fetch`). El `nodejs` de los repositorios de Ubuntu suele ser más viejo: instalar uno actual (NodeSource, `nvm`)
 - Postman (opcional)
@@ -82,6 +78,14 @@ En Ubuntu, si los scripts todavía no tienen permiso de ejecución, se pueden in
 bash scripts/crear-usuarios.sh
 bash scripts/crear-bd.sh
 bash scripts/desplegar-modelo.sh
+```
+
+Los scripts resuelven sus archivos desde la raíz del repositorio, por lo que también se pueden
+invocar estando dentro de `scripts/`, por ejemplo:
+
+```
+cd scripts
+bash ./crear-bd.sh
 ```
 
 Esperá un minuto después del `up` hasta que respondan las dos URLs.
@@ -144,8 +148,9 @@ Requisitos: Node 18 o superior. Con el entorno ya levantado (pasos 1 a 5 de "Pue
 cd web
 npm install
 $env:SESSION_SECRET="cualquier-texto-largo"
-npm start          # http://localhost:3000
-npm test           # 149 pruebas; la de integración usa el Flowable real y limpia lo que crea
+npm start          # http://localhost:3000 (dejar esta terminal abierta)
+# en otra terminal, para correr las pruebas:
+npm test           # 151 pruebas; la de integración usa el Flowable real y limpia lo que crea
 ```
 
 ### Ubuntu (Bash)
@@ -154,9 +159,17 @@ npm test           # 149 pruebas; la de integración usa el Flowable real y limp
 cd web
 npm install
 export SESSION_SECRET="cualquier-texto-largo"
-npm start          # http://localhost:3000
-npm test           # 149 pruebas; la de integración usa el Flowable real y limpia lo que crea
+npm start          # http://localhost:3000 (dejar esta terminal abierta)
+# en otra terminal, para correr las pruebas:
+npm test           # 151 pruebas; la de integración usa el Flowable real y limpia lo que crea
 ```
+
+> **`npm start` y `npm test` son cosas distintas:** `npm start` queda corriendo y es el que atiende
+> http://localhost:3000. `node --test tests/integration.test.js` solo ejecuta la prueba y termina:
+> no deja ningún servidor escuchando en el puerto 3000. Para probar las pantallas hay que dejar
+> `npm start` abierto en otra terminal. En Linux, verificar con `ss -ltnp | grep ':3000'` y
+> `curl -i http://localhost:3000/admin/login`; si hay un proceso viejo colgado en 3000, matarlo
+> (`kill <PID>`) y volver a iniciar el sitio.
 
 | Entrada | URL | Quién |
 |---|---|---|
@@ -226,6 +239,8 @@ Después de correrlo hay que volver a desplegar el modelo (`scripts/desplegar-mo
 | `flowable-ui` sale con `Exited (1)` en el primer arranque | Carrera al crear el esquema; repetir `docker compose up -d`. |
 | `flowable-rest` no arranca y `target/cursos-flowable.jar` es una carpeta | Se hizo `up` antes de compilar. Borrar la carpeta, `mvn package -DskipTests`, `docker compose up -d`. |
 | Errores `No data available` al leer el JAR dentro del contenedor | Se recompiló con los contenedores arriba: `docker compose restart flowable-rest flowable-ui`. |
+| `http://localhost:3000` queda cargando o no abre | El comando `node --test tests/integration.test.js` **no levanta el sitio**: sólo ejecuta la prueba y termina. Dejar `npm start` corriendo en otra terminal y comprobar con `ss -ltnp \| grep ':3000'` y `curl -i http://localhost:3000/admin/login`. Si hay un proceso viejo colgado en 3000, `kill <PID>` y volver a iniciar. |
+| La solicitud pública responde "CUIT invalido" con los datos de prueba | Los CUIT de `db/datos.sql` no cumplían el dígito verificador (ya corregido). Volver a cargar los datos con `./scripts/crear-bd.sh`; la cuenta de la empresa 1 ahora es `emp_30711223343` / `test`. |
 | Falla al iniciar una solicitud, en *Evaluar Viabilidad* | La DMN no está desplegada; correr `scripts/desplegar-modelo` (despliega la DMN **antes** que el modelo). |
 | 500 en *Habilitar acceso de la empresa* | `empresaId` no existe en la BD; usar 1 o 2 con los datos de prueba, o correr `scripts/crear-bd`. |
 | La solicitud nueva queda `NO_VIABLE` sin motivo aparente | Hay 5 o más instancias activas de `Process_Curso` (incluidas las de pruebas viejas). Borrarlas: `node scripts/escenarios/m-limpiar-instancias.js`. |

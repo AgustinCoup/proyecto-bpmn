@@ -18,6 +18,22 @@ app.use(helmet());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
+
+// archivos estaticos
+app.use(express.static(path.join(__dirname, 'public')));
+
+// limitador basico global
+app.use(rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }));
+
+// El personal de la institucion usa su propia cookie de sesion firmada
+// (admin/session.js). Hay que montarlo ANTES de express-session: si ambos
+// middleware escriben req.session, express-session intenta llamar a
+// req.session.touch() sobre el objeto de la sesion propia y el redirect de
+// login queda colgado con "req.session.touch is not a function".
+app.use('/admin', require('./admin'));
+app.use('/docentes', require('./docentes'));
+
+// Sitio publico y empresas: sesion con express-session + CSRF.
 app.use(session({
   name: 'sid',
   secret: config.sessionSecret,
@@ -32,19 +48,8 @@ app.use(session({
 }));
 app.use(ensureCsrf);
 
-// archivos estaticos
-app.use(express.static(path.join(__dirname, 'public')));
-
-// limitador basico global
-app.use(rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }));
-
-// rutas propias
 app.use('/', require('./publico'));
 app.use('/empresa', require('./empresa'));
-
-// personal de la institucion (si un modulo falla al cargar, el sitio no arranca)
-app.use('/admin', require('./admin'));
-app.use('/docentes', require('./docentes'));
 
 // 404
 app.use((req, res) => {
@@ -60,6 +65,10 @@ app.use((err, req, res, next) => {
 if (require.main === module) {
   app.listen(config.port, () => {
     console.log(`Web institucion escuchando en http://localhost:${config.port}`);
+    // Ayuda a detectar variables de entorno viejas o mal escritas (sin mostrar la clave).
+    const dbUrl = String(config.institucionDbUrl).replace(/\/\/([^:/@]+):[^@]*@/, '//$1:***@');
+    console.log(`  BD institucion: ${dbUrl}`);
+    console.log(`  Flowable REST:  ${config.flowableRestUrl}`);
   });
 }
 

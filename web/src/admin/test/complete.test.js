@@ -162,6 +162,39 @@ test('GET de una tarea asignada sin formulario muestra un aviso', async (t) => {
   assert.deepEqual(courses.calls.find, []);
 });
 
+test('GET y POST de Enviar propuesta: se completa sin campos', async (t) => {
+  const sendTask = {
+    ...PROPOSAL_TASK,
+    id: 't4',
+    name: 'Enviar propuesta',
+    taskDefinitionKey: 'Enviar',
+  };
+  const client = proposalClient({ task: sendTask });
+  const courses = fakeCourses();
+  const app = await startApp({ client, courses });
+  t.after(() => app.close());
+
+  const { cookie, csrf } = await loginAndToken(app);
+  const detail = await request(app.base, '/admin/tasks/t4', { cookie });
+
+  assert.equal(detail.status, 200);
+  assert.match(detail.text, /Enviar propuesta/);
+  assert.match(detail.text, /Completar tarea/);
+  assert.match(detail.text, /action="\/admin\/tasks\/t4\/complete"/);
+  assert.match(detail.text, /Curso #1 · Seguridad e Higiene/);
+
+  const done = await request(app.base, '/admin/tasks/t4/complete', {
+    method: 'POST',
+    cookie,
+    form: { _csrf: csrf },
+  });
+
+  assert.equal(done.status, 303);
+  assert.equal(done.location, '/admin/');
+  assert.ok(client.calls.some((call) => call.method === 'POST' && call.path === '/runtime/tasks/t4'));
+  assert.deepEqual(courses.calls.save, []);
+});
+
 test('GET de una tarea de la UI de Flowable enlaza a esa interfaz', async (t) => {
   const client = proposalClient({
     task: { ...PROPOSAL_TASK, name: 'Preparar materiales', taskDefinitionKey: 'Material' },

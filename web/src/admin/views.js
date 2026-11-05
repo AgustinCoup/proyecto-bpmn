@@ -50,6 +50,7 @@ function taskActionLabel(taskDefinitionKey) {
   if (taskDefinitionKey === 'Revisar') return 'Revisar';
   if (taskDefinitionKey === 'Archivar') return 'Archivar';
   if (taskDefinitionKey === 'EnviarInforme') return 'Enviar informe';
+  if (taskDefinitionKey === 'Enviar') return 'Completar';
   if (taskDefinitionKey === 'Activity_1018bdz') return 'Definir docente';
   if (taskDefinitionKey === 'Dictar') return 'Desarrollar';
   if (taskDefinitionKey === 'Informe') return 'Elaborar informe';
@@ -341,6 +342,30 @@ function resourcesForm({
   });
 }
 
+function simpleTaskForm({
+  baseUrl = '', user, groups = [], csrf, task, course = {},
+}) {
+  return page({
+    title: task.name || 'Completar tarea',
+    baseUrl,
+    user,
+    groups,
+    csrf,
+    body: `<section class="card narrow">
+      <h1>${escapeHtml(task.name || 'Completar tarea')}</h1>
+      <p class="muted">${courseLabel(course)}</p>
+      <p>Al confirmar, la tarea se completa y el proceso continúa.</p>
+      <form method="post" action="${escapeHtml(baseUrl)}/tasks/${encodeURIComponent(task.id)}/complete" class="stack">
+        <input type="hidden" name="_csrf" value="${escapeHtml(csrf)}">
+        <div class="form-actions">
+          <button type="submit">Completar tarea</button>
+          <a class="button secondary" href="${escapeHtml(baseUrl)}/">Cancelar</a>
+        </div>
+      </form>
+    </section>`,
+  });
+}
+
 function taskUnsupported({
   baseUrl = '', user, groups = [], csrf, task, flowableUiUrl = '',
 }) {
@@ -374,6 +399,7 @@ function createViews(config = {}) {
     resourcesForm,
     proposalForm,
     reviewForm,
+    simpleTaskForm,
     taskUnsupported,
     forbidden(res, message, context = {}) {
       res.status(403).send(messagePage({
@@ -450,5 +476,6 @@ module.exports = {
   createViews,
   proposalForm,
   reviewForm,
+  simpleTaskForm,
   taskUnsupported,
 };

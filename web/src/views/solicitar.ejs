@@ -1,5 +1,6 @@
 <%- include('partials/header') %>
 <h1>Solicitud de curso</h1>
+<% if (errors && errors._general) { %><div class="err"><%= errors._general %></div><% } %>
 <form method="POST" action="/solicitar" class="form">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
   <label>Nombre de la empresa
@@ -7,7 +8,7 @@
     <% if (errors && errors.nombreEmpresa) { %><span class="err"><%= errors.nombreEmpresa %></span><% } %>
   </label>
   <label>CUIT
-    <input type="text" name="cuit" value="<%= (form && form.cuit) || '' %>" required placeholder="30-12345678-9">
+    <input type="text" name="cuit" value="<%= (form && form.cuit) || '' %>" required placeholder="20-12345678-6">
     <% if (errors && errors.cuit) { %><span class="err"><%= errors.cuit %></span><% } %>
   </label>
   <label>Nombre de contacto

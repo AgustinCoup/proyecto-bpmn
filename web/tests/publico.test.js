@@ -51,6 +51,25 @@ test('POST /solicitar valido redirige a confirmacion', async () => {
   assert.match(res.headers.location, /confirmacion/);
 });
 
+test('POST /solicitar acepta CUIT cuyo DV es 9', async () => {
+  const agent = request.agent(app);
+  const getRes = await agent.get('/solicitar');
+  const csrf = (getRes.text.match(/name="_csrf" value="([^"]+)"/) || [])[1];
+  const res = await agent.post('/solicitar').type('form').send({
+    _csrf: csrf,
+    nombreEmpresa: 'Empresa DV 9',
+    cuit: '20-10000005-9',
+    contacto: 'Juan',
+    email: 'j@e.com',
+    cantidadParticipantes: 10,
+    tematica: 'Tema',
+    descripcion: 'Desc',
+    fechasPreferidas: 'Diciembre',
+  });
+  assert.equal(res.status, 302);
+  assert.match(res.headers.location, /confirmacion/);
+});
+
 test('POST /solicitar invalido devuelve 400', async () => {
   const agent = request.agent(app);
   const getRes = await agent.get('/solicitar');

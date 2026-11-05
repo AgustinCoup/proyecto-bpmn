@@ -1,6 +1,6 @@
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-// CUIT: XX-XXXXXXXX-X (con guiones) o 11 digitos.
-const CUIT_RE = /^(\d{2})-?(\d{8})-?(\d{1})$/;
+// CUIT: XX-XXXXXXXX-X, con o sin guiones (tambien se aceptan puntos y espacios).
+const CUIT_RE = /^(\d{2})[-\s.]?(\d{8})[-\s.]?(\d)$/;
 
 function normalizeCuit(v) {
   return String(v || '').trim();
@@ -9,16 +9,19 @@ function normalizeCuit(v) {
 function validarCuit(v) {
   const m = normalizeCuit(v).match(CUIT_RE);
   if (!m) return null;
-  // validacion de digito verificador
-  const digits = m[1] + m[2] + m[3];
-  if (digits.length !== 11) return null;
+
+  // Validacion del digito verificador (modulo 11).
+  // Si el resultado es 11 el DV es 0; si es 10 el DV es 9.
+  const digits = m[1] + m[2];
   const mults = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
   let sum = 0;
   for (let i = 0; i < 10; i++) sum += Number(digits[i]) * mults[i];
-  const dv = (11 - (sum % 11)) % 11;
-  if (dv === 10) return null;
-  if (dv !== Number(digits[10])) return null;
-  // formato canonico con guiones
+  let dv = 11 - (sum % 11);
+  if (dv === 11) dv = 0;
+  else if (dv === 10) dv = 9;
+  if (dv !== Number(m[3])) return null;
+
+  // Formato canonico con guiones.
   return `${m[1]}-${m[2]}-${m[3]}`;
 }
 

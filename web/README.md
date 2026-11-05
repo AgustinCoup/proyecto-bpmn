@@ -37,6 +37,22 @@ npm run dev
 
 Abrir http://localhost:3000
 
+> **Importante:** `npm start` tiene que quedar corriendo en su propia terminal. El comando
+> `node --test tests/integration.test.js` **solo ejecuta la prueba y termina**: no deja el sitio
+> escuchando en el puerto 3000, asi que el navegador no va a poder abrirlo despues de correrlo.
+>
+> En Linux, para comprobar que el sitio esta escuchando y responde:
+>
+> ```bash
+> ss -ltnp | grep ':3000'
+> curl -i http://localhost:3000/admin/login
+> ```
+>
+> Si `ss` muestra un proceso viejo en 3000 pero `curl` se queda colgado, matar ese proceso
+> (`kill <PID>`) y volver a ejecutar `npm start`. Las variables de entorno (`INSTITUCION_DB_URL`,
+> `FLOWABLE_REST_URL`, `SESSION_SECRET`, etc.) deben exportarse en la **misma** terminal donde se
+> ejecuta `npm start`.
+
 ## Uso del cliente Flowable REST
 
 `src/lib/flowable.js` exporta:
@@ -64,11 +80,11 @@ node --test tests/integration.test.js
 ## Demostracion escenario 10
 
 1. Levantar entorno y sitio.
-2. Empresa 1 (ya tiene cuenta): usuario `emp_30711223345`, clave `test`.
-3. Crear una solicitud publica (empresa 2) y avanzar el proceso con el simulador hasta "Aceptacion".
-4. Al aceptar, `HabilitarAccesoEmpresaDelegate` crea la cuenta `emp_<cuit>` con clave `test`.
+2. Empresa 1 (ya tiene cuenta): usuario `emp_30711223343`, clave `test`; su curso de prueba es el id 1.
+3. Crear una solicitud publica con el CUIT de la empresa 2 (`30-72233445-7`, ya existe en los datos de prueba) y avanzar el proceso con el simulador hasta "Aceptacion".
+4. Al aceptar, `HabilitarAccesoEmpresaDelegate` crea la cuenta `emp_30722334457` con clave `test`.
 5. Ingresar con esa cuenta y verificar que solo se ven los cursos de esa empresa.
-   El detalle de un curso de otra empresa responde 404.
+   Abrir a mano `/empresa/cursos/1` (curso de la empresa 1): debe responder 404.
 
 ## Seguridad
 
