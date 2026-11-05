@@ -1,4 +1,4 @@
-# Crea los 5 usuarios y 2 grupos en Flowable (ver Contrato.md, sección 3).
+# Crea los 5 usuarios y 2 grupos en Flowable.
 # Se puede correr varias veces: lo que ya existe se informa y se sigue.
 # Uso: powershell -ExecutionPolicy Bypass -File scripts\crear-usuarios.ps1
 

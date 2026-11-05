@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Despliega la regla DMN (viabilidadCurso) y el modelo BPMN real. Primero el DMN (Contrato.md 11.19).
+# Despliega la regla DMN (viabilidadCurso) y el modelo BPMN real. Primero el DMN.
 # Cada corrida crea una version nueva del proceso. Uso: ./scripts/desplegar-modelo.sh
 set -e
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

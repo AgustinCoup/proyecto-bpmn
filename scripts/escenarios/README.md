@@ -24,7 +24,9 @@ node scripts/escenarios/m-aceptacion-sin-fecha.js       # reproduce el 500 de "A
 - Despliega la DMN y el modelo, corre los escenarios y, al final, deja en Flowable **sólo "Demo processes"** (borra los
   despliegues de `Process_Curso` y de la DMN). Con `--conservar` no lo hace. Después hay que volver a desplegar
   (`scripts/desplegar-modelo`) para usar el modelo a mano.
-- Código de salida 0 si todo PASS, 1 si algo falla. Los logs y `classpath.txt` quedan en `scripts/escenarios/resultados/` (no se versiona).
+- Código de salida 0 si todo PASS, 1 si algo falla.
+- **El log se guarda solo**, igual en Windows y Ubuntu (no hace falta redirigir nada): `scripts/escenarios/resultados/<script>.log`, por ejemplo `m-escenarios.log`. Se reescribe en cada corrida. La carpeta no se versiona; `classpath.txt` también queda ahí.
+- **Cómo leer el log:** las líneas `✔`/`✘` son las verificaciones; el bloque `RESUMEN` del final dice PASS/FAIL por escenario.
 - Escenario 11: usa el simulador CLI real (`SimuladorMain`, entrada estándar guionada) y `ServicioTareas` de la app Swing a
   través de `m-MaterialesApiJava.java` (sin interfaz). Variable opcional `M_CP_EXTRA`: JARs extra para ese lanzador
   (diagnóstico; ya no hace falta).

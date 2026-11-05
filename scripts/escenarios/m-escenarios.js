@@ -373,5 +373,6 @@ async function limpiezaFinal() {
   }
   if (smtpActivo) J.log(`Correos recibidos en total: ${correos.length}`);
   J.log('Escenarios 8, 9 y 10: manuales (informe/checklist-manual.md).');
+  J.log(`Log completo guardado en: ${J.ARCHIVO_LOG}`);
   process.exit(resumen.every((r) => !r.error && r.fallos.length === 0) ? 0 : 1);
 })().catch((e) => { console.error(e); process.exit(1); });

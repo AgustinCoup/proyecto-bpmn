@@ -3,7 +3,7 @@ package unrc.cursos.simulador;
 /**
  * Comunicaciones que la empresa puede enviar al proceso.
  * 
- * Los nombres de mensajes coinciden con Contrato.md, seccion 5, y con el
+ * Los nombres de mensajes coinciden con la consigna y con el
  * modelo BPMN. La nomina no es un evento de mensaje: es una tarea de
  * recepcion (receive task) que se despierta con la accion "signal".
  */

@@ -4,8 +4,6 @@ target/
 # Dependencias de Node del sitio web
 node_modules/
 
-# Pruebas de comportamiento de Flowable
-pruebas-flowable/
 
 # Archivos de IDE y del sistema operativo
 .idea/
