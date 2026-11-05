@@ -1,266 +1,211 @@
 # Proyecto BPMN: organización de cursos de capacitación
 
-Proyecto final de Gestión y Tecnologías de Procesos de Negocio. Implementa en Flowable el proceso de la consigna (`ProyectoCursos_V2_168448775197.pdf`).
+Proyecto final de *Gestión y Tecnologías de Procesos de Negocio*. Una institución de capacitación gestiona cursos para empresas con un proceso ejecutable en **Flowable**.
 
-## Qué hay
+> 📖 **¿Primera vez con el proyecto?** Leé [`MAPA.md`](MAPA.md): explica todo desde cero y guía un recorrido completo paso a paso.
+> Este README es solo para **arrancar rápido**.
 
-| Pieza | Dónde |
-|---|---|
-| Modelo BPMN ejecutable (`Process_Curso`) y su registro de cambios | `modelo/Proyecto_Organizacion_cursos.bpmn20.xml`, `modelo/cambios-modelo.md` |
-| Regla DMN de viabilidad (`< 5` viable) | `modelo/viabilidadCurso.dmn` |
-| Clases Java dentro del motor (listeners y delegates) | `src/main/java/unrc/cursos/` |
-| BD de la institución (empresas, cuentas, cursos) | `db/schema.sql`, `db/datos.sql` |
-| Simulador de la empresa por consola (API REST) | `src/main/java/unrc/cursos/simulador/` |
-| App de escritorio "Preparar materiales" (API Java) | `src/main/java/unrc/cursos/escritorio/` |
-| Scripts de preparación | `scripts/` |
-| Colección de Postman | `postman/` |
+---
 
-Las dos apps se explican en [`README-aplicaciones.md`](README-aplicaciones.md).
+## 1. Requisitos
 
-## Requisitos
+| Programa | Versión | Comprobar |
+|---|---|---|
+| Docker (Windows: Docker Desktop **abierto**) | cualquiera reciente | `docker compose version` |
+| Java | 11 o más | `java -version` |
+| Maven | 3.8 o más | `mvn -version` |
+| Node.js | 18 o más | `node -v` |
 
-- Docker (en Windows/macOS, Docker Desktop abierto y con el motor corriendo; en Linux, Docker Engine con el plugin `compose` y tu usuario en el grupo `docker`) y los puertos 5432, 8080 y 8081 libres
-- Java 11 o más y Maven 3.8+ (verificado con JDK 21 y Maven 3.9; el JAR sale con bytecode de Java 11)
-- Node.js 18 o más (sitio web y recorrido de escenarios; usan `fetch`). El `nodejs` de los repositorios de Ubuntu suele ser más viejo: instalar uno actual (NodeSource, `nvm`)
-- Postman (opcional)
-- DevNullSmtp u otro SMTP falso en el puerto 25 de la máquina (opcional): recibe los correos que el proceso manda a la empresa. Sin él, el aviso queda en el log y el proceso sigue
+Puertos libres: **5432**, **8080**, **8081**, **3000**.
 
-## Puesta en marcha (en este orden)
+Ubuntu: tu usuario debe estar en el grupo `docker`, y hace falta un Node actual (NodeSource o `nvm`; el de los repositorios suele ser viejo).
 
-Desde la carpeta del repo. Los comandos siguientes están separados por sistema operativo.
+---
 
-### Windows (PowerShell)
+## 2. Arranque
 
-```
-# 1. Compilar las clases Java. Genera target/cursos-flowable.jar, que montan los dos contenedores.
+Todos los comandos se ejecutan desde la **raíz del proyecto** (la carpeta con `docker-compose.yml`).
+Hacelo **una vez**, **en este orden**.
+
+### 🪟 Windows (PowerShell)
+
+```powershell
+cd "C:\Users\tutyb\UNI - 2026\Gestion\proyecto-bpmn"
+
 mvn package -DskipTests
-
-# 2. Levantar PostgreSQL + Flowable REST + Flowable UI
 docker compose up -d
-
-# 3. Usuarios y grupos de Flowable (5 usuarios, 2 grupos, privilegios). Se puede repetir.
 powershell -ExecutionPolicy Bypass -File scripts\crear-usuarios.ps1
-
-# 4. BD de la institución (crea la base "institucion" y carga datos de prueba). Se puede repetir.
 powershell -ExecutionPolicy Bypass -File scripts\crear-bd.ps1
-
-# 5. Desplegar la regla DMN y el modelo BPMN. Cada vez que cambie el modelo, repetir.
 powershell -ExecutionPolicy Bypass -File scripts\desplegar-modelo.ps1
 ```
 
-### Ubuntu (Bash)
+### 🐧 Ubuntu (Bash)
 
-Desde una terminal ubicada en la raíz del repositorio:
+```bash
+cd ~/ruta/al/proyecto-bpmn
 
-```
-# 1. Compilar las clases Java. Genera target/cursos-flowable.jar, que montan los dos contenedores.
 mvn package -DskipTests
-
-# 2. Levantar PostgreSQL + Flowable REST + Flowable UI.
 docker compose up -d
-
-# 3. Dar permiso de ejecución a los scripts .sh (sólo hace falta la primera vez).
-chmod +x scripts/crear-usuarios.sh scripts/crear-bd.sh scripts/desplegar-modelo.sh
-
-# 4. Usuarios y grupos de Flowable (5 usuarios, 2 grupos, privilegios). Se puede repetir.
+chmod +x scripts/*.sh        # solo la primera vez
 ./scripts/crear-usuarios.sh
-
-# 5. BD de la institución (crea la base "institucion" y carga datos de prueba). Se puede repetir.
 ./scripts/crear-bd.sh
-
-# 6. Desplegar la regla DMN y el modelo BPMN. Cada vez que cambie el modelo, repetir.
 ./scripts/desplegar-modelo.sh
 ```
 
-En Ubuntu, si los scripts todavía no tienen permiso de ejecución, se pueden invocar sin modificar permisos:
+### Qué hace cada comando
 
-```
-bash scripts/crear-usuarios.sh
-bash scripts/crear-bd.sh
-bash scripts/desplegar-modelo.sh
-```
+| Comando | Para qué |
+|---|---|
+| `mvn package -DskipTests` | Arma `target/cursos-flowable.jar` (**antes** de `docker compose up`). |
+| `docker compose up -d` | Enciende PostgreSQL y Flowable. |
+| `crear-usuarios` | Crea usuarios y grupos en Flowable. |
+| `crear-bd` | Crea la base `institucion` con datos de prueba. |
+| `desplegar-modelo` | Carga la regla DMN y el proceso. Repetir si cambia el modelo. |
 
-Los scripts resuelven sus archivos desde la raíz del repositorio, por lo que también se pueden
-invocar estando dentro de `scripts/`, por ejemplo:
+**Esperá 1 minuto** y comprobá con `docker compose ps`: deben verse 3 contenedores `Up`.
 
-```
-cd scripts
-bash ./crear-bd.sh
-```
+> ⚠️ **Primer arranque:** si `flowable-ui` queda `Exited (1)`, repetí `docker compose up -d` y esperá ~40 s. Es normal.
 
-Esperá un minuto después del `up` hasta que respondan las dos URLs.
+---
 
-**Primer arranque desde cero (verificado el 2026-11-04 tras `docker compose down -v`):** los dos contenedores de Flowable crean el esquema a la vez y `flowable-ui` se cae (`docker compose ps -a` lo muestra `Exited (1)`; en su log: `duplicate key ... act_ge_property`). Es una carrera de arranque, no un error de configuración: ejecutá `docker compose up -d` una segunda vez y en unos 40 s responde (`http://localhost:8081/flowable-ui/` devuelve 401 sin credenciales). `flowable-rest` ya está bien y se puede seguir con los pasos 3 a 5 mientras tanto.
+## 3. Encender el sitio web
 
-| Servicio | URL | Usuario / contraseña |
-|---|---|---|
-| Interfaz de Flowable | http://localhost:8081/flowable-ui | `admin` / `test` (o `jefeAdmin`, `admin2`, `jefeDocente`, `docente1`, `docente2` / `test`) |
-| API REST (Swagger) | http://localhost:8080/flowable-rest/docs/ | `rest-admin` / `test` |
-| PostgreSQL | `localhost:5432`, bases `flowable` y `institucion` | `flowable` / `flowable` · `institucion` / `institucion` |
+En **otra terminal** (queda abierta mientras uses el sitio):
 
-### Usuarios y grupos de Flowable
+### 🪟 Windows (PowerShell)
 
-Los crea `scripts/crear-usuarios` (se puede repetir: lo que existe se informa como `omitido`). Clave de todos: `test`.
-
-| Usuario | Rol | Grupo |
-|---|---|---|
-| `jefeAdmin` | Jefe administrativo | `administracion` |
-| `admin2` | Administrativo | `administracion` |
-| `jefeDocente` | Jefe del equipo docente | `docentes` |
-| `docente1`, `docente2` | Docentes | `docentes` |
-
-- Los grupos se llaman `administracion` y `docentes` (ids sin acentos; coinciden con los carriles "Administración" y "Docentes" del modelo).
-- El script también da a cada usuario los privilegios `access-rest-api` (necesario para entrar a la API REST con su usuario) y `access-task` (Flowable UI); por grupo no alcanza para la API REST.
-- Tareas exclusivas de un jefe: asignadas a su usuario, no se reclaman. Tareas del grupo: hay que **reclamarlas** antes de completarlas. El motor no obliga a reclamar (completa igual por REST): lo exigen el sitio y las apps.
-- Para entrar a Flowable UI con un usuario del personal: `http://localhost:8081/flowable-ui`, app *Tasks*. El administrador de la UI es `admin` / `test`. La API REST se usa con `rest-admin` / `test` o con el usuario del personal.
-- Las empresas **no** son usuarios de Flowable: sus cuentas están en la tabla `cuenta_empresa` de la BD `institucion` y las crea la tarea automática *Habilitar acceso de la empresa* (usuario `emp_<cuit sin guiones>`, clave simulada `test`).
-
-Reglas del JAR (por qué el orden importa):
-- Si `target/cursos-flowable.jar` no existe cuando se hace `docker compose up`, Docker crea un **directorio** con ese nombre y el contenedor no arranca. Borrá el directorio, compilá y repetí.
-- Si recompilás con los contenedores arriba, reinicialos: `docker compose restart flowable-rest flowable-ui`.
-- `docker compose down` conserva los datos. `docker compose down -v` borra todo: hay que repetir los pasos 3, 4 y 5.
-
-## Probar el proceso real
-
-1. **Iniciar una solicitud:** desde el sitio web (`/solicitar`, sección "Sitio web"), que crea el curso en la BD, inicia la instancia y las vincula. Se evalúa la viabilidad (DMN) y queda la tarea **Registrar y Elaborar propuesta** de `jefeAdmin`; al completarla aparece **Enviar propuesta**, también de `jefeAdmin`, y recién al completarla se manda la propuesta y empieza a correr el plazo de respuesta.
-2. **Tareas de la institución:** en el sitio (`/admin` y `/docentes`), en Flowable UI (`jefeAdmin` / `test`, app *Tasks*) o, para *Preparar materiales*, con la app de escritorio.
-3. **Respuestas de la empresa:** desde el sitio (acceso de empresas) o con el simulador por consola (acepta, rechaza, pide modificaciones, envía la nómina, cancela). Ver [`README-aplicaciones.md`](README-aplicaciones.md).
-4. **Estado final del curso:** al terminar la instancia, el Execution Listener de fin escribe el resultado en `curso.estado`; se ve en el sitio o con:
-   ```
-   docker compose exec postgres psql -U institucion -d institucion -c "select id, estado, process_instance_id from curso"
-   ```
-
-## Avisos por correo a la empresa
-
-El proceso manda correo al `contacto_email` de la empresa al enviar la propuesta, enviar un recordatorio, cerrar por no viable, confirmar el curso, cerrar por cancelación y enviar el informe (`NotificarEmpresaDelegate`). Los contenedores usan `SMTP_HOST` (por defecto `host.docker.internal`), `SMTP_PORT` (25) y `SMTP_FROM`, que se pueden cambiar al levantar: `SMTP_PORT=1025 docker compose up -d`.
-
-1. Abrir DevNullSmtp (o cualquier SMTP falso) escuchando en el puerto 25 de la máquina. Solo con eso ya se ven los correos.
-2. Si no hay servidor, el aviso queda en el log (`docker logs flowable-rest`, línea `Aviso ... NO enviado`) y el proceso continúa sin error.
-3. Los correos de prueba de `scripts/escenarios/m-escenarios.js` los recoge un SMTP propio en el puerto 25: cerrar DevNullSmtp antes de correrlo (o usar `--solo` con escenarios que no lo necesiten; sin el puerto libre se omiten sólo las verificaciones de correo).
-
-## Sitio web
-
-Requisitos: Node 18 o superior. Con el entorno ya levantado (pasos 1 a 5 de "Puesta en marcha"; el paso 4 crea también la tabla `informe`), desde la raíz del repo:
-
-### Windows (PowerShell)
-
-```
-cd web
+```powershell
+cd "C:\Users\tutyb\UNI - 2026\Gestion\proyecto-bpmn\web"
 npm install
 $env:SESSION_SECRET="cualquier-texto-largo"
-npm start          # http://localhost:3000 (dejar esta terminal abierta)
-# en otra terminal, para correr las pruebas:
-npm test           # 151 pruebas; la de integración usa el Flowable real y limpia lo que crea
+npm start
 ```
 
-### Ubuntu (Bash)
+### 🐧 Ubuntu (Bash)
 
-```
-cd web
+```bash
+cd ~/ruta/al/proyecto-bpmn/web
 npm install
 export SESSION_SECRET="cualquier-texto-largo"
-npm start          # http://localhost:3000 (dejar esta terminal abierta)
-# en otra terminal, para correr las pruebas:
-npm test           # 151 pruebas; la de integración usa el Flowable real y limpia lo que crea
+npm start
 ```
 
-> **`npm start` y `npm test` son cosas distintas:** `npm start` queda corriendo y es el que atiende
-> http://localhost:3000. `node --test tests/integration.test.js` solo ejecuta la prueba y termina:
-> no deja ningún servidor escuchando en el puerto 3000. Para probar las pantallas hay que dejar
-> `npm start` abierto en otra terminal. En Linux, verificar con `ss -ltnp | grep ':3000'` y
-> `curl -i http://localhost:3000/admin/login`; si hay un proceso viejo colgado en 3000, matarlo
-> (`kill <PID>`) y volver a iniciar el sitio.
+Debe decir `Web institucion escuchando en http://localhost:3000`.
 
-| Entrada | URL | Quién |
+---
+
+## 4. Direcciones y claves
+
+| Qué | Dirección | Usuario / clave |
 |---|---|---|
-| Solicitud pública | `/solicitar` | cualquiera |
-| Acceso de empresas | `/empresa/login` | cuenta de `cuenta_empresa` |
-| Administración | `/admin/login` | `jefeAdmin`, `admin2` (clave `test`) |
-| Equipo docente | `/docentes/login` | `jefeDocente`, `docente1`, `docente2` (clave `test`) |
+| Sitio (inicio) | http://localhost:3000 | — |
+| Pedir un curso | http://localhost:3000/solicitar | — |
+| Empresas | http://localhost:3000/empresa/login | `emp_30711223343` / `test` |
+| Administración | http://localhost:3000/admin/login | `jefeAdmin` o `admin2` / `test` |
+| Docentes | http://localhost:3000/docentes/login | `jefeDocente`, `docente1` o `docente2` / `test` |
+| Interfaz de Flowable | http://localhost:8081/flowable-ui | `admin` o cualquiera de arriba / `test` |
+| API REST (Swagger) | http://localhost:8080/flowable-rest/docs/ | `rest-admin` / `test` |
+| PostgreSQL | `localhost:5432` | `flowable`/`flowable` · `institucion`/`institucion` |
 
-Variables de entorno (todas con valor por defecto de desarrollo; tabla completa en [`web/README.md`](web/README.md)): `FLOWABLE_REST_URL`, `INSTITUCION_DB_URL`, `SESSION_SECRET`, `PORT`, `PLAZO_RESPUESTA` (acorta el plazo de respuesta en las demostraciones) y `SIMULAR_FALTA_AULAS`. Las tres partes del sitio (pública/empresa, administración y docentes) leen las mismas. En producción `SESSION_SECRET` es obligatorio. El guion de los escenarios 8, 9 y 10 está en [`informe/checklist-manual.md`](informe/checklist-manual.md).
+---
 
-## Simulador de la empresa y app de materiales
+## 5. Simulador de la empresa (CLI)
 
-Detalle completo, variables de entorno y verificaciones en [`README-aplicaciones.md`](README-aplicaciones.md). Resumen, con el entorno ya levantado y desde la raíz del repo:
+Programa de consola que hace de **empresa**: acepta, rechaza, pide cambios, manda la nómina, cancela. Necesita que ya haya una solicitud iniciada (desde `/solicitar`).
 
-### Windows (PowerShell)
+### 🪟 Windows (PowerShell)
 
-Antes de ejecutar las aplicaciones, cambiar la página de códigos para visualizar correctamente las tildes:
-
-```
+```powershell
 chcp 65001
-
-# Simulador de la empresa por consola (API REST). Muestra sólo las comunicaciones habilitadas.
 $env:FLOWABLE_REST_USER="jefeAdmin"
 $env:FLOWABLE_REST_PASSWORD="test"
-mvn -q exec:java -Dexec.mainClass=unrc.cursos.simulador.SimuladorMain
-
-# App de escritorio "Preparar materiales" (API Java de Flowable contra la BD del motor).
-$env:FLOWABLE_DB_USER="flowable"
-$env:FLOWABLE_DB_PASSWORD="flowable"
-mvn -q exec:java -Dexec.mainClass=unrc.cursos.escritorio.AppMateriales
+mvn -q exec:java "-Dexec.mainClass=unrc.cursos.simulador.SimuladorMain"
 ```
 
-### Ubuntu (Bash)
+### 🐧 Ubuntu (Bash)
 
-Ubuntu normalmente ya utiliza UTF-8, por lo que no hace falta ejecutar un equivalente de `chcp 65001`:
-
-```
-# Simulador de la empresa por consola (API REST). Muestra sólo las comunicaciones habilitadas.
+```bash
 export FLOWABLE_REST_USER=jefeAdmin
 export FLOWABLE_REST_PASSWORD=test
 mvn -q exec:java -Dexec.mainClass=unrc.cursos.simulador.SimuladorMain
+```
 
-# App de escritorio "Preparar materiales" (API Java de Flowable contra la BD del motor).
+---
+
+## 6. App de escritorio "Preparar materiales"
+
+Ventana Java para completar la tarea *Preparar materiales*. Ingresás con `admin2` / `test`.
+
+### 🪟 Windows (PowerShell)
+
+```powershell
+chcp 65001
+$env:FLOWABLE_DB_USER="flowable"
+$env:FLOWABLE_DB_PASSWORD="flowable"
+mvn -q exec:java "-Dexec.mainClass=unrc.cursos.escritorio.AppMateriales"
+```
+
+### 🐧 Ubuntu (Bash)
+
+```bash
 export FLOWABLE_DB_USER=flowable
 export FLOWABLE_DB_PASSWORD=flowable
 mvn -q exec:java -Dexec.mainClass=unrc.cursos.escritorio.AppMateriales
 ```
 
-La app puede completar *Preparar materiales* aunque sea la última rama de *Preparar curso*: su motor local sigue el flujo hasta *Enviar confirmación*.
+---
 
-## Recorrido automatizado de los escenarios de la defensa
+## 7. Pruebas
 
-`scripts/escenarios/m-escenarios.js` ejecuta contra el entorno real los escenarios 1 a 7 y 11 y emite PASS/FAIL con evidencia (ver [`scripts/escenarios/README.md`](scripts/escenarios/README.md)). Los 8, 9 y 10 (dependen del sitio) están en [`informe/checklist-manual.md`](informe/checklist-manual.md).
+| Qué | Comando | Dónde |
+|---|---|---|
+| Tests de Java (45, sin Docker) | `mvn test` | raíz |
+| Tests del sitio (151) | `npm test` | carpeta `web` |
+| Escenarios 1–7 y 11 automáticos (~4 min) | `node scripts/escenarios/m-escenarios.js` | raíz |
+| Escenarios 8, 9 y 10 manuales | seguir [`informe/checklist-manual.md`](informe/checklist-manual.md) | — |
+| Borrar instancias de prueba | `node scripts/escenarios/m-limpiar-instancias.js` | raíz |
 
-```
-node scripts/escenarios/m-escenarios.js        # tarda unos 4 minutos; al final deja Flowable con sólo "Demo processes"
-```
+Los comandos son iguales en Windows y Ubuntu. Tras `m-escenarios.js` hay que volver a correr `desplegar-modelo` si querés seguir a mano. En Ubuntu el puerto 25 es privilegiado: usá `SMTP_PORT=2525` tanto en `docker compose up -d` como en el script.
 
-Necesita Java, Maven y `mvn package -DskipTests` hechos (arma su propio classpath en `scripts/escenarios/resultados/`, que no se versiona). **En Linux** el puerto 25 es privilegiado: elegir uno libre y usar el mismo en los contenedores y en el script, p. ej. `SMTP_PORT=2525 docker compose up -d` y `SMTP_PORT=2525 node scripts/escenarios/m-escenarios.js` (sin eso el script omite sólo las verificaciones de correo).
+---
 
-Después de correrlo hay que volver a desplegar el modelo (`scripts/desplegar-modelo`) si se va a usar a mano. Informe y decisiones pendientes: [`informe/`](informe/).
+## 8. Apagar
 
-## Solución de problemas
-
-| Síntoma | Causa y arreglo |
+| Acción | Comando |
 |---|---|
-| `flowable-ui` sale con `Exited (1)` en el primer arranque | Carrera al crear el esquema; repetir `docker compose up -d`. |
-| `flowable-rest` no arranca y `target/cursos-flowable.jar` es una carpeta | Se hizo `up` antes de compilar. Borrar la carpeta, `mvn package -DskipTests`, `docker compose up -d`. |
-| Errores `No data available` al leer el JAR dentro del contenedor | Se recompiló con los contenedores arriba: `docker compose restart flowable-rest flowable-ui`. |
-| `http://localhost:3000` queda cargando o no abre | El comando `node --test tests/integration.test.js` **no levanta el sitio**: sólo ejecuta la prueba y termina. Dejar `npm start` corriendo en otra terminal y comprobar con `ss -ltnp \| grep ':3000'` y `curl -i http://localhost:3000/admin/login`. Si hay un proceso viejo colgado en 3000, `kill <PID>` y volver a iniciar. |
-| La solicitud pública responde "CUIT invalido" con los datos de prueba | Los CUIT de `db/datos.sql` no cumplían el dígito verificador (ya corregido). Volver a cargar los datos con `./scripts/crear-bd.sh`; la cuenta de la empresa 1 ahora es `emp_30711223343` / `test`. |
-| Falla al iniciar una solicitud, en *Evaluar Viabilidad* | La DMN no está desplegada; correr `scripts/desplegar-modelo` (despliega la DMN **antes** que el modelo). |
-| 500 en *Habilitar acceso de la empresa* | `empresaId` no existe en la BD; usar 1 o 2 con los datos de prueba, o correr `scripts/crear-bd`. |
-| La solicitud nueva queda `NO_VIABLE` sin motivo aparente | Hay 5 o más instancias activas de `Process_Curso` (incluidas las de pruebas viejas). Borrarlas: `node scripts/escenarios/m-limpiar-instancias.js`. |
-| Linux: `bad interpreter` / `$'\r': command not found` al correr un `.sh` | El archivo quedó con finales de línea de Windows. Con `.gitattributes` ya no pasa al clonar; en una copia vieja: `sed -i 's/\r$//' scripts/*.sh`. Si dice `Permission denied`: `chmod +x scripts/*.sh`. |
-| Linux: el escenario 11 falla con `ClassNotFoundException` o `NoClassDefFoundError` | Un `classpath.txt` viejo con rutas de Windows. Borrar `scripts/escenarios/resultados/classpath.txt` (el script lo regenera solo) y verificar que se hizo `mvn package -DskipTests`. |
-| Linux: los correos no llegan al SMTP de prueba | Puerto 25 privilegiado: usar `SMTP_PORT=2525` (ver "Recorrido automatizado"). Los contenedores llegan a la máquina por `host.docker.internal` (definido en `docker-compose.yml`). |
-| `PKIX path building failed` al bajar dependencias con Maven | Proxy/antivirus con certificado propio en la red. Las dependencias del proyecto ya están en `~/.m2` si se compiló antes; sólo falla al bajar artefactos nuevos. |
+| Apagar conservando datos | `docker compose down` |
+| Apagar y borrar todo | `docker compose down -v` (después repetir la sección 2) |
+| Cerrar el sitio | `Ctrl + C` en su terminal |
 
-## Tests
+---
 
-```
-mvn test      # 45 tests unitarios (H2 en memoria); no necesita Docker
-```
+## 9. Si algo falla
 
-Las pruebas de proceso contra el entorno levantado son `scripts/escenarios/m-escenarios.js`.
+| Síntoma | Solución |
+|---|---|
+| `flowable-ui` en `Exited (1)` | Repetir `docker compose up -d`. |
+| `target/cursos-flowable.jar` es una **carpeta** | Borrarla, correr `mvn package -DskipTests` y `docker compose up -d`. |
+| Recompilé con los contenedores arriba | `docker compose restart flowable-rest flowable-ui`. |
+| `localhost:3000` no abre | Falta `npm start` corriendo (ver sección 3). |
+| "CUIT invalido" al solicitar | Usar un CUIT válido, p. ej. `30-72233445-7`. |
+| Falla en *Evaluar Viabilidad* | Correr `desplegar-modelo`. |
+| La solicitud queda `NO_VIABLE` sin razón | Hay 5+ instancias viejas: `node scripts/escenarios/m-limpiar-instancias.js`. |
+| Ubuntu: `bad interpreter` / `$'\r'` | `sed -i 's/\r$//' scripts/*.sh` |
+| Ubuntu: `Permission denied` | `chmod +x scripts/*.sh` |
+| Tildes rotas en Windows | `chcp 65001` en esa terminal. |
 
-## Estado y límites conocidos
+Más casos y explicaciones: sección 10 de [`MAPA.md`](MAPA.md).
 
-- **Probado de punta a punta:** viabilidad y acuerdo; el curso completo (preparación, confirmación, dictado, informe y fin con compensación; `FINALIZADO`); falta de aulas; cancelación de la empresa con espera de la liberación del equipamiento; rechazo; y los cierres `NO_VIABLE`, `SIN_RESPUESTA`, `CANCELADO` y `RECHAZADO` reflejados en `curso.estado`.
-- Los avisos a la empresa son correos al SMTP falso de la máquina (sección "Avisos por correo"); sin servidor quedan en el log. Credenciales de las cuentas de empresa: simuladas.
-- Todo lo que se aparta de la consigna, con su motivo, está en [`informe/licencias-consigna.md`](informe/licencias-consigna.md).
-- El sitio web (`web/`) está construido; los escenarios 8, 9 y 10 se ensayan a mano con `informe/checklist-manual.md`. El informe breve está en `informe/informe.md`.
-- Reglas que debe cumplir el sitio porque el motor no las hace (reclamar antes de completar, validar *Evaluar recursos* y la fecha de aceptación, vincular el curso, informe en PDF): `informe/licencias-consigna.md` (filas 23 y 24).
+---
+
+## 10. Dónde está cada cosa
+
+| Documento | Contenido |
+|---|---|
+| [`MAPA.md`](MAPA.md) | **Todo el proyecto desde cero + recorrido paso a paso.** |
+| [`informe/checklist-manual.md`](informe/checklist-manual.md) | Pruebas manuales, paso a paso. |
+| [`README-aplicaciones.md`](README-aplicaciones.md) | Detalle del CLI y la app de escritorio. |
+| [`web/README.md`](web/README.md) | Detalle del sitio web. |
+| [`informe/informe.md`](informe/informe.md) | Informe académico. |
+| [`informe/licencias-consigna.md`](informe/licencias-consigna.md) | Decisiones que se apartan de la consigna. |
+| [`modelo/cambios-modelo.md`](modelo/cambios-modelo.md) | Registro de cambios al modelo BPMN. |
