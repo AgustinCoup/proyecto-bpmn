@@ -1,4 +1,5 @@
 <%- include('partials/header') %>
+<%- include('partials/back', { backHref: '/' }) %>
 <h1>Solicitud de curso</h1>
 <% if (errors && errors._general) { %><div class="err"><%= errors._general %></div><% } %>
 <form method="POST" action="/solicitar" class="form">

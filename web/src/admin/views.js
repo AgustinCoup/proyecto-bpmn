@@ -94,6 +94,7 @@ function home({
     user,
     groups,
     csrf,
+    showBack: false,
     body: `<h1>Mis tareas</h1>
       ${alert}
       <p class="muted">${tasks.length} en total: ${assigned} asignada(s) y ${available} disponible(s) para reclamar.</p>

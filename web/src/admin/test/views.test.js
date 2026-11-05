@@ -245,6 +245,31 @@ test('home etiqueta la acción de Revisar', () => {
   assert.match(archive, /href="\/admin\/tasks\/t3">Archivar<\/a>/);
 });
 
+test('las páginas internas muestran el botón Volver y cargan back.js', () => {
+  const html = proposalForm({
+    baseUrl: '/admin',
+    user: 'jefeAdmin',
+    csrf: 't',
+    task: { id: 't1', name: 'Registrar y Elaborar propuesta' },
+    course: { id: 1 },
+  });
+
+  assert.match(html, /data-back/);
+  assert.match(html, /href="\/admin\/"/);
+  assert.match(html, /src="\/back.js"/);
+});
+
+test('la lista de tareas no muestra el botón Volver', () => {
+  const html = createViews().home({
+    baseUrl: '/admin',
+    user: 'jefeAdmin',
+    csrf: 't',
+    tasks: [],
+  });
+
+  assert.doesNotMatch(html, /data-back/);
+});
+
 test('taskUnsupported muestra la tarea y el aviso', () => {
   const html = taskUnsupported({
     baseUrl: '/admin',

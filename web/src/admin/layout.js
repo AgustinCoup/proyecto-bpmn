@@ -27,6 +27,7 @@ const STYLES = `
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #f4f6f8; color: #1f2933; }
   header { background: #12344d; color: #fff; padding: .9rem 1.2rem; display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  header .header-left { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
   header a, header button { color: #fff; }
   header .who { font-size: .9rem; opacity: .9; }
   header form { margin: 0; }
@@ -61,7 +62,8 @@ const STYLES = `
 `;
 
 function page({
-  title, baseUrl = '', user, groups = [], csrf, body, showLogout = true, appName = 'Administración',
+  title, baseUrl = '', user, groups = [], csrf, body, showLogout = true, showBack = showLogout,
+  appName = 'Administración',
 }) {
   const navigation = user && showLogout
     ? `<div class="who">${escapeHtml(user)}${groups.length ? ` · ${escapeHtml(groups.join(', '))}` : ''}</div>
@@ -70,6 +72,10 @@ function page({
          <button type="submit" class="secondary">Cerrar sesión</button>
        </form>`
     : '';
+  const backHref = `${baseUrl}/`;
+  const back = showBack
+    ? `<a class="button secondary" href="${escapeHtml(backHref)}" data-back>&larr; Volver</a>`
+    : '';
 
   return `<!doctype html>
 <html lang="es">
@@ -77,11 +83,15 @@ function page({
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)} · ${escapeHtml(appName)}</title>
+  <script src="/back.js" defer></script>
   <style>${STYLES}</style>
 </head>
 <body>
   <header>
-    <strong>${escapeHtml(appName)} de cursos</strong>
+    <div class="header-left">
+      ${back}
+      <strong>${escapeHtml(appName)} de cursos</strong>
+    </div>
     ${navigation}
   </header>
   <main>${body}</main>
