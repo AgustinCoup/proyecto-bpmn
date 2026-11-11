@@ -2,7 +2,9 @@ package unrc.cursos;
 
 import org.flowable.engine.ProcessEngines;
 import org.flowable.engine.delegate.TaskListener;
+import org.flowable.engine.impl.util.TaskHelper;
 import org.flowable.task.service.delegate.DelegateTask;
+import org.flowable.task.service.impl.persistence.entity.TaskEntity;
 import org.flowable.idm.api.User;
 import java.util.List;
 
@@ -46,7 +48,20 @@ public class AsignarMenosCargadoListener implements TaskListener {
         }
 
         if (elegido != null) {
-            task.setAssignee(elegido.getId());
+            asignar(task, elegido.getId());
+        }
+    }
+
+    /**
+     * Con setAssignee directo la tarea queda asignada en tiempo de ejecucion, pero la tarea historica (que ya
+     * se registro antes de correr este listener) sigue sin responsable y las consultas del historial no la
+     * atribuyen a nadie. TaskHelper.changeTaskAssignee actualiza las dos cosas.
+     */
+    private static void asignar(DelegateTask task, String usuario) {
+        if (task instanceof TaskEntity) {
+            TaskHelper.changeTaskAssignee((TaskEntity) task, usuario);
+        } else {
+            task.setAssignee(usuario);
         }
     }
 }

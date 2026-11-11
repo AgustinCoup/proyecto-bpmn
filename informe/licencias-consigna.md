@@ -1,8 +1,8 @@
 # Licencias tomadas respecto de la consigna
 
-Único registro de todo lo que la implementación hace distinto de lo que dice `ProyectoCursos_V2_168448775197.pdf` (o de su Figura 1), con el motivo y dónde está la evidencia. La consigna permite "extender o realizar modificaciones menores, siempre que se respeten los requisitos del enunciado y se justifiquen los cambios" (§1.5), y deja a criterio del grupo lo celeste (texto azul). Ninguna entrada contradice un requisito: cuando el enunciado y el diagrama discrepaban, se siguió el enunciado.
+Único registro de todo lo que la implementación hace distinto de lo que dice `ProyectoCursos_V3_168631696404.pdf` (o de su Figura 1; la V3 agrega las secciones 4.3 y 4.4), con el motivo y dónde está la evidencia. La consigna permite "extender o realizar modificaciones menores, siempre que se respeten los requisitos del enunciado y se justifiquen los cambios" (§1.5), y deja a criterio del grupo lo celeste (texto azul). Ninguna entrada contradice un requisito: cuando el enunciado y el diagrama discrepaban, se siguió el enunciado.
 
-Última actualización: 2026-11-04. Detalle fino de cada cambio al diagrama: `modelo/cambios-modelo.md` (63 entradas).
+Última actualización: 2026-11-10. Detalle fino de cada cambio al diagrama: `modelo/cambios-modelo.md` (63 entradas).
 
 **Leyenda de tipo:** **D** = cambio al diagrama de referencia; **I** = decisión de implementación (el enunciado no la fija); **A** = alcance (se omite algo opcional); **S** = simulación permitida o necesaria para la demostración; **C** = el cliente (sitio o app) cumple el requisito porque el motor no lo hace.
 
@@ -54,6 +54,16 @@
 | 23 | C | §1.2: *Evaluar recursos* debe seleccionar al menos una alternativa. | Con las tres banderas en `false` (o si falta alguna) el motor responde 500 y deshace todo. | El sitio valida antes de enviar (decisión del usuario 2026-11-04: no se agrega un flujo por defecto al modelo). |
 | 24 | C | §3.5: la fecha acordada debe estar definida antes del timer. | Una "Aceptación" sin `fechaCurso` se acepta y falla (500) recién al completar *Definir docente*. | El simulador y el sitio obligan a enviar la fecha (opción A elegida por el usuario el 2026-11-04; el modelo no se toca). |
 | 25 | C | §4.1.4 / §1.4: "Definir docente" mediante "la aplicación móvil". | No hay aplicación móvil en el alcance. | Se hace desde el sitio (§4.1.4) y la UI de Flowable. Aclararlo en la defensa. |
+
+## F. Análisis de las ejecuciones (V3: secciones 4.3 y 4.4)
+
+| # | Tipo | Consigna | Qué hicimos |
+|---|---|---|---|
+| 26 | I | §4.3: las consultas pueden ir en la app auxiliar o ejecutarse por consola. | Las dos cosas, con el mismo código (`unrc.cursos.analisis`): botón **Analisis del historial** en la app Swing y `AnalisisMain` por consola. Usan la API Java (`HistoryService`) contra la BD del motor. |
+| 27 | I | §4.3.2: "preparación completada normalmente"; la rama de recursos termina al completar todas las acciones seleccionadas. | Se cuentan los cursos que llegaron al fin de *Preparar curso* (`SubFin`). Inscripciones = de *Recibir nómina* a *Confeccionar lista*; materiales = *Preparar materiales*; recursos = de *Evaluar recursos* a la última acción seleccionada. |
+| 28 | I | §4.3.3: tareas completadas por persona. | Se cuentan las tareas con responsable que no fueron interrumpidas. Se corrigió `AsignarMenosCargadoListener`: la asignación del listener no quedaba en el historial (la tarea aparecía sin responsable); ahora usa `TaskHelper.changeTaskAssignee` (test `laAsignacionQuedaRegistradaEnElHistorialDeLaTarea`). |
+| 29 | I | §4.4: usar los scripts provistos "adaptándolos". | Los originales quedan intactos en la raíz; las versiones adaptadas están en `mineria/` y cada cambio en `mineria/CAMBIOS-PY.md`. `analizar.py` conserva el filtro `userTask`/`serviceTask` del profe (decisión del usuario, 2026-11-10): ver las limitaciones en `mineria/conclusion.md`. |
+| 30 | S | §4.4: analizar las ejecuciones. | Con pocas ejecuciones reales no hay recorridos que comparar: `mineria/generar_historial.js` genera 55 instancias terminadas con mezcla fija de caminos y plazos acortados. Los datos son sintéticos y los porcentajes no describen una institución real. |
 
 ## Cómo mantener este archivo
 

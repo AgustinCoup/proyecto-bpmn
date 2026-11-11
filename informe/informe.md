@@ -72,7 +72,7 @@ Todas las clases están en `unrc.cursos` y van en un único JAR. Las que tocan l
 | Clase | Qué hace | Dónde está conectada (evento) | Cómo se probó |
 |---|---|---|---|
 | `ContarCursosEnEjecucionListener` (Execution Listener) | Cuenta las instancias de `Process_Curso` (todas las versiones, por clave) sin finalizar, **excluyendo la propia por ID**, y guarda `cursosEnEjecucion`. Obtiene el servicio con `ProcessEngines.getDefaultProcessEngine()`: en `flowable-rest` no existe el bean `runtimeService` en las expresiones. | `Evaluar Viabilidad` (`Activity_1xw400l`), evento `start` | 4 tests unitarios (H2); escenario 5 |
-| `AsignarMenosCargadoListener` (Task Listener) | Para cada miembro del grupo `administracion` cuenta las tareas **asignadas** pendientes (las que sólo tienen grupo candidato no cuentan) y asigna a quien tenga menos; empate: orden alfabético del ID. | `Confeccionar lista definitiva` (`Lista`), evento `create` | 6 tests (carga, empate, sólo-grupo, otros eventos); escenario 1 (la lista va a `admin2`) |
+| `AsignarMenosCargadoListener` (Task Listener) | Para cada miembro del grupo `administracion` cuenta las tareas **asignadas** pendientes (las que sólo tienen grupo candidato no cuentan) y asigna a quien tenga menos; empate: orden alfabético del ID. Asigna con `TaskHelper.changeTaskAssignee` para que la asignación también quede en el historial (con `setAssignee` la tarea histórica quedaba sin responsable). | `Confeccionar lista definitiva` (`Lista`), evento `create` | 7 tests (carga, empate, sólo-grupo, otros eventos, historial); escenario 1 (la lista va a `admin2`) |
 | `ActualizarEstadoCursoListener` (Execution Listener) | Lee `resultado` y hace `UPDATE curso SET estado = ? WHERE process_instance_id = ?`; si no encuentra fila, busca el curso por `cursoId` (sólo si todavía no tiene instancia): un curso no viable termina dentro del `POST` de inicio, antes de que el sitio guarde el vínculo. Si falta `resultado` asume `FINALIZADO` (por eso cada cierre lo setea). | Proceso `Process_Curso`, evento `end` | 12 tests; escenarios 1 a 7 verifican `curso.estado` |
 | `HabilitarAccesoEmpresaDelegate` (JavaDelegate) | Si la empresa ya tiene fila en `cuenta_empresa` la reutiliza; si no, crea usuario `emp_<cuit>` (clave simulada). Falla si `empresaId` no existe. | `Habilitar acceso de la empresa` (`Activity_1eg7zcl`) | `HabilitarAccesoEmpresaTest`; escenario 1 (crea la cuenta) |
 | `ReservarAulaDelegate` | Simula el web service de aulas: guarda `aulaAsignada`; con `simularFaltaAulas=true` lanza `BpmnError("SIN_AULAS")`. | `Reservar aula` (`Aula`) | Escenario 7 |
@@ -112,7 +112,7 @@ La consigna permite "modificaciones menores, siempre que se justifiquen". Agrupa
 
 ## 6. Resultado de la corrida
 
-`mvn test`: 45 tests, 0 fallas. `node scripts/escenarios/m-escenarios.js` (log: `scripts/escenarios/resultados/m-escenarios.log`), con el entorno levantado y un SMTP de prueba en el puerto 25:
+`mvn test`: 52 tests, 0 fallas. `node scripts/escenarios/m-escenarios.js` (log: `scripts/escenarios/resultados/m-escenarios.log`), con el entorno levantado y un SMTP de prueba en el puerto 25:
 
 | Escenario | Resultado | Evidencia mínima |
 |---|---|---|
@@ -130,3 +130,9 @@ Los escenarios 8, 9 y 10 se ensayan con `informe/checklist-manual.md`. Al termin
 ## 7. Hallazgos del recorrido y cómo se resolvieron
 
 La primera pasada (antes de los cambios del 2026-11-04) falló en dos escenarios, por defectos reales: (1) los cursos `NO_VIABLE` quedaban `EN_PROCESO`, porque la instancia termina dentro del `POST` que la inicia, antes de que el sitio guarde el vínculo con el curso; se resolvió con el respaldo por `cursoId` en `ActualizarEstadoCursoListener`; (2) la app de escritorio no podía completar la última rama de *Preparar*, porque su motor local ejecutaba *Enviar confirmación* (Groovy) sin tener Groovy; se agregó Groovy al `pom.xml` y, además, el modelo ya no tiene tareas de script. El detalle de cada decisión y las reglas que debe cumplir el sitio están en `informe/licencias-consigna.md`; las licencias respecto de la consigna, en `informe/licencias-consigna.md`.
+
+## 8. Análisis de las ejecuciones (consigna V3, 4.3 y 4.4)
+
+**4.3, consultas** (`unrc.cursos.analisis`, API Java sobre `HistoryService`; en la app Swing y por consola con `AnalisisMain`): (1) cantidad y porcentaje de instancias terminadas por valor de `resultado`, sin contar las borradas por administración; (2) duración promedio de las tres ramas de *Preparar curso* en los cursos que llegaron a `SubFin` (la de recursos termina con la última acción seleccionada); (3) tareas de usuario completadas por persona, sin pendientes ni interrumpidas. Cubiertas por `ServicioAnalisisTest` (6 tests sobre un modelo reducido con los mismos IDs).
+
+**4.4, minería** (`mineria/`): `generar_historial.js` crea 55 instancias con recorridos variados; `exportar_history.py` y `analizar.py` son los del profe adaptados (`mineria/CAMBIOS-PY.md`); resultados, gráficos y la comparación con el modelo en `mineria/conclusion.md`. Instrucciones: `mineria/README.md`.

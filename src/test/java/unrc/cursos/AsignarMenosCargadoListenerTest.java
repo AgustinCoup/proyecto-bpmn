@@ -117,6 +117,22 @@ class AsignarMenosCargadoListenerTest {
         verify(nueva, never()).setAssignee(anyString());
     }
 
+    @Test
+    void laAsignacionQuedaRegistradaEnElHistorialDeLaTarea() {
+        crearAdministrativos();
+        engine.getRepositoryService().createDeployment()
+                .addClasspathResource("proceso-lista-asignada.bpmn20.xml").deploy();
+
+        engine.getRuntimeService().startProcessInstanceByKey("ProcesoListaAsignada");
+        Task enCurso = engine.getTaskService().createTaskQuery().taskDefinitionKey("Lista").singleResult();
+        assertEquals("admin2", enCurso.getAssignee());
+        engine.getTaskService().complete(enCurso.getId());
+
+        String enHistorial = engine.getHistoryService().createHistoricTaskInstanceQuery()
+                .taskId(enCurso.getId()).singleResult().getAssignee();
+        assertEquals("admin2", enHistorial);
+    }
+
     private Task asignarTareaPendiente(String usuario) {
         Task tarea = engine.getTaskService().newTask();
         tarea.setName("Tarea pendiente");

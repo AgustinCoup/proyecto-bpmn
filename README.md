@@ -159,11 +159,13 @@ mvn -q exec:java -Dexec.mainClass=unrc.cursos.escritorio.AppMateriales
 
 | Qué | Comando | Dónde |
 |---|---|---|
-| Tests de Java (45, sin Docker) | `mvn test` | raíz |
+| Tests de Java (52, sin Docker) | `mvn test` | raíz |
 | Tests del sitio (151) | `npm test` | carpeta `web` |
 | Escenarios 1–7 y 11 automáticos (~4 min) | `node scripts/escenarios/m-escenarios.js` | raíz |
 | Escenarios 8, 9 y 10 manuales | seguir [`informe/checklist-manual.md`](informe/checklist-manual.md) | — |
 | Escenarios con Postman + DevNull + app Java | seguir [`informe/guia-postman-devnull.md`](informe/guia-postman-devnull.md) | — |
+| Historial de 55 instancias para 4.3 y 4.4 (~4 min; borra el historial previo) | `node mineria/generar_historial.js` | raíz |
+| Consultas 4.3 y minería de procesos 4.4 | seguir [`mineria/README.md`](mineria/README.md) | — |
 | Borrar instancias de prueba | `node scripts/escenarios/m-limpiar-instancias.js` | raíz |
 
 Los comandos son iguales en Windows y Ubuntu. `m-escenarios.js` guarda su log solo en `scripts/escenarios/resultados/m-escenarios.log` (ver [`scripts/escenarios/README.md`](scripts/escenarios/README.md)). Tras `m-escenarios.js` hay que volver a correr `desplegar-modelo` si querés seguir a mano. En Ubuntu el puerto 25 es privilegiado: usá `SMTP_PORT=2525` tanto en `docker compose up -d` como en el script.
@@ -206,7 +208,8 @@ Más casos y explicaciones: sección 10 de [`MAPA.md`](MAPA.md).
 | [`MAPA.md`](MAPA.md) | **Todo el proyecto desde cero + recorrido paso a paso.** |
 | [`informe/checklist-manual.md`](informe/checklist-manual.md) | Pruebas manuales, paso a paso. |
 | [`informe/guia-postman-devnull.md`](informe/guia-postman-devnull.md) | Postman, DevNull y app Java escenario por escenario. |
-| [`README-aplicaciones.md`](README-aplicaciones.md) | Detalle del CLI y la app de escritorio. |
+| [`Aplicaciones.md`](Aplicaciones.md) | Detalle del CLI y la app de escritorio. |
+| [`mineria/README.md`](mineria/README.md) | Consultas 4.3 y minería de procesos 4.4 (scripts, datos, conclusión). |
 | [`web/README.md`](web/README.md) | Detalle del sitio web. |
 | [`informe/informe.md`](informe/informe.md) | Informe académico. |
 | [`informe/licencias-consigna.md`](informe/licencias-consigna.md) | Decisiones que se apartan de la consigna. |
