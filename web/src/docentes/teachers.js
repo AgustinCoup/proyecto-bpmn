@@ -33,7 +33,7 @@ function parseTeacherSelection(body = {}, teachers = []) {
   return { valid: true, error: '', value: chosen };
 }
 
-/** La tarea siguiente usa `${fechaCurso}`: sin ella Flowable responde 500 (Contrato §11.30). */
+/** La tarea siguiente usa `${fechaCurso}`: sin ella Flowable responde 500. */
 function hasCourseDate(variables) {
   const value = variables && typeof variables.get === 'function' ? variables.get('fechaCurso') : undefined;
   return typeof value === 'string' && value.trim().length > 0;

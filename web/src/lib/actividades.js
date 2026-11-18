@@ -1,4 +1,4 @@
-// Nombres legibles de las actividades del modelo (Contrato.md / modelo).
+// Nombres legibles de las actividades del modelo (ver modelo).
 const NOMBRES = {
   Inicio: 'Solicitud recibida',
   Activity_1xw400l: 'Evaluar Viabilidad',

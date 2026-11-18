@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Crea los 5 usuarios y 2 grupos de Contrato.md (seccion 3) en Flowable.
+# Crea los 5 usuarios y 2 grupos en Flowable.
 # Equivalente Linux/macOS de scripts/crear-usuarios.ps1.
 #
 # Uso:

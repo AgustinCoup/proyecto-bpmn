@@ -1,0 +1,19 @@
+
+Instancias analizadas: 55
+Recorridos diferentes: 10
+
+Los tres recorridos más frecuentes:
+
+12 casos (21.8 %)
+Evaluar Viabilidad → Registrar y Elaborar propuesta → Enviar propuesta → Archivar solicitud
+
+12 casos (21.8 %)
+Evaluar Viabilidad → Registrar y Elaborar propuesta → Enviar propuesta
+
+8 casos (14.5 %)
+Evaluar Viabilidad → Registrar y Elaborar propuesta → Enviar propuesta → Enviar recordatorio → Enviar recordatorio → Archivar solicitud
+
+Archivos generados:
+- recorridos.png
+- modelo_descubierto.png
+- modelo_descubierto.bpmn

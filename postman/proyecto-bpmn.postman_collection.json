@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Proyecto BPMN - Flowable REST",
-    "description": "Pruebas de la API REST de Flowable. Cambiá las variables de la colección (usuario, clave, ids) según lo que quieras probar. Los puntos marcados (verificar) son suposiciones de Contrato.md. Para desplegar el DMN y los timers cortos de las pruebas usar usuario rest-admin.",
+    "description": "Pruebas de la API REST de Flowable para recorrer los escenarios de la consigna.\n\nANTES DE EMPEZAR\n1. Entorno levantado (docker compose up -d, usuarios, BD y despliegue del modelo; ver README.md).\n2. DevNullSmtp abierto (puerto 25, o el de SMTP_PORT) si queres ver los correos a la empresa.\n3. Variables de la coleccion: usuario/clave (por defecto jefeAdmin/test), empresaId (1 o 2: tiene que existir en la BD) y cursoId.\n   Para que el estado final llegue a la tabla curso, el curso tiene que existir. Lo mas simple es crearlo desde http://localhost:3000/solicitar y usar el numero que muestra. Solo con Postman, insertalo antes:\n   docker compose exec -T postgres psql -U institucion -d institucion -c \"insert into curso (id, empresa_id, tematica, descripcion, cantidad_participantes, fechas_preferidas) values (101, 2, 'Prueba', 'x', 3, 'pronto')\"\n4. Los requests de despliegue, DMN y timers usan rest-admin/test (ya configurado en cada uno).\n\nFLUJO TIPICO\n- Instancias > Iniciar por mensaje: guarda sola processInstanceId.\n- Tareas > Listar tareas de la instancia / Buscar tarea por clave: guarda sola taskId. Reclamar y Completar usan {{taskId}}.\n- Comunicaciones de la empresa: cada request busca solo la ejecucion correcta (no hay que copiar executionId).\nSi una comunicacion no esta habilitada, el request falla con 404 y la consola de Postman (View > Show Postman Console) explica por que.\n\nPara empezar de cero: Instancias > Borrar TODAS las instancias activas de Process_Curso.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -25,6 +25,10 @@
       "value": "http://localhost:8080/flowable-rest/service"
     },
     {
+      "key": "dmnUrl",
+      "value": "http://localhost:8080/flowable-rest/dmn-api"
+    },
+    {
       "key": "usuario",
       "value": "jefeAdmin"
     },
@@ -37,8 +41,20 @@
       "value": "Process_Curso"
     },
     {
+      "key": "empresaId",
+      "value": "2"
+    },
+    {
+      "key": "cursoId",
+      "value": "101"
+    },
+    {
       "key": "processInstanceId",
       "value": ""
+    },
+    {
+      "key": "taskKey",
+      "value": "Propuesta"
     },
     {
       "key": "taskId",
@@ -47,10 +63,6 @@
     {
       "key": "executionId",
       "value": ""
-    },
-    {
-      "key": "dmnUrl",
-      "value": "http://localhost:8080/flowable-rest/dmn-api"
     },
     {
       "key": "mensaje",
@@ -161,7 +173,7 @@
                 "deployments"
               ]
             },
-            "description": "Elegí el archivo .bpmn20.xml o .dmn en el campo \"file\".",
+            "description": "Elegi en \"file\" modelo/Proyecto_Organizacion_cursos.bpmn20.xml. La DMN (modelo/viabilidadCurso.dmn) va por \"6. Viabilidad y plazos > Desplegar DMN (motor DMN)\" y DEBE desplegarse antes que el modelo.",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -169,6 +181,21 @@
                   "key": "file",
                   "type": "file",
                   "src": []
+                }
+              ]
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "rest-admin",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "test",
+                  "type": "string"
                 }
               ]
             }
@@ -248,8 +275,22 @@
                 "process-instances"
               ]
             },
-            "description": "Sirve si el proceso arranca con un inicio \"none\". Con inicio por mensaje, usar la siguiente (verificar)."
-          }
+            "description": "Alternativa de pruebas: inicia por clave de proceso, sin empresaId ni cursoId. Preferi \"Iniciar por mensaje\", que es como lo hace el sitio."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Instancia creada (201)', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('processInstanceId', j.id);",
+                  "console.log('processInstanceId = ' + j.id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Iniciar por mensaje Solicitud de curso",
@@ -263,7 +304,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"message\": \"Solicitud de curso\",\n  \"businessKey\": \"101\",\n  \"variables\": [\n    {\n      \"name\": \"cursoId\",\n      \"value\": 101,\n      \"type\": \"integer\"\n    },\n    {\n      \"name\": \"empresaId\",\n      \"value\": 7,\n      \"type\": \"integer\"\n    }\n  ]\n}",
+              "raw": "{\n  \"message\": \"Solicitud de curso\",\n  \"businessKey\": \"{{cursoId}}\",\n  \"variables\": [\n    {\n      \"name\": \"cursoId\",\n      \"value\": {{cursoId}},\n      \"type\": \"integer\"\n    },\n    {\n      \"name\": \"empresaId\",\n      \"value\": {{empresaId}},\n      \"type\": \"integer\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -281,7 +322,21 @@
               ]
             },
             "description": "Verificado: Flowable 6.8 acepta \"message\" (el nombre, no el id Msg_sol). La regla DMN rechaza el inicio si ya hay 5 otras instancias de Process_Curso sin finalizar: la instancia termina NO_VIABLE."
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Instancia creada (201)', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('processInstanceId', j.id);",
+                  "console.log('processInstanceId = ' + j.id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Listar instancias en curso",
@@ -365,12 +420,134 @@
               ]
             }
           }
+        },
+        {
+          "name": "Borrar TODAS las instancias activas de Process_Curso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/runtime/process-instances?processDefinitionKey={{processKey}}&size=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "process-instances"
+              ],
+              "query": [
+                {
+                  "key": "processDefinitionKey",
+                  "value": "{{processKey}}"
+                },
+                {
+                  "key": "size",
+                  "value": "100"
+                }
+              ]
+            },
+            "description": "Recorre las instancias activas y las borra una por una. Usalo antes de cada escenario: las instancias viejas cuentan para el limite de 5 cursos."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const base = pm.collectionVariables.get('baseUrl');",
+                  "const auth = 'Basic ' + CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(pm.collectionVariables.get('usuario') + ':' + pm.collectionVariables.get('clave')));",
+                  "const data = pm.response.json().data || [];",
+                  "data.forEach(i => pm.sendRequest({ url: base + '/runtime/process-instances/' + i.id + '?deleteReason=limpieza', method: 'DELETE', header: { Authorization: auth } }));",
+                  "console.log('Instancias borradas: ' + data.length);",
+                  "pm.test('Se pidio borrar ' + data.length + ' instancia(s)', () => pm.expect(data).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
       "name": "4. Tareas",
       "item": [
+        {
+          "name": "Listar tareas de la instancia",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/runtime/tasks?processInstanceId={{processInstanceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "tasks"
+              ],
+              "query": [
+                {
+                  "key": "processInstanceId",
+                  "value": "{{processInstanceId}}"
+                }
+              ]
+            },
+            "description": "Muestra (en la consola de Postman) todas las tareas abiertas de la instancia con su taskDefinitionKey y assignee. Si hay una sola, guarda taskId."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || [];",
+                  "data.forEach(x => console.log(x.taskDefinitionKey + ' | ' + x.name + ' | assignee=' + x.assignee + ' | id=' + x.id));",
+                  "if (data.length === 1) { pm.collectionVariables.set('taskId', data[0].id); pm.collectionVariables.set('taskKey', data[0].taskDefinitionKey); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buscar tarea por clave (taskKey)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/runtime/tasks?processInstanceId={{processInstanceId}}&taskDefinitionKey={{taskKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "tasks"
+              ],
+              "query": [
+                {
+                  "key": "processInstanceId",
+                  "value": "{{processInstanceId}}"
+                },
+                {
+                  "key": "taskDefinitionKey",
+                  "value": "{{taskKey}}"
+                }
+              ]
+            },
+            "description": "Claves: Propuesta, Enviar, Revisar, Archivar, Lista, Material, Activity_12i2hpf (Evaluar Recursos), Virtual, Equipo, Activity_1018bdz (Definir docente), Dictar, Informe, EnviarInforme, Activity_1m08pcl (Liberar Equipamiento). Cambia la variable taskKey y guarda sola taskId."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || [];",
+                  "pm.test('Hay exactamente una tarea con esa clave', () => pm.expect(data.length).to.eql(1));",
+                  "if (data.length === 1) pm.collectionVariables.set('taskId', data[0].id);"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "Mis tareas asignadas",
           "request": {
@@ -469,7 +646,8 @@
                 "tasks",
                 "{{taskId}}"
               ]
-            }
+            },
+            "description": "Reclama la tarea {{taskId}} para {{usuario}}. Solo las tareas del grupo se reclaman; las asignadas a una persona no."
           }
         },
         {
@@ -503,11 +681,77 @@
               ]
             }
           }
+        },
+        {
+          "name": "Completar Evaluar Recursos (aula, virtual y equipamiento)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/runtime/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "tasks",
+                "{{taskId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"complete\",\n  \"variables\": [\n    {\n      \"name\": \"requiereAula\",\n      \"value\": true,\n      \"type\": \"boolean\"\n    },\n    {\n      \"name\": \"requierePlataforma\",\n      \"value\": true,\n      \"type\": \"boolean\"\n    },\n    {\n      \"name\": \"requiereEquipamiento\",\n      \"value\": true,\n      \"type\": \"boolean\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "taskKey Activity_12i2hpf. Hay que mandar las tres banderas y al menos una en true; si no, el motor responde 500. Para falta de aulas, iniciar la instancia con simularFaltaAulas=true."
+          }
+        },
+        {
+          "name": "Completar Definir docente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/runtime/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "runtime",
+                "tasks",
+                "{{taskId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"complete\",\n  \"variables\": [\n    {\n      \"name\": \"docenteSeleccionado\",\n      \"value\": \"docente1\",\n      \"type\": \"string\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "taskKey Activity_1018bdz. Usar como jefeDocente (cambia la variable usuario). Requiere que la instancia tenga fechaCurso."
+          }
         }
       ]
     },
     {
-      "name": "5. Mensajes de la empresa",
+      "name": "5. Comunicaciones de la empresa",
       "item": [
         {
           "name": "Buscar ejecuciones de una instancia",
@@ -534,7 +778,8 @@
                   "description": "Nombre del mensaje, p. ej. Aceptación, Rechazo, Solicitud de modificaciones. Si la lista viene vacía, ese mensaje no está habilitado ahora. Guardá data[0].id en executionId."
                 }
               ]
-            }
+            },
+            "description": "Opcional: muestra las ejecuciones que esperan el mensaje {{mensaje}}. Los requests de abajo ya hacen esta busqueda solos."
           }
         },
         {
@@ -549,7 +794,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"action\": \"messageEventReceived\",\n  \"messageName\": \"Aceptación\",\n  \"variables\": [\n    {\n      \"name\": \"fechaCurso\",\n      \"value\": \"2026-12-01T09:00:00Z\"\n    }\n  ]\n}",
+              "raw": "{\n  \"action\": \"messageEventReceived\",\n  \"messageName\": \"Aceptación\",\n  \"variables\": [\n    {\n      \"name\": \"fechaCurso\",\n      \"value\": \"{{fechaCurso}}\",\n      \"type\": \"string\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -567,8 +812,28 @@
                 "{{executionId}}"
               ]
             },
-            "description": "PUT sobre la ejecución del evento \"Aceptación\" (ver \"Buscar ejecuciones de una instancia\" con messageEventSubscriptionName=Aceptación). Responde 204: la instancia sigue en Preparar. Formato de fechaCurso aceptado por el timer Fecha: ISO 8601 con o sin zona (\"2026-12-01T09:00:00\" se toma como UTC), con offset, o sólo fecha."
-          }
+            "description": "La fecha se calcula sola (ahora + 5 min). Sin fechaCurso la aceptacion se acepta, pero despues falla \"Definir docente\"."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Busca sola la ejecucion a la que hay que enviar la comunicacion (no hay que copiar executionId a mano).",
+                  "const base=pm.collectionVariables.get('baseUrl'), pid=pm.collectionVariables.get('processInstanceId');",
+                  "const auth='Basic '+CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(pm.collectionVariables.get('usuario')+':'+pm.collectionVariables.get('clave')));",
+                  "pm.sendRequest({url: base+'/runtime/executions?processInstanceId='+pid+'&'+'messageEventSubscriptionName='+encodeURIComponent('Aceptación'), method:'GET', header:{Authorization:auth}}, (err,res)=>{",
+                  "  const data = err ? [] : (res.json().data || []);",
+                  "  if (data.length === 1) { pm.variables.set('executionId', data[0].id); }",
+                  "  else { console.error('El mensaje \"Aceptación\" NO esta habilitado en esta instancia ahora (ejecuciones encontradas: '+data.length+'). Revisa processInstanceId y el estado del proceso.'); pm.variables.set('executionId','NO_HABILITADO'); }",
+                  "});",
+                  "// Fecha acordada: dentro de 5 minutos (ISO 8601 UTC). Cambiala por otra si queres.",
+                  "pm.variables.set('fechaCurso', new Date(Date.now()+5*60*1000).toISOString().slice(0,19)+'Z');"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Rechazar propuesta",
@@ -600,7 +865,25 @@
                 "{{executionId}}"
               ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Busca sola la ejecucion a la que hay que enviar la comunicacion (no hay que copiar executionId a mano).",
+                  "const base=pm.collectionVariables.get('baseUrl'), pid=pm.collectionVariables.get('processInstanceId');",
+                  "const auth='Basic '+CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(pm.collectionVariables.get('usuario')+':'+pm.collectionVariables.get('clave')));",
+                  "pm.sendRequest({url: base+'/runtime/executions?processInstanceId='+pid+'&'+'messageEventSubscriptionName='+encodeURIComponent('Rechazo'), method:'GET', header:{Authorization:auth}}, (err,res)=>{",
+                  "  const data = err ? [] : (res.json().data || []);",
+                  "  if (data.length === 1) { pm.variables.set('executionId', data[0].id); }",
+                  "  else { console.error('El mensaje \"Rechazo\" NO esta habilitado en esta instancia ahora (ejecuciones encontradas: '+data.length+'). Revisa processInstanceId y el estado del proceso.'); pm.variables.set('executionId','NO_HABILITADO'); }",
+                  "});"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Pedir modificaciones",
@@ -614,7 +897,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"action\": \"messageEventReceived\",\n  \"messageName\": \"Solicitud de modificaciones\",\n  \"variables\": [\n    {\n      \"name\": \"observaciones\",\n      \"value\": \"Texto del pedido\"\n    }\n  ]\n}",
+              "raw": "{\n  \"action\": \"messageEventReceived\",\n  \"messageName\": \"Solicitud de modificaciones\",\n  \"variables\": [\n    {\n      \"name\": \"observaciones\",\n      \"value\": \"Reducir el presupuesto\",\n      \"type\": \"string\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -632,7 +915,25 @@
                 "{{executionId}}"
               ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Busca sola la ejecucion a la que hay que enviar la comunicacion (no hay que copiar executionId a mano).",
+                  "const base=pm.collectionVariables.get('baseUrl'), pid=pm.collectionVariables.get('processInstanceId');",
+                  "const auth='Basic '+CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(pm.collectionVariables.get('usuario')+':'+pm.collectionVariables.get('clave')));",
+                  "pm.sendRequest({url: base+'/runtime/executions?processInstanceId='+pid+'&'+'messageEventSubscriptionName='+encodeURIComponent('Solicitud de modificaciones'), method:'GET', header:{Authorization:auth}}, (err,res)=>{",
+                  "  const data = err ? [] : (res.json().data || []);",
+                  "  if (data.length === 1) { pm.variables.set('executionId', data[0].id); }",
+                  "  else { console.error('El mensaje \"Solicitud de modificaciones\" NO esta habilitado en esta instancia ahora (ejecuciones encontradas: '+data.length+'). Revisa processInstanceId y el estado del proceso.'); pm.variables.set('executionId','NO_HABILITADO'); }",
+                  "});"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Cancelar curso",
@@ -663,8 +964,27 @@
                 "executions",
                 "{{executionId}}"
               ]
+            },
+            "description": "Solo esta habilitado mientras el proceso esta en \"Preparar curso\"."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Busca sola la ejecucion a la que hay que enviar la comunicacion (no hay que copiar executionId a mano).",
+                  "const base=pm.collectionVariables.get('baseUrl'), pid=pm.collectionVariables.get('processInstanceId');",
+                  "const auth='Basic '+CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(pm.collectionVariables.get('usuario')+':'+pm.collectionVariables.get('clave')));",
+                  "pm.sendRequest({url: base+'/runtime/executions?processInstanceId='+pid+'&'+'messageEventSubscriptionName='+encodeURIComponent('Cancelación'), method:'GET', header:{Authorization:auth}}, (err,res)=>{",
+                  "  const data = err ? [] : (res.json().data || []);",
+                  "  if (data.length === 1) { pm.variables.set('executionId', data[0].id); }",
+                  "  else { console.error('El mensaje \"Cancelación\" NO esta habilitado en esta instancia ahora (ejecuciones encontradas: '+data.length+'). Revisa processInstanceId y el estado del proceso.'); pm.variables.set('executionId','NO_HABILITADO'); }",
+                  "});"
+                ]
+              }
             }
-          }
+          ]
         },
         {
           "name": "Enviar nomina (recibirNomina)",
@@ -678,7 +998,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"action\": \"signal\",\n  \"variables\": [\n    {\n      \"name\": \"participantes\",\n      \"value\": \"Ana;Beto;Carla\"\n    }\n  ]\n}",
+              "raw": "{\n  \"action\": \"signal\",\n  \"variables\": [\n    {\n      \"name\": \"participantes\",\n      \"value\": \"[\\\"Ana\\\",\\\"Beto\\\",\\\"Carla\\\"]\",\n      \"type\": \"string\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -696,13 +1016,31 @@
                 "{{executionId}}"
               ]
             },
-            "description": "PUT (no POST). Acción signal/trigger sin verificar todavía: se prueba con el escenario 1."
-          }
+            "description": "La nomina es una senal (no un mensaje) y tiene que ser un array JSON de nombres: asi la lee la pantalla \"Confeccionar lista definitiva\"."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Busca sola la ejecucion a la que hay que enviar la comunicacion (no hay que copiar executionId a mano).",
+                  "const base=pm.collectionVariables.get('baseUrl'), pid=pm.collectionVariables.get('processInstanceId');",
+                  "const auth='Basic '+CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(pm.collectionVariables.get('usuario')+':'+pm.collectionVariables.get('clave')));",
+                  "pm.sendRequest({url: base+'/runtime/executions?processInstanceId='+pid+'&'+'activityId=Nomina', method:'GET', header:{Authorization:auth}}, (err,res)=>{",
+                  "  const data = err ? [] : (res.json().data || []);",
+                  "  if (data.length === 1) { pm.variables.set('executionId', data[0].id); }",
+                  "  else { console.error('La recepcion de la nomina NO esta habilitado en esta instancia ahora (ejecuciones encontradas: '+data.length+'). Revisa processInstanceId y el estado del proceso.'); pm.variables.set('executionId','NO_HABILITADO'); }",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "6. Viabilidad y plazos (fase 4)",
+      "name": "6. Viabilidad y plazos",
       "item": [
         {
           "name": "Desplegar DMN (motor DMN)",
@@ -719,7 +1057,7 @@
                 "deployments"
               ]
             },
-            "description": "Antes de iniciar instancias. Elegí modelo/viabilidadCurso.dmn en el campo \"file\". Usar usuario rest-admin.",
+            "description": "Elegi en \"file\" modelo/viabilidadCurso.dmn. Desplegala ANTES que el BPMN.",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -727,6 +1065,21 @@
                   "key": "file",
                   "type": "file",
                   "src": []
+                }
+              ]
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "rest-admin",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "test",
+                  "type": "string"
                 }
               ]
             }
@@ -747,7 +1100,22 @@
                 "deployments"
               ]
             },
-            "description": "Debe quedar vacío al terminar las pruebas."
+            "description": "Debe quedar vacío al terminar las pruebas.",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "rest-admin",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "test",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -773,14 +1141,28 @@
             "description": "plazoRespuesta (duración ISO 8601) reemplaza los 5 días del timer Plazo sin tocar el modelo. PT20S: cada vencimiento tarda ~24 s. Sin la variable, el plazo es P5D.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"message\": \"Solicitud de curso\",\n  \"businessKey\": \"401\",\n  \"variables\": [\n    {\n      \"name\": \"cursoId\",\n      \"value\": 401,\n      \"type\": \"integer\"\n    },\n    {\n      \"name\": \"empresaId\",\n      \"value\": 7,\n      \"type\": \"integer\"\n    },\n    {\n      \"name\": \"plazoRespuesta\",\n      \"value\": \"PT20S\",\n      \"type\": \"string\"\n    }\n  ]\n}",
+              "raw": "{\n  \"message\": \"Solicitud de curso\",\n  \"businessKey\": \"{{cursoId}}\",\n  \"variables\": [\n    {\n      \"name\": \"cursoId\",\n      \"value\": {{cursoId}},\n      \"type\": \"integer\"\n    },\n    {\n      \"name\": \"empresaId\",\n      \"value\": {{empresaId}},\n      \"type\": \"integer\"\n    },\n    {\n      \"name\": \"plazoRespuesta\",\n      \"value\": \"PT20S\",\n      \"type\": \"string\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Instancia creada (201)', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('processInstanceId', j.id);",
+                  "console.log('processInstanceId = ' + j.id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Ver cursosEnEjecucion de una instancia",
@@ -879,7 +1261,22 @@
                 }
               ]
             },
-            "description": "Con la instancia esperando respuesta hay un timer (Plazo). Durante la revisión de una modificación no hay ninguno."
+            "description": "Con la instancia esperando respuesta hay un timer (Plazo). Durante la revisión de una modificación no hay ninguno.",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "rest-admin",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "test",
+                  "type": "string"
+                }
+              ]
+            }
           }
         }
       ]

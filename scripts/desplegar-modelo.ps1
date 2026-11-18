@@ -1,4 +1,4 @@
-# Despliega la regla DMN (viabilidadCurso) y el modelo BPMN real. Primero el DMN (Contrato.md 11.19).
+# Despliega la regla DMN (viabilidadCurso) y el modelo BPMN real. Primero el DMN.
 # Cada corrida crea una version nueva del proceso. Uso (desde la raiz del repo):
 #   powershell -ExecutionPolicy Bypass -File scripts\desplegar-modelo.ps1
 $base = 'http://localhost:8080/flowable-rest'

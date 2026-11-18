@@ -12,7 +12,7 @@ con **ese** usuario, nunca con `rest-admin`. Quien no pertenece al grupo `docent
 
 | Tarea | Quién | Pantalla | Qué hace |
 |---|---|---|---|
-| `Activity_1018bdz` Definir Docente que desarrolla el curso | `jefeDocente` | `GET /docentes/tasks/:id` | Lista los miembros del grupo `docentes` (consulta a Flowable) y obliga a elegir **uno**; envía `docenteSeleccionado`. Si falta `fechaCurso` en la instancia lo avisa y no deja completar (sin esa variable Flowable responde 500, `Contrato.md` §11.30). |
+| `Activity_1018bdz` Definir Docente que desarrolla el curso | `jefeDocente` | `GET /docentes/tasks/:id` | Lista los miembros del grupo `docentes` (consulta a Flowable) y obliga a elegir **uno**; envía `docenteSeleccionado`. Si falta `fechaCurso` en la instancia lo avisa y no deja completar (sin esa variable Flowable responde 500). |
 | `Dictar` Desarrollar curso | docente elegido (`${docenteSeleccionado}`) | idem | Muestra la lista definitiva (`listaDefinitiva`, y si no está, la nómina `participantes`) y completa. Solo la ve y completa el docente asignado; a cualquier otro, 403. |
 | `Informe` Elaborar informe de resultados | `jefeDocente` | idem | Resumen, asistentes y observaciones → el servidor **genera el PDF** (pdfkit), lo guarda en `institucion.informe` y deja el id en `curso.informe_pdf`; completa con `informePdf` (entero). |
 | `GET /docentes/informes/:id.pdf` | docentes con sesión | descarga | El PDF como adjunto. |

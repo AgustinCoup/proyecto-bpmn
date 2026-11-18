@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Modelo reducido con los mismos IDs que Process_Curso en lo que miden las consultas de 4.3. -->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="analisis-test">
+  <process id="Process_Curso" isExecutable="true">
+    <startEvent id="Inicio" />
+    <sequenceFlow id="f0" sourceRef="Inicio" targetRef="Preparar" />
+    <subProcess id="Preparar">
+      <startEvent id="SubInicio" />
+      <sequenceFlow id="s1" sourceRef="SubInicio" targetRef="ParInicio" />
+      <parallelGateway id="ParInicio" />
+      <sequenceFlow id="s2" sourceRef="ParInicio" targetRef="Nomina" />
+      <sequenceFlow id="s3" sourceRef="ParInicio" targetRef="Material" />
+      <sequenceFlow id="s4" sourceRef="ParInicio" targetRef="Activity_12i2hpf" />
+      <receiveTask id="Nomina" />
+      <sequenceFlow id="s5" sourceRef="Nomina" targetRef="Lista" />
+      <userTask id="Lista" flowable:candidateGroups="administracion" />
+      <userTask id="Material" flowable:candidateGroups="administracion" />
+      <userTask id="Activity_12i2hpf" flowable:candidateGroups="administracion" />
+      <sequenceFlow id="s6" sourceRef="Activity_12i2hpf" targetRef="Virtual" />
+      <userTask id="Virtual" flowable:candidateGroups="administracion" />
+      <sequenceFlow id="s7" sourceRef="Lista" targetRef="ParFin" />
+      <sequenceFlow id="s8" sourceRef="Material" targetRef="ParFin" />
+      <sequenceFlow id="s9" sourceRef="Virtual" targetRef="ParFin" />
+      <parallelGateway id="ParFin" />
+      <sequenceFlow id="s10" sourceRef="ParFin" targetRef="SubFin" />
+      <endEvent id="SubFin" />
+    </subProcess>
+    <sequenceFlow id="f1" sourceRef="Preparar" targetRef="Fin" />
+    <endEvent id="Fin">
+      <extensionElements>
+        <flowable:executionListener event="start" expression="${execution.setVariable('resultado', 'FINALIZADO')}" />
+      </extensionElements>
+    </endEvent>
+  </process>
+</definitions>

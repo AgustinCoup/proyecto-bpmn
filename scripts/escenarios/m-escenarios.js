@@ -117,7 +117,7 @@ async function e1() {
   const pid = await iniciarCurso(801, 2);
   await aceptar(pid, 40);
   check('estadoCurso al entrar a Preparar', await J.valor(pid, 'estadoCurso'), 'EN_PREPARACION');
-  check('Habilitar acceso creó la cuenta de la empresa 2', sql('select usuario from cuenta_empresa where empresa_id=2;'), 'emp_30722334457');
+  check('Habilitar acceso creó la cuenta de la empresa 2', sql('select usuario from cuenta_empresa where empresa_id=2;'), 'emp_30722334456');
   await enviarNomina(pid, '["Ana","Beto"]');
   await J.esperarHasta('Lista creada', () => J.hayTarea(pid, 'Lista'), 20);
   check('Lista asignada al administrativo menos cargado (empate → alfabético)', (await J.tarea(pid, 'Lista')).assignee, 'admin2');
@@ -373,5 +373,6 @@ async function limpiezaFinal() {
   }
   if (smtpActivo) J.log(`Correos recibidos en total: ${correos.length}`);
   J.log('Escenarios 8, 9 y 10: manuales (informe/checklist-manual.md).');
+  J.log(`Log completo guardado en: ${J.ARCHIVO_LOG}`);
   process.exit(resumen.every((r) => !r.error && r.fallos.length === 0) ? 0 : 1);
 })().catch((e) => { console.error(e); process.exit(1); });

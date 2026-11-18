@@ -15,7 +15,9 @@ function atender(sock) {
       if (enDatos) {
         if (linea === '.') {
           enDatos = false;
-          correos.push({ para: actual.para.join(','), asunto: (/^Subject: (.*)$/m.exec(actual.texto) || [])[1] || '', texto: actual.texto });
+          const correo = { para: actual.para.join(','), asunto: (/^Subject: (.*)$/m.exec(actual.texto) || [])[1] || '', texto: actual.texto };
+          correos.push(correo);
+          if (require.main === module) console.log(`[${new Date().toLocaleTimeString()}] Correo para ${correo.para} | ${correo.asunto}`);
           actual = { para: [], texto: '' };
           responder('250 ok');
         } else actual.texto += linea + '\n';
@@ -36,3 +38,11 @@ function iniciar(puerto = 25) {
   });
 }
 module.exports = { iniciar, correos };
+
+// Uso independiente (alternativa a DevNullSmtp, igual en Windows y Ubuntu):
+//   node scripts/escenarios/m-smtp-sumidero.js [puerto]      (puerto por defecto: SMTP_PORT o 25)
+// Imprime cada correo que llega. Dejar abierta la terminal; Ctrl+C para cerrar.
+if (require.main === module) {
+  const puerto = Number(process.argv[2]) || Number(process.env.SMTP_PORT) || 25;
+  iniciar(puerto).then((ok) => { if (ok) console.log(`SMTP de prueba escuchando en el puerto ${puerto}. Esperando correos...`); else process.exit(1); });
+}

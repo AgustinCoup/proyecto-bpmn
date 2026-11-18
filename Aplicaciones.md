@@ -8,6 +8,7 @@ Cómo ejecutar las dos aplicaciones de la consigna §4.2 contra el proceso real 
 |---|---|
 | `src/main/java/unrc/cursos/simulador/` | Simulador de comunicaciones de la empresa por consola, usando la API REST. |
 | `src/main/java/unrc/cursos/escritorio/` | App de escritorio Swing que usa la API Java de Flowable contra PostgreSQL. |
+| `src/main/java/unrc/cursos/analisis/` | Consultas de la consigna 4.3 sobre el historial (API Java). En la app de escritorio: botón **Analisis del historial**; por consola: `unrc.cursos.analisis.AnalisisMain`. Ver `mineria/README.md`. |
 | `src/test/java/unrc/cursos/simulador/DetectorAccionesTest.java` | Tests (sin red) de qué acciones están habilitadas. |
 | `src/test/java/unrc/cursos/escritorio/ServicioTareasTest.java` | Tests de la app Java contra H2, con un proceso mínimo (`src/test/resources/procesos/ejemplo-materiales.bpmn20.xml`, **no es el modelo real**). |
 

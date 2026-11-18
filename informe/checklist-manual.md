@@ -83,6 +83,18 @@ Vas a necesitar:
 | **T3** | Simulador de la empresa (CLI) | Se abre en el escenario 10 |
 | **T4** | App de escritorio "Preparar materiales" | Se abre en el escenario 8 |
 
+> ⚠️ **Toda terminal nueva se abre en tu carpeta de usuario, NO en el proyecto.** T1, T3 y T4 tienen que estar en la **raíz del proyecto** (la carpeta que contiene `pom.xml` y `docker-compose.yml`); si no, `mvn exec:java` y `node scripts/...` no encuentran nada. Lo primero que hacés en cada una:
+>
+> *Windows (PowerShell):*
+> ```powershell
+> cd "C:\Users\tutyb\UNI - 2026\Gestion\proyecto-bpmn"
+> ```
+> *Ubuntu (Bash):*
+> ```bash
+> cd ~/ruta/al/proyecto-bpmn
+> ```
+> Comprobá con `dir pom.xml` (Windows) o `ls pom.xml` (Ubuntu): tiene que listar el archivo.
+
 Del navegador vas a usar:
 
 | Nombre | Qué es |
@@ -194,6 +206,18 @@ docker compose exec -T postgres psql -U institucion -d institucion -c "select id
 
 **Tiene que pasar:** se ve un texto JSON con **una** instancia. Su `businessKey` es tu `CURSO_A` y su `id` es **igual** al `process_instance_id` del paso 9.4.  ☐
 
+**Si el resultado viene vacío (`"total":0`)**, la instancia ya no está activa. Las causas posibles, en orden de probabilidad:
+
+1. **Se borró**: corriste `m-limpiar-instancias.js` o `m-escenarios.js` **después** de crear la solicitud. Esos scripts borran todas las instancias activas, y `m-escenarios.js` además borra el modelo desplegado. **No los corras en medio del checklist**; si lo hiciste, volvé a desplegar el modelo y repetí desde el 9.3.
+2. **Terminó sola por no viable**: si en el paso 9.4 el curso dice `estado = NO_VIABLE` en vez de `EN_PROCESO`, había 5 o más instancias activas. Repetí el paso P2.
+3. **Consultaste otro número**: usá el `businessKey` = el número que mostró "Solicitud recibida".
+
+Para saber cuál fue, pedí el historial (incluye instancias terminadas o borradas). Reemplazá `CURSO_A` por tu número:
+
+`http://localhost:8080/flowable-rest/service/history/historic-process-instances?businessKey=CURSO_A`
+
+Si aparece con `endTime` y `deleteReason`, se borró (causa 1); si aparece con `endTime` y sin `deleteReason`, terminó sola (causa 2).
+
 ### 9.6 — El jefe administrativo ve su tarea
 
 **Hacé:**
@@ -276,7 +300,7 @@ docker compose exec -T postgres psql -U institucion -d institucion -c "select id
 
 ### 10.4 — Abrir el CLI (la empresa responde)
 
-**Hacé:** abrí **T3** en la raíz del proyecto y ejecutá:
+**Hacé:** abrí una terminal nueva (**T3**), **andá a la raíz del proyecto** (`cd`, ver el aviso de P4) y ejecutá:
 
 *Windows (PowerShell):*
 ```powershell
@@ -535,7 +559,7 @@ La otra persona **no** la ve ni siquiera como "Disponible para reclamar".  ☐
 
 ### 8.10 — Preparar materiales con la app de escritorio
 
-**Hacé:** abrí **T4** en la raíz del proyecto y ejecutá:
+**Hacé:** abrí una terminal nueva (**T4**), **andá a la raíz del proyecto** (`cd`, ver el aviso de P4) y ejecutá:
 
 *Windows (PowerShell):*
 ```powershell
@@ -657,22 +681,30 @@ Estas tareas **no necesitan pantalla en el sitio**; se hacen en la interfaz de F
 **Tiene que pasar:**
 - Mensaje de éxito.  ☐
 - Aparece una tarea nueva: **Liberar Equipamiento** (en Flowable UI, para el grupo `administracion`).  ☐
-- **La instancia todavía NO terminó**: en T1 comprobá que sigue activa:
+- **La instancia todavía NO terminó**: en T1 mirá **todos** los cursos (así no hay que reemplazar ningún número):
 
   ```
-  docker compose exec -T postgres psql -U institucion -d institucion -c "select id, estado from curso where id = CURSO_B"
+  docker compose exec -T postgres psql -U institucion -d institucion -c "select id, estado from curso order by id"
   ```
-  (reemplazá `CURSO_B` por el número). **Tiene que pasar:** `estado = EN_PROCESO`.  ☐
+  **Tiene que pasar**, fila por fila:
+
+  | Curso | `estado` esperado | Por qué |
+  |---|---|---|
+  | `1` | `EN_PROCESO` | Curso de ejemplo. |
+  | CURSO_A | `CANCELADO` | Lo cancelaste en el paso 10.14. |
+  | **CURSO_B** | **`EN_PROCESO`** | Su instancia sigue activa, esperando *Liberar Equipamiento*. |
+
+  Si **CURSO_B** dice `CANCELADO`, casi seguro estás mirando la fila del curso A: fijate en la columna `id`.  ☐
 
 ### 8.20 — Liberar equipamiento y fin
 
 **Hacé:**
 1. En **http://localhost:8081/flowable-ui** (app **Tasks**), entrá como `admin2` / `test`.
 2. Abrí **Liberar Equipamiento** → **Claim** → **Complete**.
-3. Esperá unos segundos y repetí la consulta del paso anterior.
+3. Esperá unos segundos y repetí la consulta del paso anterior (`select id, estado from curso order by id`).
 
 **Tiene que pasar:**
-- `estado = FINALIZADO` en la base.  ☐
+- En la base, **CURSO_B** pasa a `estado = FINALIZADO` (CURSO_A sigue `CANCELADO`).  ☐
 - **[E10]** En la web de la empresa el curso B está en **`FINALIZADO`**.  ☐
 - En http://localhost:8080/flowable-rest/service/runtime/process-instances?businessKey=CURSO_B ya **no** hay instancia activa.  ☐
 

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Una sola tarea con el Task Listener de create, para comprobar qué queda en el historial. -->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="lista-asignada-test">
+  <process id="ProcesoListaAsignada" isExecutable="true">
+    <startEvent id="inicio" />
+    <sequenceFlow id="f0" sourceRef="inicio" targetRef="Lista" />
+    <userTask id="Lista" flowable:candidateGroups="administracion">
+      <extensionElements>
+        <flowable:taskListener event="create" class="unrc.cursos.AsignarMenosCargadoListener" />
+      </extensionElements>
+    </userTask>
+    <sequenceFlow id="f1" sourceRef="Lista" targetRef="fin" />
+    <endEvent id="fin" />
+  </process>
+</definitions>

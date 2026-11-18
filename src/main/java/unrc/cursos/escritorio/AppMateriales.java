@@ -1,5 +1,8 @@
 package unrc.cursos.escritorio;
 
+import unrc.cursos.analisis.ReporteAnalisis;
+import unrc.cursos.analisis.ServicioAnalisis;
+
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -9,6 +12,7 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
@@ -96,6 +100,7 @@ public final class AppMateriales {
         private JButton botonReclamar;
         private JButton botonCompletar;
         private JButton botonCambiarUsuario;
+        private JButton botonAnalisis;
 
         private String usuario;
 
@@ -186,11 +191,14 @@ public final class AppMateriales {
             JPanel botonesCabecera = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
             botonActualizar = new JButton("Actualizar");
             botonActualizar.addActionListener(e -> actualizarTareas());
+            botonAnalisis = new JButton("Analisis del historial");
+            botonAnalisis.addActionListener(e -> mostrarAnalisis());
             botonCambiarUsuario = new JButton("Cambiar usuario");
             botonCambiarUsuario.addActionListener(e -> cerrarSesion());
             JButton botonSalir = new JButton("Salir");
             botonSalir.addActionListener(e -> cerrarAplicacion());
             botonesCabecera.add(botonActualizar);
+            botonesCabecera.add(botonAnalisis);
             botonesCabecera.add(botonCambiarUsuario);
             botonesCabecera.add(botonSalir);
             cabecera.add(botonesCabecera, BorderLayout.EAST);
@@ -257,6 +265,20 @@ public final class AppMateriales {
                 botonIngresar.setEnabled(true);
                 mostrarError("No se pudo iniciar sesion", error);
             });
+        }
+
+        /** Consultas de la consigna 4.3 sobre el historial; se calculan en segundo plano al abrir la ventana. */
+        private void mostrarAnalisis() {
+            ejecutarEnSegundoPlano(
+                    () -> ReporteAnalisis.generar(new ServicioAnalisis(servicio.getMotor())),
+                    texto -> {
+                        JTextArea area = new JTextArea(texto, 24, 60);
+                        area.setEditable(false);
+                        area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+                        JOptionPane.showMessageDialog(this, new JScrollPane(area),
+                                "Analisis del historial (consigna 4.3)", JOptionPane.PLAIN_MESSAGE);
+                    },
+                    error -> mostrarError("No se pudo consultar el historial", error));
         }
 
         private void actualizarTareas() {

@@ -1,0 +1,19 @@
+4.3.1 Resultados de las solicitudes
+Resultado           Cantidad  Porcentaje
+Curso finalizado           9       16.4%
+Cancelación               13       23.6%
+Rechazo                   19       34.5%
+No viable                  4        7.3%
+Falta de respuesta        10       18.2%
+Total terminadas          55      100.0%
+4.3.2 Preparación paralela (cursos con preparación completa: 9)
+Inscripciones  197 ms
+Materiales     239 ms
+Recursos       419 ms
+4.3.3 Tareas de usuario completadas
+Usuario            Tareas
+admin2             36
+jefeAdmin          193
+docente1           5
+docente2           4
+jefeDocente        18

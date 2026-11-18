@@ -1,4 +1,4 @@
-// Verifica el hallazgo Contrato §11.30: "Aceptación" sin fechaCurso se acepta (204) y el error (500) aparece recién al
+// Verifica que "Aceptación" sin fechaCurso se acepta (204) y el error (500) aparece recién al
 // completar "Definir Docente…", cuando se intenta crear el timer Fecha (${fechaCurso}).
 // Uso: node scripts/escenarios/m-aceptacion-sin-fecha.js   (deja el motor sin instancias activas; no toca despliegues)
 const J = require('./proceso');
@@ -9,6 +9,7 @@ const J = require('./proceso');
     variables: [J.int('cursoId', 890), J.int('empresaId', 1)] });
   const pid = r0.json.id;
   await J.completar(pid, 'Propuesta');
+  await J.completar(pid, 'Enviar');
   await J.esperarHasta('espera respuesta', async () => (await J.timers(pid)).length === 1, 20);
   const r = await J.enviarMensaje(pid, 'Aceptación'); // sin fechaCurso
   J.verificar('Aceptación sin fecha se acepta (204)', r.status, 204);
