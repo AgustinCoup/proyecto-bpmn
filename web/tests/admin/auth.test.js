@@ -247,7 +247,7 @@ test('tras 5 intentos fallidos el login se bloquea aunque la clave sea correcta'
 });
 
 test('el limitador expira por ventana de tiempo y se reinicia tras un acierto', () => {
-  const { createLoginThrottle } = require('../auth');
+  const { createLoginThrottle } = require('../../src/admin/auth');
   let now = 0;
   const throttle = createLoginThrottle({ now: () => now, windowMs: 1000, maxFailures: 2 });
   throttle.recordFailure('a');

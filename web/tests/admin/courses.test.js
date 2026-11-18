@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { COURSE_COLUMNS, createCourseStore } = require('../courses');
+const { COURSE_COLUMNS, createCourseStore } = require('../../src/admin/courses');
 
 function fakePool({ rows = [] } = {}) {
   const queries = [];

@@ -49,9 +49,9 @@ Variables de entorno:
 ### Pruebas automáticas
 
 ```bash
-cd web/src
-node --test admin/test/*.test.js docentes/test/*.test.js
-node --test --experimental-test-coverage admin/test/*.test.js docentes/test/*.test.js
+cd web
+node --test tests/admin/*.test.js tests/docentes/*.test.js
+node --test --experimental-test-coverage tests/admin/*.test.js tests/docentes/*.test.js
 ```
 
 128 pruebas con el cliente REST simulado. Cobertura: **97,7 % de líneas, 87,7 % de ramas**

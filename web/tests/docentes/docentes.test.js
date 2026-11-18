@@ -4,16 +4,16 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 
-require('../../admin/test/setup');
+require('../admin/setup');
 const express = require('express');
 const {
   FlowableError, createTestStore, csrfFrom, fakeClient, request,
-} = require('../../admin/test/helpers');
-const { createDocentesRouter } = require('..');
+} = require('../admin/helpers');
+const { createDocentesRouter } = require('../../src/docentes');
 const {
   fetchTeachers, hasCourseDate, parseTeacherSelection,
-} = require('../teachers');
-const { isPdf } = require('../../admin/reports');
+} = require('../../src/docentes/teachers');
+const { isPdf } = require('../../src/admin/reports');
 
 const TEACHERS = [
   { id: 'jefeDocente', firstName: 'Jefe', lastName: 'Docente' },

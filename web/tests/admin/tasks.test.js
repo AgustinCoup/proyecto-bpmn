@@ -15,7 +15,7 @@ const {
   normalizeTask,
   resolveBusinessKeys,
   taskQuery,
-} = require('../tasks');
+} = require('../../src/admin/tasks');
 
 const AUTH = { user: 'jefeAdmin', password: 'test' };
 

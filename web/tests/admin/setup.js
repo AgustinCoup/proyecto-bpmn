@@ -1,7 +1,7 @@
 'use strict';
 
 // Se carga antes que cualquier módulo que necesite express.
-require('../dev/register-deps');
+require('../../src/admin/dev/register-deps');
 
 // Evita el warning del secreto aleatorio al construir el router por defecto
 // durante las pruebas. Las pruebas que necesitan otro secreto lo inyectan.

@@ -1,216 +1,197 @@
 # Proyecto BPMN: organización de cursos de capacitación
 
-Proyecto final de *Gestión y Tecnologías de Procesos de Negocio*. Una institución de capacitación gestiona cursos para empresas con un proceso ejecutable en **Flowable**.
-
-> 📖 **¿Primera vez con el proyecto?** Leé [`MAPA.md`](MAPA.md): explica todo desde cero y guía un recorrido completo paso a paso.
-> Este README es solo para **arrancar rápido**.
+Proyecto final de *Gestión y Tecnologías de Procesos de Negocio* (UNRC). Una institución de capacitación gestiona los cursos que le piden las empresas con un proceso ejecutable en **Flowable 6.8.0**: viabilidad, negociación de la propuesta, preparación en paralelo, dictado, informe y liberación de recursos. La consigna está en [`docs/consigna.pdf`](docs/consigna.pdf).
 
 ---
 
-## 1. Requisitos
+## 1. Cómo está armado
 
-| Programa | Versión | Comprobar |
-|---|---|---|
-| Docker (Windows: Docker Desktop **abierto**) | cualquiera reciente | `docker compose version` |
-| Java | 11 o más | `java -version` |
-| Maven | 3.8 o más | `mvn -version` |
-| Node.js | 18 o más | `node -v` |
-
-Puertos libres: **5432**, **8080**, **8081**, **3000**.
-
-Ubuntu: tu usuario debe estar en el grupo `docker`, y hace falta un Node actual (NodeSource o `nvm`; el de los repositorios suele ser viejo).
-
----
-
-## 2. Arranque
-
-Todos los comandos se ejecutan desde la **raíz del proyecto** (la carpeta con `docker-compose.yml`).
-Hacelo **una vez**, **en este orden**.
-
-### 🪟 Windows (PowerShell)
-
-```powershell
-cd "C:\Users\tutyb\UNI - 2026\Gestion\proyecto-bpmn"
-
-mvn package -DskipTests
-docker compose up -d
-powershell -ExecutionPolicy Bypass -File scripts\crear-usuarios.ps1
-powershell -ExecutionPolicy Bypass -File scripts\crear-bd.ps1
-powershell -ExecutionPolicy Bypass -File scripts\desplegar-modelo.ps1
+```
+ Navegador ──HTTP :3000──► Sitio web (Node.js, web/) ──REST──┐
+ CLI "empresa" (Java) ──────────────────────────────REST──┐  │
+                                                          ▼  ▼
+                                  Flowable (:8080 REST, :8081 UI) + cursos-flowable.jar ──► correo (SMTP)
+                                                          │
+ App "Preparar materiales" (Java, API Java de Flowable) ──┤ JDBC
+ Sitio web ──JDBC────────────────────────────────────┐    │
+                                                     ▼    ▼
+                     PostgreSQL :5432 · base institucion (empresas, cursos, informes) · base flowable (motor)
 ```
 
-### 🐧 Ubuntu (Bash)
-
-```bash
-cd ~/ruta/al/proyecto-bpmn
-
-mvn package -DskipTests
-docker compose up -d
-chmod +x scripts/*.sh        # solo la primera vez
-./scripts/crear-usuarios.sh
-./scripts/crear-bd.sh
-./scripts/desplegar-modelo.sh
-```
-
-### Qué hace cada comando
-
-| Comando | Para qué |
+| Pieza | Qué hace |
 |---|---|
-| `mvn package -DskipTests` | Arma `target/cursos-flowable.jar` (**antes** de `docker compose up`). |
-| `docker compose up -d` | Enciende PostgreSQL y Flowable. |
-| `crear-usuarios` | Crea usuarios y grupos en Flowable. |
-| `crear-bd` | Crea la base `institucion` con datos de prueba. |
-| `desplegar-modelo` | Carga la regla DMN y el proceso. Repetir si cambia el modelo. |
+| **Modelo** (`modelo/`) | `Proyecto_Organizacion_cursos.bpmn20.xml` es el proceso `Process_Curso` que se despliega; `viabilidadCurso.dmn` es la regla de viabilidad (menos de 5 cursos en ejecución). |
+| **JAR del motor** (`src/main/java/unrc/cursos/`) | Listeners y delegates que corren dentro de Flowable: contar cursos, habilitar el acceso de la empresa, reservar y liberar aulas, notificar por correo, asignar al administrativo menos cargado. |
+| **Sitio web** (`web/`) | Solicitud pública, seguimiento para empresas y pantallas de administración y docentes. Habla con Flowable por REST. |
+| **Simulador de la empresa** (`…/simulador/`) | CLI que envía las respuestas de la empresa por REST. Solo ofrece las acciones habilitadas en cada momento. |
+| **App de escritorio** (`…/escritorio/`) | Ventana Swing para la tarea *Preparar materiales*. Usa la API Java de Flowable directamente contra la base del motor. |
+| **Análisis** (`…/analisis/`, `mineria/`) | Consultas 4.3 sobre el historial y minería de procesos 4.4. |
 
-**Esperá 1 minuto** y comprobá con `docker compose ps`: deben verse 3 contenedores `Up`.
-
-> ⚠️ **Primer arranque:** si `flowable-ui` queda `Exited (1)`, repetí `docker compose up -d` y esperá ~40 s. Es normal.
+Las tareas *Solicitar Aula Virtual*, *Contratar equipamiento* y *Liberar Equipamiento* no tienen pantalla en el sitio: se reclaman y completan en la interfaz de Flowable (app **Tasks**), como permite la consigna.
 
 ---
 
-## 3. Encender el sitio web
+## 2. Puesta en marcha
 
-En **otra terminal** (queda abierta mientras uses el sitio):
+**Requisitos:** Docker (en Windows, Docker Desktop abierto), Java 11+, Maven 3.8+, Node.js 18+ y los puertos 5432, 8080, 8081 y 3000 libres. En Ubuntu, tu usuario debe estar en el grupo `docker`.
 
-### 🪟 Windows (PowerShell)
-
-```powershell
-cd "C:\Users\tutyb\UNI - 2026\Gestion\proyecto-bpmn\web"
-npm install
-$env:SESSION_SECRET="cualquier-texto-largo"
-npm start
-```
-
-### 🐧 Ubuntu (Bash)
+Desde la raíz del repositorio, una sola vez y en este orden:
 
 ```bash
-cd ~/ruta/al/proyecto-bpmn/web
-npm install
-export SESSION_SECRET="cualquier-texto-largo"
-npm start
+mvn package -DskipTests        # arma target/cursos-flowable.jar (antes de levantar Docker)
+docker compose up -d           # PostgreSQL + Flowable REST + Flowable UI
+./scripts/crear-usuarios.sh    # usuarios y grupos de Flowable
+./scripts/crear-bd.sh          # base "institucion" con datos de prueba
+./scripts/desplegar-modelo.sh  # regla DMN + proceso (repetir si cambia el modelo)
 ```
 
-Debe decir `Web institucion escuchando en http://localhost:3000`.
+En Windows (PowerShell), los scripts son los `.ps1`: `powershell -ExecutionPolicy Bypass -File scripts\crear-usuarios.ps1`, y lo mismo con `crear-bd.ps1` y `desplegar-modelo.ps1`. En Ubuntu, la primera vez hace falta `chmod +x scripts/*.sh`.
+
+Después de un minuto, `docker compose ps` debe mostrar 3 contenedores `Up`.
 
 ---
 
-## 4. Direcciones y claves
+## 3. Sitio web
 
-| Qué | Dirección | Usuario / clave |
+En otra terminal, que queda abierta mientras se usa el sitio:
+
+```bash
+cd web
+npm install
+export SESSION_SECRET="cualquier-texto-largo"     # PowerShell: $env:SESSION_SECRET="..."
+npm start                                         # http://localhost:3000
+```
+
+Más detalle (variables, módulos, pruebas) en [`web/README.md`](web/README.md).
+
+---
+
+## 4. Usuarios y direcciones
+
+Todas las claves son `test`.
+
+| Quién | Usuario | Entra por |
 |---|---|---|
-| Sitio (inicio) | http://localhost:3000 | — |
-| Pedir un curso | http://localhost:3000/solicitar | — |
-| Empresas | http://localhost:3000/empresa/login | `emp_30711223343` / `test` |
-| Administración | http://localhost:3000/admin/login | `jefeAdmin` o `admin2` / `test` |
-| Docentes | http://localhost:3000/docentes/login | `jefeDocente`, `docente1` o `docente2` / `test` |
-| Interfaz de Flowable | http://localhost:8081/flowable-ui | `admin` o cualquiera de arriba / `test` |
-| API REST (Swagger) | http://localhost:8080/flowable-rest/docs/ | `rest-admin` / `test` |
-| PostgreSQL | `localhost:5432` | `flowable`/`flowable` · `institucion`/`institucion` |
+| Jefe administrativo / administrativo (grupo `administracion`) | `jefeAdmin`, `admin2` | http://localhost:3000/admin/login |
+| Jefe docente / docentes (grupo `docentes`) | `jefeDocente`, `docente1`, `docente2` | http://localhost:3000/docentes/login |
+| Empresa 1 (ya tiene cuenta) | `emp_30711223343` | http://localhost:3000/empresa/login |
+| Empresa 2 (la cuenta se crea al aceptar una propuesta) | `emp_30722334457` | http://localhost:3000/empresa/login |
+| Cualquiera (pedir un curso) | — | http://localhost:3000/solicitar |
+| Administrador de la interfaz de Flowable | `admin` (o cualquiera de arriba) | http://localhost:8081/flowable-ui |
+| Usuario de servicio de la API REST | `rest-admin` | http://localhost:8080/flowable-rest/docs/ |
+
+PostgreSQL en `localhost:5432`: `flowable`/`flowable` y `institucion`/`institucion`.
+
+Las tareas asignadas a una persona se completan directamente. Las de grupo aparecen como *Disponible para reclamar*: primero se **reclaman** y después se completan.
 
 ---
 
 ## 5. Simulador de la empresa (CLI)
 
-Programa de consola que hace de **empresa**: acepta, rechaza, pide cambios, manda la nómina, cancela. Necesita que ya haya una solicitud iniciada (desde `/solicitar`).
-
-### 🪟 Windows (PowerShell)
-
-```powershell
-chcp 65001
-$env:FLOWABLE_REST_USER="jefeAdmin"
-$env:FLOWABLE_REST_PASSWORD="test"
-mvn -q exec:java "-Dexec.mainClass=unrc.cursos.simulador.SimuladorMain"
-```
-
-### 🐧 Ubuntu (Bash)
+Hace de empresa: acepta (con fecha ISO 8601), rechaza, pide modificaciones, envía la nómina (array JSON) o cancela. Necesita una solicitud ya iniciada desde `/solicitar`.
 
 ```bash
-export FLOWABLE_REST_USER=jefeAdmin
-export FLOWABLE_REST_PASSWORD=test
+export FLOWABLE_REST_USER=jefeAdmin FLOWABLE_REST_PASSWORD=test
 mvn -q exec:java -Dexec.mainClass=unrc.cursos.simulador.SimuladorMain
 ```
+
+Si faltan las credenciales, el programa las pide. `FLOWABLE_REST_URL` cambia el servidor (por defecto, `http://localhost:8080/flowable-rest/service`).
 
 ---
 
 ## 6. App de escritorio "Preparar materiales"
 
-Ventana Java para completar la tarea *Preparar materiales*. Ingresás con `admin2` / `test`.
-
-### 🪟 Windows (PowerShell)
-
-```powershell
-chcp 65001
-$env:FLOWABLE_DB_USER="flowable"
-$env:FLOWABLE_DB_PASSWORD="flowable"
-mvn -q exec:java "-Dexec.mainClass=unrc.cursos.escritorio.AppMateriales"
-```
-
-### 🐧 Ubuntu (Bash)
-
 ```bash
-export FLOWABLE_DB_USER=flowable
-export FLOWABLE_DB_PASSWORD=flowable
+export FLOWABLE_DB_USER=flowable FLOWABLE_DB_PASSWORD=flowable
 mvn -q exec:java -Dexec.mainClass=unrc.cursos.escritorio.AppMateriales
 ```
 
----
+Se ingresa con `admin2` (o `jefeAdmin`). La tabla lista las tareas *Preparar materiales* del usuario y de sus grupos: **Reclamar tarea**, **Completar tarea**, **Actualizar** y **Cambiar usuario**. No deja completar tareas de otro usuario. Variables opcionales: `FLOWABLE_DB_URL` (por defecto `jdbc:postgresql://localhost:5432/flowable`), o un archivo de propiedades indicado en `FLOWABLE_DB_CONFIG`.
 
-## 7. Pruebas
-
-| Qué | Comando | Dónde |
-|---|---|---|
-| Tests de Java (52, sin Docker) | `mvn test` | raíz |
-| Tests del sitio (151) | `npm test` | carpeta `web` |
-| Escenarios 1–7 y 11 automáticos (~4 min) | `node scripts/escenarios/m-escenarios.js` | raíz |
-| Escenarios 8, 9 y 10 manuales | seguir [`informe/checklist-manual.md`](informe/checklist-manual.md) | — |
-| Escenarios con Postman + DevNull + app Java | seguir [`informe/guia-postman-devnull.md`](informe/guia-postman-devnull.md) | — |
-| Historial de 55 instancias para 4.3 y 4.4 (~4 min; borra el historial previo) | `node mineria/generar_historial.js` | raíz |
-| Consultas 4.3 y minería de procesos 4.4 | seguir [`mineria/README.md`](mineria/README.md) | — |
-| Borrar instancias de prueba | `node scripts/escenarios/m-limpiar-instancias.js` | raíz |
-
-Los comandos son iguales en Windows y Ubuntu. `m-escenarios.js` guarda su log solo en `scripts/escenarios/resultados/m-escenarios.log` (ver [`scripts/escenarios/README.md`](scripts/escenarios/README.md)). Tras `m-escenarios.js` hay que volver a correr `desplegar-modelo` si querés seguir a mano. En Ubuntu el puerto 25 es privilegiado: usá `SMTP_PORT=2525` tanto en `docker compose up -d` como en el script.
+En PowerShell, las variables se definen con `$env:NOMBRE="valor"` y el `-D…` va entre comillas: `"-Dexec.mainClass=…"`. Si no se ven bien las tildes, ejecutar antes `chcp 65001`.
 
 ---
 
-## 8. Apagar
+## 7. Análisis del historial (consigna 4.3 y 4.4)
 
-| Acción | Comando |
+Las dos partes necesitan historial. `node mineria/generar_historial.js` crea 55 instancias terminadas con recorridos variados (tarda unos 4 minutos y **borra el historial previo** de `Process_Curso`, salvo que se le pase `--conservar-historial`).
+
+**4.3, consultas** (API Java): botón **Analisis del historial** en la app de escritorio, o por consola:
+
+```bash
+mvn -q dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
+java -cp "target/classes:$(cat target/classpath.txt)" unrc.cursos.analisis.AnalisisMain   # en Windows el separador es ;
+```
+
+Usa las mismas variables `FLOWABLE_DB_*` que la app. La salida entregada está en `mineria/resultados-4.3.txt`.
+
+**4.4, minería de procesos** (Python + PM4Py; requiere Graphviz):
+
+```bash
+cd mineria
+python3 -m venv .venv && source .venv/bin/activate && pip install pm4py pandas requests
+FLOWABLE_USER=rest-admin FLOWABLE_PASSWORD=test python exportar_history.py   # genera eventos.csv
+python analizar.py                  # resultados.txt, recorridos.png, modelo_descubierto.png/.bpmn
+```
+
+`exportar_history.py` y `analizar.py` son los scripts provistos por la cátedra, adaptados al proyecto sin cambiar su lógica:
+
+- apuntan a `flowable-rest` y al proceso `Process_Curso`;
+- filtran las 17 actividades de la negociación;
+- leen las credenciales de variables de entorno, si están definidas;
+- guardan sus archivos junto al script y copian la salida de consola en `resultados.txt`.
+
+Se mantuvo el filtro original a `userTask`/`serviceTask`. Los resultados y la comparación con el modelo están en [`docs/mineria-conclusion.md`](docs/mineria-conclusion.md).
+
+---
+
+## 8. Pruebas
+
+| Qué | Comando |
 |---|---|
-| Apagar conservando datos | `docker compose down` |
-| Apagar y borrar todo | `docker compose down -v` (después repetir la sección 2) |
-| Cerrar el sitio | `Ctrl + C` en su terminal |
+| Java (sin Docker) | `mvn test` |
+| Sitio web | `cd web && npm test` (la prueba de integración necesita el entorno levantado) |
+| Escenarios 1–7 y 11, automáticos (~4 min) | `node scripts/escenarios/m-escenarios.js` (ver [`scripts/escenarios/README.md`](scripts/escenarios/README.md)) |
+| Escenarios 8, 9 y 10, manuales | [`docs/checklist-manual.md`](docs/checklist-manual.md) |
+| Escenarios con Postman, DevNull y la app Java | [`docs/guia-postman-devnull.md`](docs/guia-postman-devnull.md) |
+| Borrar instancias de prueba | `node scripts/escenarios/m-limpiar-instancias.js` |
+
+Después de `m-escenarios.js` hay que volver a correr `desplegar-modelo` para seguir probando a mano. En Ubuntu el puerto 25 es privilegiado: usar `SMTP_PORT=2525` tanto en `docker compose up -d` como en el script.
 
 ---
 
-## 9. Si algo falla
+## 9. Apagar
+
+`docker compose down` apaga los contenedores y conserva los datos. `docker compose down -v` los borra; después hay que repetir la sección 2. El sitio web se cierra con `Ctrl + C`.
+
+---
+
+## 10. Si algo falla
 
 | Síntoma | Solución |
 |---|---|
-| `flowable-ui` en `Exited (1)` | Repetir `docker compose up -d`. |
-| `target/cursos-flowable.jar` es una **carpeta** | Borrarla, correr `mvn package -DskipTests` y `docker compose up -d`. |
-| Recompilé con los contenedores arriba | `docker compose restart flowable-rest flowable-ui`. |
-| `localhost:3000` no abre | Falta `npm start` corriendo (ver sección 3). |
+| `flowable-ui` en `Exited (1)` en el primer arranque | Repetir `docker compose up -d` y esperar ~40 s. |
+| `target/cursos-flowable.jar` es una **carpeta** | Se levantó Docker antes de compilar: borrarla, `mvn package -DskipTests` y `docker compose up -d`. |
+| Se recompiló el Java con los contenedores arriba | `docker compose restart flowable-rest flowable-ui`. |
+| `localhost:3000` no abre | Falta `npm start` corriendo (sección 3). |
 | "CUIT invalido" al solicitar | Usar un CUIT válido, p. ej. `30-72233445-7`. |
-| Falla en *Evaluar Viabilidad* | Correr `desplegar-modelo`. |
-| La solicitud queda `NO_VIABLE` sin razón | Hay 5+ instancias viejas: `node scripts/escenarios/m-limpiar-instancias.js`. |
-| Ubuntu: `bad interpreter` / `$'\r'` | `sed -i 's/\r$//' scripts/*.sh` |
-| Ubuntu: `Permission denied` | `chmod +x scripts/*.sh` |
+| Falla en *Evaluar Viabilidad* | Falta la regla DMN: correr `desplegar-modelo`. |
+| Una solicitud nueva queda `NO_VIABLE` sin razón | Hay 5 o más instancias viejas activas: `node scripts/escenarios/m-limpiar-instancias.js`. |
+| La app de materiales no muestra tareas | Todavía no se confirmó la lista de participantes, o el usuario no es del grupo `administracion`. |
+| Ubuntu: `bad interpreter` o `$'\r'` | `sed -i 's/\r$//' scripts/*.sh` |
 | Tildes rotas en Windows | `chcp 65001` en esa terminal. |
-
-Más casos y explicaciones: sección 10 de [`MAPA.md`](MAPA.md).
 
 ---
 
-## 10. Dónde está cada cosa
+## 11. Estructura del repositorio
 
-| Documento | Contenido |
+| Ruta | Contenido |
 |---|---|
-| [`MAPA.md`](MAPA.md) | **Todo el proyecto desde cero + recorrido paso a paso.** |
-| [`informe/checklist-manual.md`](informe/checklist-manual.md) | Pruebas manuales, paso a paso. |
-| [`informe/guia-postman-devnull.md`](informe/guia-postman-devnull.md) | Postman, DevNull y app Java escenario por escenario. |
-| [`Aplicaciones.md`](Aplicaciones.md) | Detalle del CLI y la app de escritorio. |
-| [`mineria/README.md`](mineria/README.md) | Consultas 4.3 y minería de procesos 4.4 (scripts, datos, conclusión). |
-| [`web/README.md`](web/README.md) | Detalle del sitio web. |
-| [`informe/informe.md`](informe/informe.md) | Informe académico. |
-| [`informe/licencias-consigna.md`](informe/licencias-consigna.md) | Decisiones que se apartan de la consigna. |
-| [`modelo/cambios-modelo.md`](modelo/cambios-modelo.md) | Registro de cambios al modelo BPMN. |
+| `docs/` | Consigna, informe, licencias respecto de la consigna, conclusión de la minería, guías de prueba manual. |
+| `modelo/` | Modelo ejecutable (`.bpmn20.xml`), regla DMN, modelo conceptual original del equipo (`.conceptual.bpmn`, no ejecutable) y registro de cambios (`cambios-modelo.md`). |
+| `src/` | Código Java (JAR del motor, CLI, app de escritorio, análisis 4.3) y sus pruebas. |
+| `web/` | Sitio web (`src/`) y sus pruebas (`tests/`). |
+| `db/` | Esquema, datos de prueba y migraciones de la base `institucion`. |
+| `scripts/` | Preparación del entorno (`.sh` y `.ps1`) y recorrido automático de escenarios. |
+| `mineria/` | Generador de historial, scripts de minería, datos y resultados de 4.3 y 4.4. |
+| `postman/` | Colección de Postman. |

@@ -9,7 +9,7 @@ const {
   isArchivable,
   readResult,
   resultLabel,
-} = require('../archive');
+} = require('../../src/admin/archive');
 
 test('readResult acepta códigos en mayúsculas y descarta el resto', () => {
   assert.equal(readResult('RECHAZADO'), 'RECHAZADO');

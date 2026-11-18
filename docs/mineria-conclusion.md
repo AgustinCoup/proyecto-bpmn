@@ -1,9 +1,9 @@
 # Minería de procesos de la negociación (consigna 4.4)
 
-**Datos:** 55 instancias terminadas de `Process_Curso`, generadas con `generar_historial.js` (mezcla de casos fija, plazos
-acortados; no son ejecuciones de una institución real). **CSV:** `eventos.csv` (885 eventos, sólo la etapa de
-negociación). **Análisis:** `analizar.py` (PM4Py), filtrado a tareas de usuario y automáticas como el script original.
-Salida completa en `resultados.txt`; gráficos en `recorridos.png` y `modelo_descubierto.png`.
+**Datos:** 55 instancias terminadas de `Process_Curso`, generadas con `mineria/generar_historial.js` (mezcla de casos fija, plazos
+acortados; no son ejecuciones de una institución real). **CSV:** `mineria/eventos.csv` (885 eventos, sólo la etapa de
+negociación). **Análisis:** `mineria/analizar.py` (PM4Py), filtrado a tareas de usuario y automáticas como el script original.
+Salida completa en `mineria/resultados.txt`; gráficos en `mineria/recorridos.png` y `mineria/modelo_descubierto.png`.
 
 ## Los tres recorridos más frecuentes
 
@@ -18,11 +18,11 @@ Hay 10 recorridos distintos. Los otros siete suman 23 casos (41,8 %): 6 con una 
 Viabilidad → Notificar Desición*), 2 con dos revisiones, 2 con una revisión y falta de respuesta, y 1 con un
 recordatorio y rechazo. El grafo de sucesión directa (`recorridos.png`) muestra las frecuencias de cada flecha.
 
-![Grafo de sucesión directa](recorridos.png)
+![Grafo de sucesión directa](../mineria/recorridos.png)
 
 ## Comparación con el modelo BPMN
 
-![Modelo descubierto](modelo_descubierto.png)
+![Modelo descubierto](../mineria/modelo_descubierto.png)
 
 **Coincidencias.** El modelo descubierto reproduce la estructura de la negociación: *Evaluar Viabilidad* y una
 bifurcación entre *Notificar Desición* (no viable) y *Registrar y Elaborar propuesta*; *Enviar propuesta*; el ciclo

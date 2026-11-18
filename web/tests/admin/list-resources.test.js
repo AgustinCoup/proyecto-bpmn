@@ -8,8 +8,8 @@ const {
 } = require('./helpers');
 const {
   parseLista, parseParticipantes, formValuesFromList, serializeList,
-} = require('../participants');
-const { parseResources, resourceValuesFromVariables } = require('../resources');
+} = require('../../src/admin/participants');
+const { parseResources, resourceValuesFromVariables } = require('../../src/admin/resources');
 
 const BASE_TASK = {
   assignee: 'jefeAdmin',

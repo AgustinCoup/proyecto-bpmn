@@ -8,7 +8,7 @@ const {
   readObservations,
   readVersion,
   reviewContext,
-} = require('../review');
+} = require('../../src/admin/review');
 
 test('readObservations normaliza texto y recorta observaciones largas', () => {
   assert.equal(readObservations('  Ajustar el presupuesto.\n  '), 'Ajustar el presupuesto.');

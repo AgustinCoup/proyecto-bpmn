@@ -8,9 +8,9 @@ const {
 } = require('./helpers');
 const {
   createReportStore, isPdf, parseReportId, reportFileName, sendReportPdf,
-} = require('../reports');
-const { buildReportPdf } = require('../pdf');
-const { parseReportForm } = require('../report');
+} = require('../../src/admin/reports');
+const { buildReportPdf } = require('../../src/admin/pdf');
+const { parseReportForm } = require('../../src/admin/report');
 
 const PDF = Buffer.from('%PDF-1.4\n% contenido de prueba\n%%EOF\n');
 const TASK = {

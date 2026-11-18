@@ -40,8 +40,8 @@ CASCADE` sobre `curso`, así que también vacía `informe`.
 ## Pruebas
 
 ```bash
-cd web/src
-node --test docentes/test/*.test.js
+cd web
+node --test tests/docentes/*.test.js
 ```
 
 13 pruebas propias (mocks del cliente REST) + el escenario 8 completo contra el motor real en

@@ -3,7 +3,7 @@
 Guía **paso a paso y literal** para probar a mano los tres escenarios que dependen del sitio web.
 Los escenarios 1 a 7 y 11 se prueban solos con `node scripts/escenarios/m-escenarios.js` (ver [`scripts/escenarios/README.md`](../scripts/escenarios/README.md)).
 
-> ¿No conocés el proyecto? Antes leé [`MAPA.md`](../MAPA.md): explica qué es cada cosa.
+> ¿No conocés el proyecto? Antes leé el [`README.md`](../README.md): explica qué es cada cosa.
 
 ---
 
@@ -30,7 +30,7 @@ Los escenarios tienen números salteados, pero conviene hacerlos en este orden p
 
 ### P1. Tener el entorno levantado
 
-Si todavía no lo hiciste, seguí la sección 5 de [`MAPA.md`](../MAPA.md) (o la sección 2 y 3 del [`README.md`](../README.md)). Al terminar debe cumplirse:
+Si todavía no lo hiciste, seguí las secciones 2 y 3 del [`README.md`](../README.md). Al terminar debe cumplirse:
 
 - ☐ `docker compose ps` (en la raíz del proyecto) muestra 3 contenedores en `Up`.
 - ☐ El sitio responde: abrir http://localhost:3000 muestra "Bienvenido".

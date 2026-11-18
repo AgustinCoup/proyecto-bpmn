@@ -2,11 +2,11 @@
 
 Ejecutan por REST, contra el
 entorno real, los escenarios de la consigna §5 que no dependen del sitio web, y dicen PASS/FAIL con la evidencia mínima.
-Los escenarios 8, 9 y 10 se ensayan a mano: `informe/checklist-manual.md`.
+Los escenarios 8, 9 y 10 se ensayan a mano: `docs/checklist-manual.md`.
 
 ## Requisitos
 
-- Entorno levantado según el `README.md` de la raíz (pasos 1 a 5): contenedores arriba con el JAR actual, usuarios y BD creados.
+- Entorno levantado según la sección 2 del `README.md` de la raíz: contenedores arriba con el JAR actual, usuarios y BD creados.
 - Node.js 18 o más (usa `fetch`), Java 11 o más y Maven (para el classpath de dependencias y `target/classes`: correr antes `mvn package -DskipTests`).
 - Puerto SMTP libre (25, o el de `SMTP_PORT`; en Linux usar uno >1024, p. ej. 2525, igual que en `docker compose up`): el script abre un SMTP de prueba para verificar los correos (si no puede, omite sólo esas verificaciones; cerrar DevNullSmtp antes).
 - Sin otras instancias activas de `Process_Curso` que no sean de la prueba: el script las **borra** (cuentan para el límite de 5).

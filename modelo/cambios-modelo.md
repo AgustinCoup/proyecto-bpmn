@@ -1,6 +1,6 @@
 # Registro de cambios al modelo
 
-Modelo ejecutable: `modelo/Proyecto_Organizacion_cursos.bpmn20.xml`. Parte de `Proyecto_Organizacion_cursos.bpmn` (modelo conceptual del equipo, que no se modifica).
+Modelo ejecutable: `modelo/Proyecto_Organizacion_cursos.bpmn20.xml`. Parte de `modelo/Proyecto_Organizacion_cursos.conceptual.bpmn` (modelo conceptual del equipo, no ejecutable, que no se modifica).
 
 Cada entrada indica el elemento, qué cambió, por qué, si es provisorio y hasta qué fase, y la evidencia. La evidencia de las pruebas se reproduce con `scripts/escenarios/m-escenarios.js` (ver `scripts/escenarios/README.md`).
 
@@ -114,7 +114,7 @@ Diagrama: se agregaron formas y aristas para los elementos nuevos y se quitaron 
 
 ### Avisos por correo, envío de la propuesta y estado en vivo (2026-11-04)
 
-Con el OK explícito del usuario (decisiones tomadas tras el recorrido de escenarios, `informe/licencias-consigna.md`). Pruebas: `scripts/escenarios/m-escenarios.js`.
+Con el OK explícito del usuario (decisiones tomadas tras el recorrido de escenarios, `docs/licencias-consigna.md`). Pruebas: `scripts/escenarios/m-escenarios.js`.
 
 | # | Elemento | Qué cambió | Por qué | Provisorio | Evidencia |
 |---|---|---|---|---|---|

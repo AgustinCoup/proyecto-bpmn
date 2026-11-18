@@ -7,7 +7,7 @@ const {
   createSessionStore,
   parseCookies,
   resolveSecret,
-} = require('../session');
+} = require('../../src/admin/session');
 
 const SECRET = 'test-only-session-secret-0123456789';
 

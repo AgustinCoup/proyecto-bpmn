@@ -9,7 +9,7 @@ const {
   isValidDateOnly,
   parseProposal,
   toDateInput,
-} = require('../proposal');
+} = require('../../src/admin/proposal');
 
 const VALID = {
   nombre: 'Curso de seguridad',

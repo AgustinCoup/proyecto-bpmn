@@ -6,7 +6,7 @@ Esta guía explica tres cosas que se usan juntas para ensayar la defensa **a man
 2. **Postman** para reemplazar al CLI y a las pantallas: manda las llamadas REST.
 3. **La app Java** "Preparar materiales", que se prueba con ventana.
 
-> Antes: entorno levantado (sección 5 de [`MAPA.md`](../MAPA.md) o sección 2 del [`README.md`](../README.md)).
+> Antes: entorno levantado (sección 2 del [`README.md`](../README.md)).
 
 ---
 
@@ -325,7 +325,7 @@ Antes de **cada** escenario: **[P]** *Borrar TODAS las instancias activas de Pro
 ### Escenarios 8, 9, 10 y 11
 
 - **8, 9, 10**: se hacen en el sitio, con [`checklist-manual.md`](checklist-manual.md). Postman sirve para verificar (ver variables, listar tareas) y DevNull para los correos.
-- **11**: CLI + app Java, sección 5 de esta guía y sección 6.4/6.6.d de [`MAPA.md`](../MAPA.md).
+- **11**: CLI + app Java, sección 5 de esta guía y secciones 5 y 6 del [`README.md`](../README.md).
 
 ---
 

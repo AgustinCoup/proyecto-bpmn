@@ -9,7 +9,7 @@ const {
   basicAuth,
   buildQuery,
   createFlowableRest,
-} = require('../flowable-rest');
+} = require('../../src/admin/flowable-rest');
 
 async function startServer(handler) {
   const server = http.createServer(handler);

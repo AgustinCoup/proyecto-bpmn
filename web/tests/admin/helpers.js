@@ -4,9 +4,9 @@ require('./setup');
 
 const http = require('node:http');
 const express = require('express');
-const { createAdminRouter } = require('../index');
-const { FlowableError } = require('../flowable-rest');
-const { createSessionStore } = require('../session');
+const { createAdminRouter } = require('../../src/admin/index');
+const { FlowableError } = require('../../src/admin/flowable-rest');
+const { createSessionStore } = require('../../src/admin/session');
 
 const TEST_SECRET = 'test-only-session-secret-0123456789';
 

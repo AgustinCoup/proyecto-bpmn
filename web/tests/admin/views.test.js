@@ -11,7 +11,7 @@ const {
   proposalForm,
   reviewForm,
   taskUnsupported,
-} = require('../views');
+} = require('../../src/admin/views');
 
 function fakeRes() {
   return {
