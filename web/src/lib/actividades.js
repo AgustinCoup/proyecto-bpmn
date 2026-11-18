@@ -31,6 +31,11 @@ const NOMBRES = {
   Dictar: 'Desarrollar curso',
   Informe: 'Elaborar informe de resultados',
   EnviarInforme: 'Enviar informe a empresa y Archivar expediente',
+  Preparar: 'Preparar curso',
+  Event_1g4xmqo: 'Recibir Cancelacion',
+  OrFin: 'Todos los recursos seleccionados listos',
+  ParFin: 'Preparacion completa',
+  EsperarLiberacion: 'Esperar liberacion de equipamiento',
 };
 
 function nombreActividad(id) {
