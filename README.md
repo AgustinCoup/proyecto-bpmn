@@ -141,7 +141,7 @@ python analizar.py                  # resultados.txt, recorridos.png, modelo_des
 - leen las credenciales de variables de entorno, si están definidas;
 - guardan sus archivos junto al script y copian la salida de consola en `resultados.txt`.
 
-Se mantuvo el filtro original a `userTask`/`serviceTask`. Los resultados y la comparación con el modelo están en [`docs/mineria-conclusion.md`](docs/mineria-conclusion.md).
+Se mantuvo el filtro original a `userTask`/`serviceTask`. El detalle de cada cambio está en [`docs/mineria-cambios-py.md`](docs/mineria-cambios-py.md); los resultados y la comparación con el modelo, en [`docs/mineria-conclusion.md`](docs/mineria-conclusion.md).
 
 ---
 
@@ -187,7 +187,7 @@ Después de `m-escenarios.js` hay que volver a correr `desplegar-modelo` para se
 
 | Ruta | Contenido |
 |---|---|
-| `docs/` | Consigna, informe, licencias respecto de la consigna, conclusión de la minería, guías de prueba manual. |
+| `docs/` | Consigna, informe, licencias respecto de la consigna, cambios a los scripts de minería y su conclusión, guías de prueba manual. |
 | `modelo/` | Modelo ejecutable (`.bpmn20.xml`), regla DMN, modelo conceptual original del equipo (`.conceptual.bpmn`, no ejecutable) y registro de cambios (`cambios-modelo.md`). |
 | `src/` | Código Java (JAR del motor, CLI, app de escritorio, análisis 4.3) y sus pruebas. |
 | `web/` | Sitio web (`src/`) y sus pruebas (`tests/`). |
