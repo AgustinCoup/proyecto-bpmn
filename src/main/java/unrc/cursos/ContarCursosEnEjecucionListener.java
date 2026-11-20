@@ -1,6 +1,7 @@
 package unrc.cursos;
 
-import org.flowable.engine.ProcessEngines;
+import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
+import org.flowable.engine.impl.util.CommandContextUtil;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.ExecutionListener;
 import org.flowable.engine.runtime.ProcessInstance;
@@ -11,9 +12,9 @@ public class ContarCursosEnEjecucionListener implements ExecutionListener {
     public void notify(DelegateExecution execution) {
         String currentId = execution.getProcessInstanceId();
         
-        // Obtenemos el RuntimeService desde ProcessEngines de Flowable
-        List<ProcessInstance> instances = ProcessEngines.getDefaultProcessEngine()
-                .getRuntimeService()
+        // Reutiliza el motor que esta ejecutando el listener (no crea otro motor ni otra conexion a la BD).
+        ProcessEngineConfigurationImpl configuracion = CommandContextUtil.getProcessEngineConfiguration();
+        List<ProcessInstance> instances = configuracion.getRuntimeService()
                 .createProcessInstanceQuery()
                 .processDefinitionKey("Process_Curso")
                 .list();

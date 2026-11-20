@@ -51,7 +51,7 @@ class AsignarMenosCargadoListenerTest {
         asignarTareaPendiente("admin2");
 
         DelegateTask nueva = tarea(TaskListener.EVENTNAME_CREATE);
-        listener.notify(nueva);
+        notificar(nueva);
 
         verify(nueva).setAssignee("jefeAdmin");
     }
@@ -61,7 +61,7 @@ class AsignarMenosCargadoListenerTest {
         crearAdministrativos();
 
         DelegateTask nueva = tarea(TaskListener.EVENTNAME_CREATE);
-        listener.notify(nueva);
+        notificar(nueva);
 
         verify(nueva).setAssignee("admin2");
     }
@@ -78,7 +78,7 @@ class AsignarMenosCargadoListenerTest {
         assertEquals(0, engine.getTaskService().createTaskQuery().taskAssignee("jefeAdmin").count());
 
         DelegateTask nueva = tarea(TaskListener.EVENTNAME_CREATE);
-        listener.notify(nueva);
+        notificar(nueva);
 
         verify(nueva).setAssignee("admin2");
     }
@@ -89,14 +89,25 @@ class AsignarMenosCargadoListenerTest {
         Task pendiente = asignarTareaPendiente("admin2");
 
         DelegateTask primera = tarea(TaskListener.EVENTNAME_CREATE);
-        listener.notify(primera);
+        notificar(primera);
         verify(primera).setAssignee("jefeAdmin");
 
         engine.getTaskService().deleteTask(pendiente.getId());
 
         DelegateTask segunda = tarea(TaskListener.EVENTNAME_CREATE);
-        listener.notify(segunda);
+        notificar(segunda);
         verify(segunda).setAssignee("admin2");
+    }
+
+    @Test
+    void conservaLaAsignacionPrevistaEnElModelo() {
+        crearAdministrativos();
+
+        DelegateTask nueva = tarea(TaskListener.EVENTNAME_CREATE);
+        when(nueva.getAssignee()).thenReturn("docente1");
+        notificar(nueva);
+
+        verify(nueva, never()).setAssignee(anyString());
     }
 
     @Test
@@ -104,7 +115,7 @@ class AsignarMenosCargadoListenerTest {
         crearAdministrativos();
 
         DelegateTask completada = tarea(TaskListener.EVENTNAME_COMPLETE);
-        listener.notify(completada);
+        notificar(completada);
 
         verify(completada, never()).setAssignee(anyString());
     }
@@ -112,7 +123,7 @@ class AsignarMenosCargadoListenerTest {
     @Test
     void noAsignaSiNoHayUsuariosEnAdministracion() {
         DelegateTask nueva = tarea(TaskListener.EVENTNAME_CREATE);
-        listener.notify(nueva);
+        notificar(nueva);
 
         verify(nueva, never()).setAssignee(anyString());
     }
@@ -157,6 +168,14 @@ class AsignarMenosCargadoListenerTest {
         usuario.setFirstName(id);
         engine.getIdentityService().saveUser(usuario);
         engine.getIdentityService().createMembership(id, "administracion");
+    }
+
+    /** En produccion el listener corre dentro de un comando del motor; asi se reproduce. */
+    private void notificar(DelegateTask tarea) {
+        engine.getManagementService().executeCommand(commandContext -> {
+            listener.notify(tarea);
+            return null;
+        });
     }
 
     private DelegateTask tarea(String evento) {

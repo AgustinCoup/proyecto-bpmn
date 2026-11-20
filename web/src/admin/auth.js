@@ -146,7 +146,11 @@ function createAuth({
       store.rotate(req, res, { user: usuario, password: clave, groups });
       return res.redirect(303, urlFor(req, '/'));
     } catch (error) {
-      if (error instanceof FlowableError && [401, 403, 404].includes(error.status)) {
+      if (error instanceof FlowableError && error.status === 403) {
+        // Credenciales válidas, pero sin el privilegio access-rest-api: no es una clave incorrecta.
+        return showError(403, 'Tu usuario no tiene permiso de acceso a la API REST de Flowable (privilegio access-rest-api). Pedile al administrador que lo habilite.');
+      }
+      if (error instanceof FlowableError && [401, 404].includes(error.status)) {
         throttle.recordFailure(throttleKey);
         return showError(401, 'Usuario o clave inválidos.');
       }

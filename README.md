@@ -114,6 +114,16 @@ powershell -ExecutionPolicy Bypass -File scripts\desplegar-modelo.ps1
 | `crear-bd` | Crea la base `institucion` y **reinicia** sus datos de prueba | Para volver a los datos iniciales |
 | `desplegar-modelo` | Despliega `viabilidadCurso.dmn` y el proceso | Si cambia el modelo o después de `m-escenarios.js` |
 
+**Si se usa otro contenedor de Flowable** (en lugar del `docker-compose.yml` de este repositorio, que ya monta el JAR en `/app/WEB-INF/lib/`), hay que copiar el JAR al directorio de bibliotecas del motor y reiniciar el contenedor; el nombre `flowable-persistente` es un ejemplo, se reemplaza por el del contenedor propio:
+
+```bash
+docker cp target/cursos-flowable.jar flowable-persistente:/app/WEB-INF/lib/cursos-flowable.jar
+docker restart flowable-persistente
+docker logs -f --tail 100 flowable-persistente    # verificar el arranque; Ctrl+C no detiene el contenedor
+```
+
+La copia se conserva al reiniciar, pero hay que repetirla si el contenedor se elimina y se crea de nuevo, y cada vez que se recompila el JAR. En el modelo las clases se indican con su nombre completo (`unrc.cursos.AsignarMenosCargadoListener`).
+
 **Comprobación:** al minuto, `docker compose ps` debe mostrar los 3 contenedores `Up`. En el primer arranque, `flowable-ui` puede quedar en `Exited (1)`: se repite `docker compose up -d`.
 
 ---

@@ -50,4 +50,6 @@ Las variables deben definirse en la misma terminal en la que se ejecuta `npm sta
 
 - El personal ingresa con su usuario de Flowable, y cada llamada al motor se realiza con esas credenciales, nunca con el usuario de servicio. La clave se conserva solo en la memoria del servidor.
 - El sitio verifica que una tarea esté asignada a quien la completa y que sea candidata de su grupo antes de reclamarla, porque la API REST de Flowable no lo impide.
+- Las credenciales viajan en cada llamada con autenticación HTTP Basic: fuera del entorno local el sitio y Flowable deben publicarse por HTTPS.
+- Un usuario con la clave correcta pero sin el privilegio `access-rest-api` recibe un mensaje propio (403), distinto del de clave inválida.
 - Consultas SQL parametrizadas, escape de HTML en las vistas, token CSRF en todos los formularios, cookies `httpOnly`, cabeceras de seguridad (Helmet) y límite de intentos de ingreso.

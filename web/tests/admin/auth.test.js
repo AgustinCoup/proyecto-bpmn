@@ -84,6 +84,20 @@ test('credenciales inválidas no crean sesión', async (t) => {
   assert.equal(home.location, '/admin/login');
 });
 
+test('usuario sin el privilegio access-rest-api recibe un mensaje propio, no "clave inválida"', async (t) => {
+  const client = fakeClient((method, path) => {
+    if (path.startsWith('/identity/users/')) throw new FlowableError('Forbidden', { status: 403 });
+    throw new Error(`Llamada no mockeada: ${method} ${path}`);
+  });
+  const app = await startApp({ client });
+  t.after(() => app.close());
+
+  const { posted } = await login(app.base, { usuario: 'jefeAdmin', clave: 'test' });
+  assert.equal(posted.status, 403);
+  assert.match(posted.text, /access-rest-api/);
+  assert.doesNotMatch(posted.text, /Usuario o clave inválidos/);
+});
+
 test('usuario fuera de administracion recibe 403', async (t) => {
   const client = identityClient({ groups: ['docentes'] });
   const app = await startApp({ client });
