@@ -456,10 +456,10 @@
                 "exec": [
                   "const base = pm.collectionVariables.get('baseUrl');",
                   "const auth = 'Basic ' + CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(pm.collectionVariables.get('usuario') + ':' + pm.collectionVariables.get('clave')));",
-                  "const data = pm.response.json().data || [];",
-                  "data.forEach(i => pm.sendRequest({ url: base + '/runtime/process-instances/' + i.id + '?deleteReason=limpieza', method: 'DELETE', header: { Authorization: auth } }));",
-                  "console.log('Instancias borradas: ' + data.length);",
-                  "pm.test('Se pidio borrar ' + data.length + ' instancia(s)', () => pm.expect(data).to.be.an('array'));"
+                  "const lista = pm.response.json().data || [];",
+                  "lista.forEach(i => pm.sendRequest({ url: base + '/runtime/process-instances/' + i.id + '?deleteReason=limpieza', method: 'DELETE', header: { Authorization: auth } }));",
+                  "console.log('Instancias borradas: ' + lista.length);",
+                  "pm.test('Se pidio borrar ' + lista.length + ' instancia(s)', () => pm.expect(lista).to.be.an('array'));"
                 ]
               }
             }
@@ -499,9 +499,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const data = pm.response.json().data || [];",
-                  "data.forEach(x => console.log(x.taskDefinitionKey + ' | ' + x.name + ' | assignee=' + x.assignee + ' | id=' + x.id));",
-                  "if (data.length === 1) { pm.collectionVariables.set('taskId', data[0].id); pm.collectionVariables.set('taskKey', data[0].taskDefinitionKey); }"
+                  "const lista = pm.response.json().data || [];",
+                  "lista.forEach(x => console.log(x.taskDefinitionKey + ' | ' + x.name + ' | assignee=' + x.assignee + ' | id=' + x.id));",
+                  "if (lista.length === 1) { pm.collectionVariables.set('taskId', lista[0].id); pm.collectionVariables.set('taskKey', lista[0].taskDefinitionKey); }"
                 ]
               }
             }
@@ -540,9 +540,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const data = pm.response.json().data || [];",
-                  "pm.test('Hay exactamente una tarea con esa clave', () => pm.expect(data.length).to.eql(1));",
-                  "if (data.length === 1) pm.collectionVariables.set('taskId', data[0].id);"
+                  "const lista = pm.response.json().data || [];",
+                  "pm.test('Hay exactamente una tarea con esa clave', () => pm.expect(lista.length).to.eql(1));",
+                  "if (lista.length === 1) pm.collectionVariables.set('taskId', lista[0].id);"
                 ]
               }
             }

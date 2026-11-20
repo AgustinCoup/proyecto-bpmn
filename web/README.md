@@ -1,96 +1,52 @@
-# Sitio web - Institucion de capacitacion
+# Sitio web de la institución
 
-Stack: Node 18+, Express, EJS (server-side), `pg`. Sin frameworks de frontend.
+Aplicación web de la consigna §4.1, desarrollada en Node.js (Express y plantillas EJS). Se comunica con Flowable mediante su API REST y con la base `institucion` mediante `pg`. La ejecución está descrita en la sección 6 del [`README.md`](../README.md) principal.
 
-## Instalacion
+## Módulos
 
-```powershell
-cd web
-npm install
-```
-
-## Variables de entorno
-
-| Variable | Default | Descripcion |
+| Ruta | Módulo | Función |
 |---|---|---|
-| `PORT` | 3000 | Puerto HTTP |
-| `NODE_ENV` | development | `production` activa cookie segura |
-| `DEV_MODE` | true | Habilita campos de desarrollo en el formulario |
-| `FLOWABLE_REST_URL` | http://localhost:8080/flowable-rest/service | Base de Flowable REST |
-| `INSTITUCION_DB_URL` | postgresql://institucion:institucion@localhost:5432/institucion | BD institucion |
-| `SESSION_SECRET` | dev-session-secret-change-me | Secreto de sesion (las tres partes del sitio; obligatorio en `production`) |
-| `FLOWABLE_SERVICE_USER` / `FLOWABLE_SERVICE_PASS` | rest-admin / test | Credenciales de servicio contra Flowable REST |
-| `PLAZO_RESPUESTA` | (vacio) | Valor por defecto para `plazoRespuesta` en modo dev |
-| `SIMULAR_FALTA_AULAS` | false | Activa `simularFaltaAulas` por defecto en modo dev |
-| `LOGIN_MAX_ATTEMPTS` | 5 | Intentos de login por ventana |
-| `LOGIN_WINDOW_MS` | 900000 | Ventana de bloqueo (ms) |
+| `/solicitar` | `src/publico/` | Solicitud pública de capacitación: registra la empresa y el curso e inicia la instancia del proceso |
+| `/empresa` | `src/empresa/` | Acceso de las empresas: consulta de sus cursos, estado y actividades en curso |
+| `/admin` | `src/admin/` | Tareas del grupo Administración |
+| `/docentes` | `src/docentes/` | Tareas del equipo docente; generación del PDF del informe de resultados |
 
-Compatibilidad: `admin/` y `docentes/` aceptan tambien los nombres viejos `FLOWABLE_URL` e `INSTITUCION_DATABASE_URL`. La tabla `informe` la crea `scripts/crear-bd` (migracion `db/migraciones/001-informe.sql`).
+`src/lib/` contiene la configuración, el cliente REST de Flowable, el acceso a la base de datos y las validaciones; `src/views/` y `src/public/`, las plantillas y estilos del sitio público; `tests/`, las pruebas (`npm test`).
 
-## Ejecucion
+## Tareas por pantalla
 
-```powershell
-npm start
-# o en desarrollo:
-npm run dev
-```
+| Tarea | Responsable | Dónde se completa |
+|---|---|---|
+| Registrar y Elaborar propuesta, Enviar propuesta, Revisar propuesta, Archivar solicitud | `jefeAdmin` | `/admin` |
+| Confeccionar lista definitiva | administrativo asignado por el listener | `/admin` |
+| Evaluar Recursos (exige al menos una opción) | grupo `administracion` (con reclamo) | `/admin` |
+| Enviar informe a empresa y Archivar expediente (con descarga del PDF) | `jefeAdmin` | `/admin` |
+| Definir Docente que desarrolla el curso | `jefeDocente` | `/docentes` |
+| Desarrollar curso | docente seleccionado | `/docentes` |
+| Elaborar informe de resultados (genera el PDF) | `jefeDocente` | `/docentes` |
+| Preparar materiales | grupo `administracion` | Aplicación de escritorio o interfaz de Flowable |
+| Solicitar Aula Virtual, Contratar equipamiento, Liberar Equipamiento | grupo `administracion` | Interfaz de Flowable (el sitio las lista y enlaza) |
 
-Abrir http://localhost:3000
+## Configuración
 
-> **Importante:** `npm start` tiene que quedar corriendo en su propia terminal. El comando
-> `node --test tests/integration.test.js` **solo ejecuta la prueba y termina**: no deja el sitio
-> escuchando en el puerto 3000, asi que el navegador no va a poder abrirlo despues de correrlo.
->
-> En Linux, para comprobar que el sitio esta escuchando y responde:
->
-> ```bash
-> ss -ltnp | grep ':3000'
-> curl -i http://localhost:3000/admin/login
-> ```
->
-> Si `ss` muestra un proceso viejo en 3000 pero `curl` se queda colgado, matar ese proceso
-> (`kill <PID>`) y volver a ejecutar `npm start`. Las variables de entorno (`INSTITUCION_DB_URL`,
-> `FLOWABLE_REST_URL`, `SESSION_SECRET`, etc.) deben exportarse en la **misma** terminal donde se
-> ejecuta `npm start`.
+| Variable | Valor por defecto | Descripción |
+|---|---|---|
+| `PORT` | `3000` | Puerto HTTP |
+| `NODE_ENV` | `development` | Con `production` exige `SESSION_SECRET` y marca la cookie de sesión como segura |
+| `SESSION_SECRET` | valor de desarrollo | Secreto de firma de las sesiones |
+| `FLOWABLE_REST_URL` | `http://localhost:8080/flowable-rest/service` | API REST de Flowable |
+| `FLOWABLE_SERVICE_USER`, `FLOWABLE_SERVICE_PASS` | `rest-admin`, `test` | Usuario de servicio para la solicitud pública y el acceso de empresas |
+| `FLOWABLE_UI_URL` | `http://localhost:8081/flowable-ui` | Enlace a la interfaz de Flowable |
+| `INSTITUCION_DB_URL` | `postgresql://institucion:institucion@localhost:5432/institucion` | Base de datos de la institución |
+| `SESSION_TTL_MS` | 8 horas | Duración de la sesión del personal |
+| `LOGIN_MAX_ATTEMPTS`, `LOGIN_WINDOW_MS` | `5`, `900000` | Límite de intentos de ingreso |
+| `DEV_MODE` | `true` | Muestra en la solicitud los campos de prueba `plazoRespuesta` y `simularFaltaAulas` |
+| `PLAZO_RESPUESTA`, `SIMULAR_FALTA_AULAS` | vacío, `false` | Valores por defecto de esos campos de prueba |
 
-## Uso del cliente Flowable REST
-
-`src/lib/flowable.js` exporta:
-
-```js
-const { flowableRest } = require('./lib/flowable');
-const r = await flowableRest('GET', '/runtime/process-instances/' + id, { auth: { usuario, clave } });
-```
-
-Parametros: `flowableRest(method, path, { body, query, auth })`. Si `auth` se omite, usa las credenciales de servicio de configuracion.
-
-## Pruebas
-
-```powershell
-npm test
-npm run test:coverage
-```
-
-Prueba de integracion (requiere entorno levantado):
-
-```powershell
-node --test tests/integration.test.js
-```
-
-## Demostracion escenario 10
-
-1. Levantar entorno y sitio.
-2. Empresa 1 (ya tiene cuenta): usuario `emp_30711223343`, clave `test`; su curso de prueba es el id 1.
-3. Crear una solicitud publica con el CUIT de la empresa 2 (`30-72233445-7`, ya existe en los datos de prueba) y avanzar el proceso con el simulador hasta "Aceptacion".
-4. Al aceptar, `HabilitarAccesoEmpresaDelegate` crea la cuenta `emp_30722334457` con clave `test`.
-5. Ingresar con esa cuenta y verificar que solo se ven los cursos de esa empresa.
-   Abrir a mano `/empresa/cursos/1` (curso de la empresa 1): debe responder 404.
+Las variables deben definirse en la misma terminal en la que se ejecuta `npm start`. Los módulos `admin/` y `docentes/` aceptan también los nombres `FLOWABLE_URL` e `INSTITUCION_DATABASE_URL`.
 
 ## Seguridad
 
-- Consultas SQL parametrizadas (`pg`).
-- Plantillas EJS escapan HTML por defecto.
-- Cookie de sesion httpOnly; token CSRF en formularios POST.
-- Limitador de intentos de login.
-- Helmet para cabeceras basicas.
-- Sin secretos en el codigo (todo por variables de entorno).
+- El personal ingresa con su usuario de Flowable, y cada llamada al motor se realiza con esas credenciales, nunca con el usuario de servicio. La clave se conserva solo en la memoria del servidor.
+- El sitio verifica que una tarea esté asignada a quien la completa y que sea candidata de su grupo antes de reclamarla, porque la API REST de Flowable no lo impide.
+- Consultas SQL parametrizadas, escape de HTML en las vistas, token CSRF en todos los formularios, cookies `httpOnly`, cabeceras de seguridad (Helmet) y límite de intentos de ingreso.

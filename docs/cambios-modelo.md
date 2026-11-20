@@ -2,7 +2,7 @@
 
 Modelo ejecutable: `modelo/Proyecto_Organizacion_cursos.bpmn20.xml`. Parte de `modelo/Proyecto_Organizacion_cursos.conceptual.bpmn` (modelo conceptual del equipo, no ejecutable, que no se modifica).
 
-Cada entrada indica el elemento, qué cambió, por qué, si es provisorio y hasta qué fase, y la evidencia. La evidencia de las pruebas se reproduce con `scripts/escenarios/m-escenarios.js` (ver `scripts/escenarios/README.md`).
+Cada entrada indica el elemento, qué cambió, por qué, si es provisorio y hasta qué fase, y la evidencia. La evidencia de las pruebas se reproduce con `scripts/escenarios/m-escenarios.js` (ver la sección 13 del `README.md`).
 
 **Lo que no cambió:** el diagrama (`BPMNDiagram`) es idéntico al del original, y se conservan todos los IDs salvo los 12 mensajes quitados (entrada 4). Lo comprueba una comparación automática de los dos archivos, hecha el 2026-11-03.
 
@@ -110,7 +110,7 @@ Con el OK explícito del usuario. Diseño X2.
 
 Con esto, los cambios 29 a 33 dejan de ser provisorios: `Aula`, `Activity_16zz91p` y `Activity_02hrooc` ya usan sus delegates (cambios 39 a 41); `Confirmar` y `Activity_12e0et1` quedan como logs por decisión (el envío real a la empresa se simula). La liberación del aula y del aula virtual en el fin normal se verificó en A. Cambio 43 reemplazado por el 54.
 
-Diagrama: se agregaron formas y aristas para los elementos nuevos y se quitaron las de los eliminados; **no se abrió en Yaoqiang** todavía (regla de Yaoqiang: abrir sólo para ver).
+Diagrama: se agregaron formas y aristas para los elementos nuevos y se quitaron las de los eliminados; la representación gráfica no se verificó en Yaoqiang al momento de este cambio (Yaoqiang se usa solo para visualizar el modelo).
 
 ### Avisos por correo, envío de la propuesta y estado en vivo (2026-11-04)
 

@@ -2,7 +2,7 @@
 
 Único registro de todo lo que la implementación hace distinto de lo que dice la consigna, [`consigna.pdf`](consigna.pdf) (versión 3, o de su Figura 1; la V3 agrega las secciones 4.3 y 4.4), con el motivo y dónde está la evidencia. La consigna permite "extender o realizar modificaciones menores, siempre que se respeten los requisitos del enunciado y se justifiquen los cambios" (§1.5), y deja a criterio del grupo lo celeste (texto azul). Ninguna entrada contradice un requisito: cuando el enunciado y el diagrama discrepaban, se siguió el enunciado.
 
-Última actualización: 2026-11-10. Detalle fino de cada cambio al diagrama: `modelo/cambios-modelo.md` (63 entradas).
+Última actualización: 2026-11-10. Detalle fino de cada cambio al diagrama: `docs/cambios-modelo.md` (63 entradas).
 
 **Leyenda de tipo:** **D** = cambio al diagrama de referencia; **I** = decisión de implementación (el enunciado no la fija); **A** = alcance (se omite algo opcional); **S** = simulación permitida o necesaria para la demostración; **C** = el cliente (sitio o app) cumple el requisito porque el motor no lo hace.
 
@@ -62,9 +62,9 @@
 | 26 | I | §4.3: las consultas pueden ir en la app auxiliar o ejecutarse por consola. | Las dos cosas, con el mismo código (`unrc.cursos.analisis`): botón **Analisis del historial** en la app Swing y `AnalisisMain` por consola. Usan la API Java (`HistoryService`) contra la BD del motor. |
 | 27 | I | §4.3.2: "preparación completada normalmente"; la rama de recursos termina al completar todas las acciones seleccionadas. | Se cuentan los cursos que llegaron al fin de *Preparar curso* (`SubFin`). Inscripciones = de *Recibir nómina* a *Confeccionar lista*; materiales = *Preparar materiales*; recursos = de *Evaluar recursos* a la última acción seleccionada. |
 | 28 | I | §4.3.3: tareas completadas por persona. | Se cuentan las tareas con responsable que no fueron interrumpidas. Se corrigió `AsignarMenosCargadoListener`: la asignación del listener no quedaba en el historial (la tarea aparecía sin responsable); ahora usa `TaskHelper.changeTaskAssignee` (test `laAsignacionQuedaRegistradaEnElHistorialDeLaTarea`). |
-| 29 | I | §4.4: usar los scripts provistos "adaptándolos". | Las versiones adaptadas están en `mineria/` y cada cambio respecto de los originales, en `docs/mineria-cambios-py.md`. `analizar.py` conserva el filtro `userTask`/`serviceTask` del profe (decisión del usuario, 2026-11-10): ver las limitaciones en `docs/mineria-conclusion.md`. |
+| 29 | I | §4.4: usar los scripts provistos "adaptándolos". | Las versiones adaptadas están en `mineria/` y cada cambio respecto de los originales, en la sección 1 de `docs/mineria.md`. `analizar.py` conserva el filtro `userTask`/`serviceTask` del profe (decisión del usuario, 2026-11-10): ver las limitaciones en la sección 5 de `docs/mineria.md`. |
 | 30 | S | §4.4: analizar las ejecuciones. | Con pocas ejecuciones reales no hay recorridos que comparar: `mineria/generar_historial.js` genera 55 instancias terminadas con mezcla fija de caminos y plazos acortados. Los datos son sintéticos y los porcentajes no describen una institución real. |
 
 ## Cómo mantener este archivo
 
-Cada vez que algo se aparte de la consigna, agregar una fila acá (no en otro documento) y, si toca el diagrama, también una entrada en `modelo/cambios-modelo.md`.
+Este documento es el registro único de los apartamientos respecto de la consigna. Los que afectan al diagrama se detallan además en `docs/cambios-modelo.md`.

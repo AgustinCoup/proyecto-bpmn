@@ -5,7 +5,7 @@ subtitle: "Gestión y Tecnologías de Procesos de Negocio (UNRC)"
 
 # Informe: variables, listeners y decisiones de implementación
 
-Este informe describe cómo quedó implementado el proceso `Process_Curso` en Flowable 6.8.0. Cada dato se puede rastrear al repositorio: el modelo (`modelo/Proyecto_Organizacion_cursos.bpmn20.xml`, que manda ante cualquier conflicto de nombres), la regla DMN (`modelo/viabilidadCurso.dmn`), las clases Java (`src/main/java/unrc/cursos/`), la BD (`db/`) y el registro de cada cambio al diagrama de referencia (`modelo/cambios-modelo.md`, 63 entradas); todo lo que se aparta de la consigna está reunido en `docs/licencias-consigna.md`. Cómo instalar y ejecutar todo está en `README.md`; las pruebas, en la sección 5.
+Este informe describe cómo quedó implementado el proceso `Process_Curso` en Flowable 6.8.0. Cada dato se puede rastrear al repositorio: el modelo (`modelo/Proyecto_Organizacion_cursos.bpmn20.xml`, que manda ante cualquier conflicto de nombres), la regla DMN (`modelo/viabilidadCurso.dmn`), las clases Java (`src/main/java/unrc/cursos/`), la BD (`db/`) y el registro de cada cambio al diagrama de referencia (`docs/cambios-modelo.md`, 63 entradas); todo lo que se aparta de la consigna está reunido en `docs/licencias-consigna.md`. Cómo instalar y ejecutar todo está en `README.md`; las pruebas, en la sección 5.
 
 ## 1. Arquitectura
 
@@ -86,7 +86,7 @@ Apps externas ya hechas: el **simulador CLI** (`simulador/`) muestra sólo las c
 
 ## 4. Decisiones de implementación y modificaciones al diagrama
 
-La consigna permite "modificaciones menores, siempre que se justifiquen". Agrupadas por tema (detalle y evidencia en `modelo/cambios-modelo.md`):
+La consigna permite "modificaciones menores, siempre que se justifiquen". Agrupadas por tema (detalle y evidencia en `docs/cambios-modelo.md`):
 
 1. **Regla de viabilidad como *decision task* real.** El diagrama usa una `businessRuleTask`, pero en esta imagen no despliega (Flowable la ejecuta con Drools, que no está: 500 `NoClassDefFoundError`). Se reemplazó por `serviceTask flowable:type="dmn"` con `decisionTableReferenceKey = viabilidadCurso`, que es la *decision task* de Flowable. El `.dmn` se despliega aparte por `/dmn-api/` **antes** de iniciar instancias. La entrada la calcula el motor (listener), nunca se ingresa a mano; un valor pasado a mano se pisa. (Cambios 15, 34 a 36.)
 2. **Tareas de script que pasaron a tarea de servicio.** Una tarea de script no puede invocar un `JavaDelegate`; `Habilitar acceso de la empresa` y `Liberar Aula Virtual` pasaron a `serviceTask` con su clase. El diagrama visual y los IDs no cambian. (37, 41.)
@@ -107,7 +107,7 @@ La consigna permite "modificaciones menores, siempre que se justifiquen". Agrupa
 
 - **Unitarias**: `mvn test` (JUnit 5, H2 en memoria; no necesita Docker). Cubren los listeners, el detector de acciones del simulador y el servicio de la app Swing. Resultado de la última corrida: sección 6.
 - **Por REST contra el entorno real** (scripts de `scripts/escenarios/`): `m-escenarios.js` imprime cada llamada y respuesta, y guarda el log en `scripts/escenarios/resultados/m-escenarios.log`.
-- **Recorrido de la defensa**: `scripts/escenarios/m-escenarios.js` ejecuta los escenarios 1 a 7 y 11 contra el entorno levantado desde cero y emite PASS/FAIL con evidencia (`resultado`, `curso.estado`, actividades recorridas). El escenario 11 usa el **simulador CLI real** (entrada estándar guionada) y la clase `ServicioTareas` de la app Swing a través de un lanzador sin interfaz. Los escenarios 8, 9 y 10 dependen del sitio web y tienen su guion manual en `docs/checklist-manual.md`.
+- **Recorrido de la defensa**: `scripts/escenarios/m-escenarios.js` ejecuta los escenarios 1 a 7 y 11 contra el entorno levantado desde cero y emite PASS/FAIL con evidencia (`resultado`, `curso.estado`, actividades recorridas). El escenario 11 usa el **simulador CLI real** (entrada estándar guionada) y la clase `ServicioTareas` de la app Swing a través de un lanzador sin interfaz. Los escenarios 8, 9 y 10 dependen del sitio web; su verificación está registrada en `docs/revisiones-manuales.md`.
 - Resultado de la corrida: secciones 6 y 7.
 
 ## 6. Resultado de la corrida
@@ -125,7 +125,7 @@ La consigna permite "modificaciones menores, siempre que se justifiquen". Agrupa
 | 7 Falta de aulas | PASS | Se disparó `InicioFaltaAulas`, `motivoCancelacion=SIN_AULAS`, `CANCELADO`, correo de cierre |
 | 11 Materiales (API Java) + comunicaciones (API REST) | PASS | Simulador CLI real: sólo ofrece las acciones habilitadas; la app respeta permisos (otro grupo no la ve, no se completa sin reclamar ni por otro usuario) y completa *Preparar materiales* como **última** rama |
 
-Los escenarios 8, 9 y 10 se ensayan con `docs/checklist-manual.md`. Al terminar, Flowable queda sólo con "Demo processes".
+Los escenarios 8, 9 y 10 se verificaron según `docs/revisiones-manuales.md` (41 verificaciones conformes). Al terminar, Flowable queda sólo con "Demo processes".
 
 ## 7. Hallazgos del recorrido y cómo se resolvieron
 
@@ -135,4 +135,4 @@ La primera pasada (antes de los cambios del 2026-11-04) falló en dos escenarios
 
 **4.3, consultas** (`unrc.cursos.analisis`, API Java sobre `HistoryService`; en la app Swing y por consola con `AnalisisMain`): (1) cantidad y porcentaje de instancias terminadas por valor de `resultado`, sin contar las borradas por administración; (2) duración promedio de las tres ramas de *Preparar curso* en los cursos que llegaron a `SubFin` (la de recursos termina con la última acción seleccionada); (3) tareas de usuario completadas por persona, sin pendientes ni interrumpidas. Cubiertas por `ServicioAnalisisTest` (6 tests sobre un modelo reducido con los mismos IDs).
 
-**4.4, minería** (`mineria/`): `generar_historial.js` crea 55 instancias con recorridos variados; `exportar_history.py` y `analizar.py` son los del profe adaptados; resultados, gráficos y la comparación con el modelo en `docs/mineria-conclusion.md`. Cambios a los scripts: `docs/mineria-cambios-py.md`; instrucciones: sección 7 del `README.md`.
+**4.4, minería** (`mineria/`): `generar_historial.js` crea 55 instancias con recorridos variados; `exportar_history.py` y `analizar.py` son los provistos por la cátedra, adaptados; la adaptación, los resultados, los gráficos y la comparación con el modelo están en `docs/mineria.md`; las instrucciones, en la sección 12 del `README.md`.

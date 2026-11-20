@@ -1,5 +1,5 @@
 // Recorrido automatizado de los escenarios de la defensa 1 a 7 y 11 (consigna §5) contra el entorno real.
-// Los escenarios 8, 9 y 10 dependen del sitio web: ver docs/checklist-manual.md.
+// Los escenarios 8, 9 y 10 dependen del sitio web: ver docs/revisiones-manuales.md.
 //
 // Requisitos: Docker arriba con el JAR actual, usuarios (crear-usuarios) y BD (crear-bd) creados, mvn package hecho,
 // y el classpath de dependencias: mvn -q dependency:build-classpath -Dmdep.outputFile=<resultados>/classpath.txt
@@ -372,7 +372,7 @@ async function limpiezaFinal() {
     if (!ok) J.log(`      ${r.error ? 'Excepción: ' + r.error : 'Fallaron: ' + r.fallos.join(' | ')}`);
   }
   if (smtpActivo) J.log(`Correos recibidos en total: ${correos.length}`);
-  J.log('Escenarios 8, 9 y 10: manuales (docs/checklist-manual.md).');
+  J.log('Escenarios 8, 9 y 10: manuales (docs/revisiones-manuales.md).');
   J.log(`Log completo guardado en: ${J.ARCHIVO_LOG}`);
   process.exit(resumen.every((r) => !r.error && r.fallos.length === 0) ? 0 : 1);
 })().catch((e) => { console.error(e); process.exit(1); });
