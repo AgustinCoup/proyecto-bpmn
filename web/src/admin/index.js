@@ -25,6 +25,7 @@ const {
   fetchTask,
   fetchProcessVariables,
   completeTask,
+  fetchPendingReleases,
 } = require('./tasks');
 
 const PROPOSAL_TASK_KEY = 'Propuesta';
@@ -37,6 +38,11 @@ const PROPOSAL_FORM_TASKS = new Set([PROPOSAL_TASK_KEY, REVIEW_TASK_KEY]);
 // Tareas que solo se confirman, sin campos propios: "Enviar propuesta" dispara
 // el correo a la empresa desde un listener del modelo.
 const SIMPLE_TASK_KEYS = new Set(['Enviar']);
+// "Confirmar liberación de recursos": pausa del subproceso de cancelación / falta de aulas. El motor no
+// la deja completar mientras haya compensaciones en curso (la tarea Liberar Equipamiento), así que el
+// sitio lo verifica antes y avisa, en vez de devolver el error de la base.
+const RELEASE_TASK_KEY = 'Activity_1m08pcl';
+const PAUSE_TASK_KEYS = new Set(['Pausa_C', 'Pausa_F']);
 
 const DEFAULT_CONFIG = {
   baseUrl: process.env.FLOWABLE_REST_URL || process.env.FLOWABLE_URL || 'http://localhost:8080/flowable-rest/service',
@@ -203,7 +209,7 @@ function createAdminRouter(options = {}) {
       }));
     }
 
-    if (SIMPLE_TASK_KEYS.has(task.taskDefinitionKey)) {
+    if (SIMPLE_TASK_KEYS.has(task.taskDefinitionKey) || PAUSE_TASK_KEYS.has(task.taskDefinitionKey)) {
       const resolvedSimple = await resolveCourseForTask(client, credentials, task, courses);
       if (resolvedSimple.error === 'course-not-found') {
         return views.courseNotFound(res, context);
@@ -211,10 +217,16 @@ function createAdminRouter(options = {}) {
       if (resolvedSimple.error) {
         return views.badRequest(res, 'El curso asociado a la tarea no es válido.', context);
       }
+      const isPause = PAUSE_TASK_KEYS.has(task.taskDefinitionKey);
+      const pendingReleases = isPause
+        ? await fetchPendingReleases(client, credentials, task.processInstanceId, RELEASE_TASK_KEY)
+        : 0;
       return res.status(200).send(views.simpleTaskForm({
         ...context,
         task,
         course: resolvedSimple.course,
+        isPause,
+        pendingReleases,
       }));
     }
 
@@ -273,7 +285,8 @@ function createAdminRouter(options = {}) {
     const isSendReport = task.taskDefinitionKey === SEND_REPORT_TASK_KEY;
     const isList = task.taskDefinitionKey === LIST_TASK_KEY;
     const isResources = task.taskDefinitionKey === RESOURCE_TASK_KEY;
-    const isSimple = SIMPLE_TASK_KEYS.has(task.taskDefinitionKey);
+    const isPause = PAUSE_TASK_KEYS.has(task.taskDefinitionKey);
+    const isSimple = SIMPLE_TASK_KEYS.has(task.taskDefinitionKey) || isPause;
     if (!isArchive && !isSendReport && !isList && !isResources && !isSimple && !PROPOSAL_FORM_TASKS.has(task.taskDefinitionKey)) {
       return views.badRequest(
         res,
@@ -291,6 +304,10 @@ function createAdminRouter(options = {}) {
     }
 
     if (isSimple) {
+      if (isPause && await fetchPendingReleases(client, credentials, task.processInstanceId, RELEASE_TASK_KEY) > 0) {
+        store.setFlash(req.session, 'error', 'Todavía hay recursos por liberar: primero completá la tarea Liberar Equipamiento (se hace desde la interfaz de Flowable).');
+        return res.redirect(303, `${req.baseUrl || ''}/`);
+      }
       try {
         await completeTask(client, credentials, taskId);
       } catch (error) {
@@ -301,7 +318,9 @@ function createAdminRouter(options = {}) {
         throw error;
       }
 
-      store.setFlash(req.session, 'ok', 'Propuesta enviada a la empresa. La tarea se completó.');
+      store.setFlash(req.session, 'ok', isPause
+        ? 'Liberación de recursos confirmada. Se notificó el cierre a la empresa y el curso quedó cancelado.'
+        : 'Propuesta enviada a la empresa. La tarea se completó.');
       return res.redirect(303, `${req.baseUrl || ''}/`);
     }
 

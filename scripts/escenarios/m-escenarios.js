@@ -117,7 +117,7 @@ async function e1() {
   const pid = await iniciarCurso(801, 2);
   await aceptar(pid, 40);
   check('estadoCurso al entrar a Preparar', await J.valor(pid, 'estadoCurso'), 'EN_PREPARACION');
-  check('Habilitar acceso creó la cuenta de la empresa 2', sql('select usuario from cuenta_empresa where empresa_id=2;'), 'emp_30722334457');
+  check('Habilitar acceso creó la cuenta de la empresa 2', sql('select usuario from cuenta_empresa where empresa_id=2;'), 'emp_30722334456');
   await enviarNomina(pid, '["Ana","Beto"]');
   await J.esperarHasta('Lista creada', () => J.hayTarea(pid, 'Lista'), 20);
   check('Lista asignada al administrativo menos cargado (empate → alfabético)', (await J.tarea(pid, 'Lista')).assignee, 'admin2');
@@ -243,8 +243,12 @@ async function e6() {
   check('motivoCancelacion', v.motivoCancelacion, 'EMPRESA');
   check('estadoCurso', v.estadoCurso, 'CANCELADO');
   check('la tarea Virtual pendiente fue interrumpida', await J.hayTarea(pid, 'Virtual'), false);
-  check('Notificar Cierre espera a Liberar Equipamiento', (await idsActividades(pid)).includes('Activity_12e0et1'), false);
+  await J.esperarHasta('tarea de pausa Confirmar liberación', () => J.hayTarea(pid, 'Pausa_C'), 20);
+  check('la pausa es de jefeAdmin', (await J.tarea(pid, 'Pausa_C')).assignee, 'jefeAdmin');
+  check('Notificar Cierre espera a las compensaciones', (await idsActividades(pid)).includes('Activity_12e0et1'), false);
+  check('Liberar Equipamiento creada y sólo la del equipamiento gestionado', await J.hayTarea(pid, 'Activity_1m08pcl'), true);
   await J.completar(pid, 'Activity_1m08pcl');
+  await J.completar(pid, 'Pausa_C');
   await J.esperarHasta('proceso terminado', () => J.terminada(pid), 20);
   check('Notificar Cierre corrió después', (await idsActividades(pid)).includes('Activity_12e0et1'), true);
   check('curso.estado', estadoCurso(806), 'CANCELADO');
@@ -258,6 +262,8 @@ async function e7() {
   await aceptar(pid, 3600);
   const r = await J.completar(pid, 'Activity_12i2hpf', recursos(true, true, false));
   check('completar Evaluar recursos responde 200 (el error se atrapa)', r.status, 200);
+  await J.esperarHasta('tarea de pausa Confirmar liberación', () => J.hayTarea(pid, 'Pausa_F'), 20);
+  await J.completar(pid, 'Pausa_F');
   await J.esperarHasta('proceso terminado', () => J.terminada(pid), 20);
   const acts = await idsActividades(pid);
   check('se disparó el subproceso de eventos de error', acts.includes('InicioFaltaAulas'), true);

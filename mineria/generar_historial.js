@@ -136,6 +136,8 @@ async function cursoCancelado(pid) {
     if (turno([true, false])) await completar(pid, 'Virtual');
   }
   await mensaje(pid, 'Cancelación');
+  await esperar('pausa Confirmar liberación de recursos', () => hayTarea(pid, 'Pausa_C'), 30);
+  await completar(pid, 'Pausa_C'); // el motor la deja completar cuando terminaron las compensaciones (no hay Equipo en este caso)
   await esperar('instancia terminada', () => terminada(pid), 60);
 }
 
@@ -144,6 +146,8 @@ async function faltaDeAulas(pid) {
   await aceptar(pid, 3600);
   await completar(pid, 'Material');
   await completar(pid, 'Activity_12i2hpf', recursos([true, false, false]));
+  await esperar('pausa Confirmar liberación de recursos', () => hayTarea(pid, 'Pausa_F'), 30);
+  await completar(pid, 'Pausa_F');
   await esperar('instancia terminada', () => terminada(pid), 60);
 }
 

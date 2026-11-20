@@ -59,12 +59,15 @@ function proposalClient({
   completeError = null,
   variables = [],
   variablesError = null,
+  pendingReleases = 0,
 } = {}) {
   const taskId = task.id;
   return fakeClient((method, path) => {
     if (method === 'GET' && path.startsWith('/identity/users/')) return { id: 'jefeAdmin' };
     if (method === 'GET' && path === '/identity/groups') return { data: [{ id: 'administracion' }] };
-    if (method === 'GET' && path === '/runtime/tasks') return { data: [] };
+    if (method === 'GET' && path === '/runtime/tasks') {
+      return { data: pendingReleases ? [{ id: 'lib1', taskDefinitionKey: 'Activity_1m08pcl' }] : [] };
+    }
     if (method === 'GET' && path === `/runtime/tasks/${taskId}`) return task;
     if (method === 'GET' && path === `/runtime/process-instances/${task.processInstanceId}`) {
       return { businessKey };
@@ -193,6 +196,47 @@ test('GET y POST de Enviar propuesta: se completa sin campos', async (t) => {
   assert.equal(done.location, '/admin/');
   assert.ok(client.calls.some((call) => call.method === 'POST' && call.path === '/runtime/tasks/t4'));
   assert.deepEqual(courses.calls.save, []);
+});
+
+const PAUSE_TASK = {
+  ...PROPOSAL_TASK,
+  id: 't5',
+  name: 'Confirmar liberación de recursos',
+  taskDefinitionKey: 'Pausa_C',
+};
+
+test('Confirmar liberación de recursos: sin liberaciones pendientes se completa', async (t) => {
+  const client = proposalClient({ task: PAUSE_TASK });
+  const app = await startApp({ client, courses: fakeCourses() });
+  t.after(() => app.close());
+
+  const { cookie, csrf } = await loginAndToken(app);
+  const detail = await request(app.base, '/admin/tasks/t5', { cookie });
+  assert.equal(detail.status, 200);
+  assert.match(detail.text, /Confirmar liberación/);
+  assert.match(detail.text, /queda\s+<strong>cancelado<\/strong>/);
+  assert.doesNotMatch(detail.text, /<button type="submit" disabled>/);
+
+  const done = await request(app.base, '/admin/tasks/t5/complete', { method: 'POST', cookie, form: { _csrf: csrf } });
+  assert.equal(done.status, 303);
+  assert.ok(client.calls.some((call) => call.method === 'POST' && call.path === '/runtime/tasks/t5'));
+});
+
+test('Confirmar liberación de recursos: con Liberar Equipamiento abierta avisa y no completa', async (t) => {
+  const client = proposalClient({ task: { ...PAUSE_TASK, taskDefinitionKey: 'Pausa_F' }, pendingReleases: 1 });
+  const app = await startApp({ client, courses: fakeCourses() });
+  t.after(() => app.close());
+
+  const { cookie, csrf } = await loginAndToken(app);
+  const detail = await request(app.base, '/admin/tasks/t5', { cookie });
+  assert.equal(detail.status, 200);
+  assert.match(detail.text, /Liberar Equipamiento<\/strong> sigue abierta/);
+  assert.match(detail.text, /<button type="submit" disabled>/);
+
+  const done = await request(app.base, '/admin/tasks/t5/complete', { method: 'POST', cookie, form: { _csrf: csrf } });
+  assert.equal(done.status, 303);
+  assert.equal(done.location, '/admin/');
+  assert.ok(!client.calls.some((call) => call.method === 'POST' && call.path === '/runtime/tasks/t5'));
 });
 
 test('GET de una tarea de la UI de Flowable enlaza a esa interfaz', async (t) => {

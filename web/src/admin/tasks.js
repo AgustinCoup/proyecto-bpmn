@@ -130,6 +130,15 @@ async function fetchProcessVariables(client, auth, processInstanceId) {
   return variables;
 }
 
+/** Tareas "Liberar Equipamiento" (compensación) todavía abiertas en la instancia. */
+async function fetchPendingReleases(client, auth, processInstanceId, taskDefinitionKey) {
+  const response = await client('GET', '/runtime/tasks', {
+    query: { processInstanceId, taskDefinitionKey, size: 1 },
+    auth,
+  });
+  return response && Array.isArray(response.data) ? response.data.length : 0;
+}
+
 function canClaimTask(task, links, user, groups) {
   if (!task || task.assignee) return false;
   const groupList = Array.isArray(groups) ? groups : [];
@@ -182,6 +191,7 @@ module.exports = {
   fetchTask,
   fetchIdentityLinks,
   fetchProcessVariables,
+  fetchPendingReleases,
   canClaimTask,
   claimTask,
   completeTask,

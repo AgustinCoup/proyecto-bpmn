@@ -51,7 +51,6 @@ Verificadas contra el modelo real. "Escribe" y "lee" indican el elemento del mod
 | `requiereAula`, `requierePlataforma`, `requiereEquipamiento` | `Evaluar Recursos` | compuerta inclusiva `OrInicio` | Recursos a gestionar (al menos uno) |
 | `aulaAsignada` | `ReservarAulaDelegate` | sitio | Aula reservada |
 | `aulaLiberada`, `aulaVirtualLiberada` | `LiberarAulaDelegate`, `LiberarAulaVirtualDelegate` | pruebas | Marca de que corrió la compensación |
-| `equipamientoContratado` | Execution Listener de fin de `Contratar equipamiento` | `GwHayEquipo` | Sólo existe si se contrató |
 | `simularFaltaAulas` | quien inicia (opcional) | `ReservarAulaDelegate` | Fuerza el escenario 7 |
 | `motivoCancelacion` | inicios de `Cancelación` (`EMPRESA`) y `FaltaAulas` (`SIN_AULAS`) | texto de `Notificar Cierre` | Causa del cierre |
 | `docenteSeleccionado` | `Definir Docente…` | `Desarrollar curso` (`assignee="${docenteSeleccionado}"`) | Usuario que dicta |
@@ -78,9 +77,8 @@ Todas las clases están en `unrc.cursos` y van en un único JAR. Las que tocan l
 | `ReservarAulaDelegate` | Simula el web service de aulas: guarda `aulaAsignada`; con `simularFaltaAulas=true` lanza `BpmnError("SIN_AULAS")`. | `Reservar aula` (`Aula`) | Escenario 7 |
 | `LiberarAulaDelegate`, `LiberarAulaVirtualDelegate` | Manejadores de compensación: marcan `aulaLiberada` / `aulaVirtualLiberada`. | `Liberar Aula`, `Liberar Aula Virtual` (`isForCompensation`) | Escenarios 1 y 6 (sin test unitario) |
 | `NotificarEmpresaDelegate` (JavaDelegate y Execution Listener, campo `tipo`) | Busca el `contacto_email` de la empresa (`empresaId`) y le manda un correo por SMTP (`SMTP_HOST`/`SMTP_PORT`). Tipos: `PROPUESTA`, `RECORDATORIO`, `NO_VIABLE`, `CONFIRMACION`, `CIERRE`, `INFORME`. Si no hay servidor o la empresa no tiene correo, **no falla el proceso**: lo deja en el log. | Como servicio en `Enviar recordatorio`, `Notificar Desición`, `Enviar confirmación` y `Notificar Cierre`; como listener `end` en `Enviar propuesta` y `Enviar informe…` | 5 tests con un SMTP simulado; escenarios 1, 2, 4, 5, 6 y 7 (15 correos recibidos) |
-| `AvisarLiberacionEquipamientoListener` (Task Listener) | Si hay una ejecución esperando en `EsperarLiberacion`, la destraba con `runtimeService.trigger`; si no (fin normal), no hace nada. | `Liberar Equipamiento`, evento `complete` | 3 tests; escenario 6 |
 
-Además hay listeners por **expresión** (sin clase): `propuestaVersion` en `Propuesta`/`Revisar`, `resultado` en `Rechazo`, `SinRespuesta` y los inicios de cancelación y falta de aulas, y `equipamientoContratado` en `Contratar equipamiento`.
+Además hay listeners por **expresión** (sin clase): `propuestaVersion` en `Propuesta`/`Revisar`, `resultado` en `Rechazo`, `SinRespuesta` y los inicios de cancelación y falta de aulas.
 
 Apps externas ya hechas: el **simulador CLI** (`simulador/`) muestra sólo las comunicaciones habilitadas (consulta `event-subscriptions` y ejecuciones de la instancia) y envía con `PUT /runtime/executions/{id}`; la **app Swing** (`escritorio/`) usa `ServicioTareas` (API Java): autentica con el usuario de Flowable, lista las tareas *Preparar materiales* propias o reclamables, y exige reclamar antes de completar.
 
@@ -96,7 +94,7 @@ La consigna permite "modificaciones menores, siempre que se justifiquen". Agrupa
 6. **Cancelación, falta de aulas y fin con compensación (rediseño, fase "X2").** El diseño original no funciona en Flowable 6.8.0 (verificado con modelos mínimos): el lanzamiento de compensación sin `activityRef` dentro de un subproceso de eventos no compensa nada; el subproceso de eventos interrumpiente borra los eventos de borde de su contenedor (la instancia se traba); un subproceso con borde y subproceso de eventos no termina por su camino normal; el *fin con compensación* se ejecuta como fin simple; y el lanzamiento de compensación no espera a las tareas de usuario. Diseño que sí funciona:
    - `Cancelación` (mensaje `Msg_cancel`) y `FaltaAulas` (error `SIN_AULAS`) son subprocesos de eventos **interrumpientes dentro de `Preparar`**; el segundo termina con un **fin de terminación** (sin él las ramas paralelas quedan vivas y la instancia se cuelga) y el primero con fin simple. Ambos setean `resultado = CANCELADO` y `motivoCancelacion`.
    - Se eliminó el borde de error sobre `Preparar`. Al terminar `Preparar` por su camino normal, la compuerta `GwCancelado` separa el cierre normal (`Confirmar`) del cancelado.
-   - Cancelado: `CompensarCancelacion` (lanzamiento de compensación sin `activityRef`, a nivel de proceso) corre *Liberar Aula* y *Liberar Aula Virtual* **sólo si esos recursos terminaron**, y crea la tarea *Liberar Equipamiento*. Como el lanzamiento no la espera, `GwHayEquipo` ("¿se contrató equipamiento?") lleva a `EsperarLiberacion` (tarea de recepción) que destraba `AvisarLiberacionEquipamientoListener`; así *Notificar Cierre* ocurre **después** de todas las compensaciones, como pide la consigna §1.3. La falta de aulas usa el mismo camino y también libera lo ya gestionado.
+   - Cancelado: el subproceso de evento de cancelación (dentro de `Preparar`) lanza las compensaciones con `activityRef` a *Reservar aula*, *Solicitar Aula Virtual* y *Contratar equipamiento*: corren *Liberar Aula*, *Liberar Aula Virtual* y la tarea *Liberar Equipamiento* **sólo si esos recursos terminaron**. A continuación una tarea de usuario de pausa, *Confirmar liberación de recursos* (`jefeAdmin`), que el motor no deja completar hasta que terminaron todas las compensaciones; después `GwCancelado` (XOR) lleva a *Notificar Cierre*, que ocurre **después** de todas las compensaciones, como pide la consigna §1.3. La falta de aulas usa la misma secuencia y también libera lo ya gestionado.
    - Fin normal: `Fin` deja de ser un fin con compensación y pasa a ser `CompensarFin` (lanzamiento de compensación sobre `Preparar`, ya terminado) seguido de un fin simple. Verificado: el proceso no termina hasta completar *Liberar Equipamiento*, y el listener de fin corre después.
 7. **Usuarios y asignaciones.** `Propuesta`, `Revisar`, `Archivar` y `Enviar informe…` asignadas a `jefeAdmin`; `Definir docente` e `Informe` a `jefeDocente`; `Desarrollar curso` a `${docenteSeleccionado}`; `Lista`, `Material`, `Evaluar Recursos`, `Virtual`, `Equipo` y `Liberar Equipamiento` con grupo candidato `administracion`. **El motor no obliga a reclamar** (cualquier usuario con acceso REST completa una tarea de grupo sin reclamarla); esa regla la hacen cumplir el sitio y las apps. *Evaluar Recursos* exige mandar las tres banderas y al menos una `true`: si no, el motor responde 500 y deshace todo, por lo que el sitio lo valida antes de enviar.
 8. **Un JAR único en los dos contenedores.** Se descartó un servicio Spring Boot propio (habría que reimplementar la API REST que ya trae la imagen). `mvn package` genera `target/cursos-flowable.jar`; `docker-compose.yml` lo monta en `/app/WEB-INF/lib/` de `flowable-rest` y `flowable-ui`. Si el archivo no existe al hacer `up`, Docker crea un directorio con ese nombre; si se recompila con los contenedores arriba, hay que reiniciarlos.
@@ -112,7 +110,7 @@ La consigna permite "modificaciones menores, siempre que se justifiquen". Agrupa
 
 ## 6. Resultado de la corrida
 
-`mvn test`: 52 tests, 0 fallas. `node scripts/escenarios/m-escenarios.js` (log: `scripts/escenarios/resultados/m-escenarios.log`), con el entorno levantado y un SMTP de prueba en el puerto 25:
+`mvn test`: 49 tests, 0 fallas. `node scripts/escenarios/m-escenarios.js` (log: `scripts/escenarios/resultados/m-escenarios.log`), con el entorno levantado y un SMTP de prueba en el puerto 25:
 
 | Escenario | Resultado | Evidencia mínima |
 |---|---|---|
@@ -121,11 +119,11 @@ La consigna permite "modificaciones menores, siempre que se justifiquen". Agrupa
 | 3 Rechazo | PASS | `curso.estado=RECHAZADO`; sin pasar por `Recordatorio` ni `Preparar` |
 | 4 Sin respuesta | PASS | 2 recordatorios (2 correos), `resultado=SIN_RESPUESTA`, `curso.estado=SIN_RESPUESTA` (plazo `PT20S`) |
 | 5 Límite de cursos | PASS | La 5ª instancia (4 otras) es viable; la 6ª ve 5, termina `NO_VIABLE` sin pasar por `Propuesta`; `curso.estado=NO_VIABLE` aunque el curso se vinculó después de terminar; correo de aviso |
-| 6 Cancelación con recursos gestionados | PASS | Corrió *Liberar Aula*, no *Liberar Aula Virtual* (pendiente); *Notificar Cierre* esperó a *Liberar Equipamiento*; `estadoCurso` y `curso.estado` = `CANCELADO` |
+| 6 Cancelación con recursos gestionados | PASS | Corrió *Liberar Aula*, no *Liberar Aula Virtual* (pendiente); *Notificar Cierre* esperó a *Liberar Equipamiento* y a la pausa *Confirmar liberación de recursos*; `estadoCurso` y `curso.estado` = `CANCELADO` |
 | 7 Falta de aulas | PASS | Se disparó `InicioFaltaAulas`, `motivoCancelacion=SIN_AULAS`, `CANCELADO`, correo de cierre |
 | 11 Materiales (API Java) + comunicaciones (API REST) | PASS | Simulador CLI real: sólo ofrece las acciones habilitadas; la app respeta permisos (otro grupo no la ve, no se completa sin reclamar ni por otro usuario) y completa *Preparar materiales* como **última** rama |
 
-Los escenarios 8, 9 y 10 se verificaron según `docs/revisiones-manuales.md` (41 verificaciones conformes). Al terminar, Flowable queda sólo con "Demo processes".
+Los escenarios 8, 9 y 10 se verificaron según `docs/revisiones-manuales.md` (41 verificaciones conformes, más 3 de la actualización del 2026-11-20 sobre la cancelación con pausa). Al terminar, Flowable queda sólo con "Demo processes".
 
 ## 7. Hallazgos del recorrido y cómo se resolvieron
 

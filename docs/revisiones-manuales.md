@@ -52,7 +52,7 @@ Datos: solicitudes A y B de la misma empresa; aceptación de ambas y cancelació
 | 10.3 | Segunda solicitud (B) de la misma empresa: dos instancias esperando respuesta | Conforme | curso B = 3 |
 | 10.4 | Hay solicitudes activas para que la empresa responda (A y B) | Conforme | instancias activas=2 (comunicaciones por API REST, mismas llamadas que el simulador) |
 | 10.5 | Fecha de inicio futura en formato ISO 8601 UTC | Conforme | 2026-11-20T14:27:53Z |
-| 10.6 | Aceptación de A: se crea la cuenta emp_30722334457 de la empresa 2 | Conforme | 2\|emp_30722334457 |
+| 10.6 | Aceptación de A: se crea la cuenta emp_30722334456 de la empresa 2 | Conforme | 2\|emp_30722334456 |
 | 10.7 | Aceptación de B: la empresa 2 sigue con una sola cuenta (se reutiliza) | Conforme | — |
 | 10.8 | La empresa 2 ve "Mis cursos" con exactamente sus dos cursos y no el curso 1 | Conforme | filas=2 |
 | 10.9 | Detalle de B: datos del curso, estado EN_PREPARACION y varias actividades en paralelo | Conforme | Preparar materiales, Evaluar Recursos, Preparar curso, Recibir Cancelacion, Recibir nomina, Volver |
@@ -99,3 +99,13 @@ Datos: curso B desde la preparación hasta su finalización.
 | **Total** | **41** | **41** | **0** |
 
 El servidor SMTP de prueba recibió 5 avisos del proceso dirigidos a la empresa.
+
+## Actualización del 2026-11-20 — cancelación con pausa de confirmación
+
+El modelo cambió el diseño de la compensación (cambios 64 a 67 de `docs/cambios-modelo.md`): tras una cancelación o una falta de aulas queda abierta la tarea *Confirmar liberación de recursos* (`jefeAdmin`) hasta que terminan las compensaciones, y recién al completarla se notifica el cierre y la BD registra `CANCELADO`. Las verificaciones 10.14, 8.19 y 8.20 de arriba se hicieron con el diseño anterior; se repitió el recorrido de la cancelación con el sitio real (`web/tests/e2e/pausa-cancelacion.e2e.js`: sitio por HTTP, comunicaciones y tareas de Flowable por API REST):
+
+| ID | Verificación | Resultado | Evidencia |
+|---|---|---|---|
+| 10.15 | Tras la cancelación, la lista de `jefeAdmin` muestra *Confirmar liberación de recursos* con botón Confirmar | Conforme | — |
+| 10.16 | Con *Liberar Equipamiento* abierta, el detalle avisa, el botón queda deshabilitado y el POST no completa nada ni da error 500 | Conforme | flash "Todavía hay recursos por liberar" |
+| 10.17 | Completada *Liberar Equipamiento*, `jefeAdmin` confirma; la instancia termina y `curso.estado` = `CANCELADO` | Conforme | CANCELADO |

@@ -28,7 +28,7 @@ El proceso `Process_Curso` (`modelo/Proyecto_Organizacion_cursos.bpmn20.xml`) ti
 |---|---|---|
 | **Viabilidad** | Al llegar la solicitud, un listener cuenta las otras instancias en curso y la regla DMN `viabilidadCurso.dmn` decide: con 5 o más, el curso no es viable | Automático |
 | **Negociación** | El jefe administrativo elabora y envía la propuesta. La empresa acepta, rechaza o pide modificaciones; sin respuesta en 5 días se envía un recordatorio (máximo 2) | `jefeAdmin`, empresa |
-| **Preparación** (subproceso, 3 ramas en paralelo) | Inscripciones (nómina → lista definitiva), materiales y recursos (aula física, aula virtual y/o equipamiento). La empresa puede cancelar: se compensan solo los recursos ya gestionados | Grupo `administracion`, empresa |
+| **Preparación** (subproceso, 3 ramas en paralelo) | Inscripciones (nómina → lista definitiva), materiales y recursos (aula física, aula virtual y/o equipamiento). La empresa puede cancelar: se compensan solo los recursos ya gestionados y `jefeAdmin` confirma la liberación (tarea *Confirmar liberación de recursos*) antes de notificar el cierre | Grupo `administracion`, `jefeAdmin`, empresa |
 | **Desarrollo** | Confirmación a la empresa; el jefe docente elige al docente; al llegar la fecha acordada, el docente registra el dictado; el jefe docente elabora el informe (PDF) | `jefeDocente`, docente elegido |
 | **Cierre** | El jefe administrativo envía el informe y archiva; se liberan los recursos (compensación) | `jefeAdmin`, grupo `administracion` |
 
@@ -129,7 +129,7 @@ Todas las claves son `test`.
 | Jefe del equipo docente | `jefeDocente` | `docentes` | http://localhost:3000/docentes/login |
 | Docentes | `docente1`, `docente2` | `docentes` | http://localhost:3000/docentes/login |
 | Empresa 1 (con cuenta desde el inicio) | `emp_30711223343` | — | http://localhost:3000/empresa/login |
-| Empresa 2 (la cuenta se crea al aceptar una propuesta) | `emp_30722334457` | — | http://localhost:3000/empresa/login |
+| Empresa 2 (la cuenta se crea al aceptar una propuesta) | `emp_30722334456` | — | http://localhost:3000/empresa/login |
 | Cualquier visitante | — | — | http://localhost:3000/solicitar |
 | Administrador de la interfaz de Flowable | `admin` (también los usuarios de arriba) | — | http://localhost:8081/flowable-ui |
 | Usuario de servicio de la API REST | `rest-admin` | — | http://localhost:8080/flowable-rest/docs/ (Swagger) |
@@ -248,7 +248,7 @@ Si *Preparar materiales* es la última rama pendiente, al completarla el motor d
 
 ## 9. Interfaz de Flowable
 
-Las tareas *Solicitar Aula Virtual*, *Contratar equipamiento* y *Liberar Equipamiento* no tienen pantalla en el sitio; la consigna permite completarlas en la interfaz de Flowable. También puede usarse para *Preparar materiales* y *Elaborar informe de resultados*.
+Las tareas *Solicitar Aula Virtual*, *Contratar equipamiento* y *Liberar Equipamiento* no tienen pantalla en el sitio; la consigna permite completarlas en la interfaz de Flowable. Tras una cancelación con equipamiento contratado, *Liberar Equipamiento* se completa ahí **antes** de que `jefeAdmin` confirme la liberación en el sitio (*Confirmar liberación de recursos*, en `/admin`); si se intenta antes, el sitio avisa. También puede usarse para *Preparar materiales* y *Elaborar informe de resultados*.
 
 1. Abrir http://localhost:8081/flowable-ui e ingresar con un usuario del grupo correspondiente (por ejemplo `admin2` / `test`).
 2. Entrar a la aplicación **Tasks**. Las tareas de grupo figuran en la lista de tareas en cola (*Queued*).
@@ -287,7 +287,7 @@ Las tareas *Solicitar Aula Virtual*, *Contratar equipamiento* y *Liberar Equipam
 
 | `taskKey` | Tarea | `usuario` | ¿Se reclama? |
 |---|---|---|---|
-| `Propuesta`, `Enviar`, `Revisar`, `Archivar`, `EnviarInforme` | Tareas del jefe administrativo | `jefeAdmin` | No |
+| `Propuesta`, `Enviar`, `Revisar`, `Archivar`, `EnviarInforme`, `Pausa_C`, `Pausa_F` | Tareas del jefe administrativo (`Pausa_C`/`Pausa_F`: confirmar la liberación de recursos tras una cancelación o falta de aulas) | `jefeAdmin` | No |
 | `Lista` | Confeccionar lista definitiva | el que asignó el listener | No |
 | `Material`, `Activity_12i2hpf`, `Virtual`, `Equipo`, `Activity_1m08pcl` | Materiales, evaluar recursos, aula virtual, equipamiento, liberar equipamiento | `admin2` o `jefeAdmin` | Sí |
 | `Activity_1018bdz`, `Informe` | Definir docente, elaborar informe | `jefeDocente` | No |
@@ -383,7 +383,8 @@ Si no se definen `FLOWABLE_USER` y `FLOWABLE_PASSWORD`, `exportar_history.py` la
 | Qué | Comando | Necesita el entorno levantado |
 |---|---|---|
 | Tests de Java (motor en memoria H2) | `mvn test` | No |
-| Tests del sitio web | `cd web` y `npm test` (cobertura: `npm run test:coverage`) | Solo `tests/integration.test.js` |
+| Tests del sitio web | `cd web` y `npm test` (cobertura: `npm run test:coverage`) | Solo `tests/integration.test.js` (con el modelo desplegado) |
+| Cancelación y pausa desde el sitio, contra Flowable | `cd web` y `node tests/e2e/pausa-cancelacion.e2e.js` | Sí (modelo desplegado) |
 | Escenarios 1 a 7 y 11, automáticos (~4 min) | `node scripts/escenarios/m-escenarios.js` | Sí |
 | Escenarios 8, 9 y 10 | Verificación registrada en [`docs/revisiones-manuales.md`](docs/revisiones-manuales.md) | Sí |
 

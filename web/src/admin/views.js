@@ -51,6 +51,7 @@ function taskActionLabel(taskDefinitionKey) {
   if (taskDefinitionKey === 'Archivar') return 'Archivar';
   if (taskDefinitionKey === 'EnviarInforme') return 'Enviar informe';
   if (taskDefinitionKey === 'Enviar') return 'Completar';
+  if (taskDefinitionKey === 'Pausa_C' || taskDefinitionKey === 'Pausa_F') return 'Confirmar';
   if (taskDefinitionKey === 'Activity_1018bdz') return 'Definir docente';
   if (taskDefinitionKey === 'Dictar') return 'Desarrollar';
   if (taskDefinitionKey === 'Informe') return 'Elaborar informe';
@@ -344,8 +345,17 @@ function resourcesForm({
 }
 
 function simpleTaskForm({
-  baseUrl = '', user, groups = [], csrf, task, course = {},
+  baseUrl = '', user, groups = [], csrf, task, course = {}, isPause = false, pendingReleases = 0,
 }) {
+  const blocked = isPause && pendingReleases > 0;
+  let note = '<p>Al confirmar, la tarea se completa y el proceso continúa.</p>';
+  if (isPause) {
+    note = blocked
+      ? `<p class="error">Todavía hay recursos por liberar: la tarea <strong>Liberar Equipamiento</strong> sigue abierta.
+        Completala primero desde la interfaz de Flowable; el motor no deja confirmar antes.</p>`
+      : `<p>Las liberaciones ya terminaron. Al confirmar se avisa el cierre a la empresa y el curso queda
+        <strong>cancelado</strong>.</p>`;
+  }
   return page({
     title: task.name || 'Completar tarea',
     baseUrl,
@@ -355,11 +365,11 @@ function simpleTaskForm({
     body: `<section class="card narrow">
       <h1>${escapeHtml(task.name || 'Completar tarea')}</h1>
       <p class="muted">${courseLabel(course)}</p>
-      <p>Al confirmar, la tarea se completa y el proceso continúa.</p>
+      ${note}
       <form method="post" action="${escapeHtml(baseUrl)}/tasks/${encodeURIComponent(task.id)}/complete" class="stack">
         <input type="hidden" name="_csrf" value="${escapeHtml(csrf)}">
         <div class="form-actions">
-          <button type="submit">Completar tarea</button>
+          <button type="submit"${blocked ? ' disabled' : ''}>${isPause ? 'Confirmar liberación' : 'Completar tarea'}</button>
           <a class="button secondary" href="${escapeHtml(baseUrl)}/">Cancelar</a>
         </div>
       </form>

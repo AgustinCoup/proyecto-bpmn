@@ -32,7 +32,7 @@ consecuencias se analizan en la sección 5 (limitaciones).
 ## 2. Datos analizados
 
 **Datos:** 55 instancias terminadas de `Process_Curso`, generadas con `mineria/generar_historial.js` (mezcla de casos fija, plazos
-acortados; no son ejecuciones de una institución real). **CSV:** `mineria/eventos.csv` (885 eventos, sólo la etapa de
+acortados; no son ejecuciones de una institución real). **CSV:** `mineria/eventos.csv` (878 eventos, sólo la etapa de
 negociación). **Análisis:** `mineria/analizar.py` (PM4Py), filtrado a tareas de usuario y automáticas como el script provisto.
 Salida completa en `mineria/resultados.txt`; gráficos en `mineria/recorridos.png` y `mineria/modelo_descubierto.png`.
 
@@ -40,14 +40,13 @@ Salida completa en `mineria/resultados.txt`; gráficos en `mineria/recorridos.pn
 
 | # | Casos | % | Recorrido (tareas) | Qué ocurrió en el proceso |
 |---|---|---|---|---|
-| 1 (empate) | 12 | 21,8 % | Evaluar Viabilidad → Registrar y Elaborar propuesta → Enviar propuesta → Archivar solicitud | Rechazo de la propuesta sin recordatorios previos |
-| 1 (empate) | 12 | 21,8 % | Evaluar Viabilidad → Registrar y Elaborar propuesta → Enviar propuesta | La empresa aceptó (el curso siguió a la preparación, que queda fuera de este análisis) |
+| 1 | 13 | 23,6 % | Evaluar Viabilidad → Registrar y Elaborar propuesta → Enviar propuesta → Archivar solicitud | Rechazo de la propuesta sin recordatorios previos |
+| 2 | 12 | 21,8 % | Evaluar Viabilidad → Registrar y Elaborar propuesta → Enviar propuesta | La empresa aceptó (el curso siguió a la preparación, que queda fuera de este análisis) |
 | 3 | 8 | 14,5 % | Evaluar Viabilidad → Registrar y Elaborar propuesta → Enviar propuesta → Enviar recordatorio → Enviar recordatorio → Archivar solicitud | Cierre por falta de respuesta tras los dos recordatorios |
 
-Hay 10 recorridos distintos. Los otros siete suman 23 casos (41,8 %): 6 con una revisión y reenvío de la propuesta
+Hay 9 recorridos distintos. Los otros seis suman 22 casos (40,0 %): 6 con una revisión y reenvío de la propuesta
 (aceptada después), 4 con una revisión y rechazo, 4 con un recordatorio y aceptación, 4 no viables (*Evaluar
-Viabilidad → Notificar Desición*), 2 con dos revisiones, 2 con una revisión y falta de respuesta, y 1 con un
-recordatorio y rechazo. El grafo de sucesión directa (`recorridos.png`) muestra las frecuencias de cada flecha.
+Viabilidad → Notificar Desición*), 2 con dos revisiones y 2 con una revisión y falta de respuesta. El grafo de sucesión directa (`recorridos.png`) muestra las frecuencias de cada flecha.
 
 ![Grafo de sucesión directa](../mineria/recorridos.png)
 

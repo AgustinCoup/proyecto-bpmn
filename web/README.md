@@ -11,7 +11,7 @@ Aplicación web de la consigna §4.1, desarrollada en Node.js (Express y plantil
 | `/admin` | `src/admin/` | Tareas del grupo Administración |
 | `/docentes` | `src/docentes/` | Tareas del equipo docente; generación del PDF del informe de resultados |
 
-`src/lib/` contiene la configuración, el cliente REST de Flowable, el acceso a la base de datos y las validaciones; `src/views/` y `src/public/`, las plantillas y estilos del sitio público; `tests/`, las pruebas (`npm test`).
+`src/lib/` contiene la configuración, el cliente REST de Flowable, el acceso a la base de datos y las validaciones; `src/views/` y `src/public/`, las plantillas y estilos del sitio público; `tests/`, las pruebas (`npm test`); `tests/e2e/pausa-cancelacion.e2e.js` es un recorrido real contra Flowable (cancelación y pausa), que se ejecuta aparte.
 
 ## Tareas por pantalla
 
@@ -26,6 +26,7 @@ Aplicación web de la consigna §4.1, desarrollada en Node.js (Express y plantil
 | Elaborar informe de resultados (genera el PDF) | `jefeDocente` | `/docentes` |
 | Preparar materiales | grupo `administracion` | Aplicación de escritorio o interfaz de Flowable |
 | Solicitar Aula Virtual, Contratar equipamiento, Liberar Equipamiento | grupo `administracion` | Interfaz de Flowable (el sitio las lista y enlaza) |
+| Confirmar liberación de recursos (pausa que queda tras una cancelación o una falta de aulas) | `jefeAdmin` | `/admin` (si *Liberar Equipamiento* sigue abierta, el sitio avisa y no deja confirmar) |
 
 ## Configuración
 

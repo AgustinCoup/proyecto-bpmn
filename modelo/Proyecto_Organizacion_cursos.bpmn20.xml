@@ -40,9 +40,6 @@
         <bpmn:flowNodeRef>Confirmar</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Preparar</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>GwCancelado</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>CompensarCancelacion</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>GwHayEquipo</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>EsperarLiberacion</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>CompensarFin</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Fin</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Revisar</bpmn:flowNodeRef>
@@ -124,39 +121,18 @@
       <bpmn:outgoing>SiCancelado</bpmn:outgoing>
       <bpmn:outgoing>NoCancelado</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:sequenceFlow id="SiCancelado" name="Sí" sourceRef="GwCancelado" targetRef="CompensarCancelacion">
+    <!-- Patron del docente: las compensaciones se lanzan dentro de los subprocesos de evento de Preparar y su tarea de pausa
+         espera a que terminen todas; aca solo se elige la salida (XOR). -->
+    <bpmn:sequenceFlow id="SiCancelado" name="Sí" sourceRef="GwCancelado" targetRef="Activity_12e0et1">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${execution.getVariable('resultado') == 'CANCELADO'}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="NoCancelado" name="No" sourceRef="GwCancelado" targetRef="Confirmar" />
-    <!-- Compensa los recursos de Preparar que terminaron: Liberar Aula, Liberar Aula Virtual y la tarea Liberar Equipamiento. -->
-    <bpmn:intermediateThrowEvent id="CompensarCancelacion" name="Liberar recursos gestionados">
-      <bpmn:incoming>SiCancelado</bpmn:incoming>
-      <bpmn:outgoing>Flow_ACompensado</bpmn:outgoing>
-      <bpmn:compensateEventDefinition id="CompensateEventDefinition_Cancelacion" />
-    </bpmn:intermediateThrowEvent>
-    <bpmn:sequenceFlow id="Flow_ACompensado" sourceRef="CompensarCancelacion" targetRef="GwHayEquipo" />
-    <bpmn:exclusiveGateway id="GwHayEquipo" name="¿Se contrató equipamiento?" default="SinEquipo">
-      <bpmn:incoming>Flow_ACompensado</bpmn:incoming>
-      <bpmn:outgoing>ConEquipo</bpmn:outgoing>
-      <bpmn:outgoing>SinEquipo</bpmn:outgoing>
-    </bpmn:exclusiveGateway>
-    <bpmn:sequenceFlow id="ConEquipo" name="Sí" sourceRef="GwHayEquipo" targetRef="EsperarLiberacion">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${execution.getVariable('equipamientoContratado') == true}</bpmn:conditionExpression>
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="SinEquipo" name="No" sourceRef="GwHayEquipo" targetRef="Activity_12e0et1" />
-    <!-- Se destraba cuando se completa Liberar Equipamiento (AvisarLiberacionEquipamientoListener). -->
-    <bpmn:receiveTask id="EsperarLiberacion" name="Esperar liberación de equipamiento">
-      <bpmn:incoming>ConEquipo</bpmn:incoming>
-      <bpmn:outgoing>LiberacionLista</bpmn:outgoing>
-    </bpmn:receiveTask>
-    <bpmn:sequenceFlow id="LiberacionLista" sourceRef="EsperarLiberacion" targetRef="Activity_12e0et1" />
     <!-- Avisa por correo a la empresa; el texto usa motivoCancelacion. -->
     <bpmn:serviceTask id="Activity_12e0et1" name="Notificar Cierre" flowable:class="unrc.cursos.NotificarEmpresaDelegate">
       <bpmn:extensionElements>
         <flowable:field name="tipo" stringValue="CIERRE" />
       </bpmn:extensionElements>
-      <bpmn:incoming>SinEquipo</bpmn:incoming>
-      <bpmn:incoming>LiberacionLista</bpmn:incoming>
+      <bpmn:incoming>SiCancelado</bpmn:incoming>
       <bpmn:outgoing>Flow_175t1j3</bpmn:outgoing>
     </bpmn:serviceTask>
     <bpmn:endEvent id="Event_0w2kitf">
@@ -246,10 +222,6 @@
         <bpmn:outgoing>oj1</bpmn:outgoing>
       </bpmn:userTask>
       <bpmn:userTask id="Equipo" name="Contratar equipamiento" flowable:candidateGroups="administracion">
-        <bpmn:extensionElements>
-          <!-- Lo lee GwHayEquipo: sólo si se contrató hay algo que liberar antes de notificar el cierre. -->
-          <flowable:executionListener event="end" expression="${execution.setVariable('equipamientoContratado', true)}" />
-        </bpmn:extensionElements>
         <bpmn:incoming>or2</bpmn:incoming>
         <bpmn:outgoing>oj2</bpmn:outgoing>
       </bpmn:userTask>
@@ -296,20 +268,32 @@
       <bpmn:subProcess id="Activity_048d5em" name="Cancelación" triggeredByEvent="true">
         <bpmn:startEvent id="Event_1g4xmqo" name="Recibir Cancelación">
           <bpmn:extensionElements>
-            <!-- Sólo marca el motivo: las compensaciones se lanzan fuera de Preparar (CompensarCancelacion). -->
+            <!-- Marca el motivo; las compensaciones se lanzan a continuación, dentro de este subproceso. -->
             <flowable:executionListener event="end" expression="${execution.setVariable('resultado', 'CANCELADO')}" />
             <flowable:executionListener event="end" expression="${execution.setVariable('motivoCancelacion', 'EMPRESA')}" />
             <flowable:executionListener event="end" expression="${execution.setVariable('estadoCurso', 'CANCELADO')}" />
           </bpmn:extensionElements>
-          <bpmn:outgoing>Flow_099pqle</bpmn:outgoing>
           <bpmn:messageEventDefinition id="MessageEventDefinition_1avzsle" messageRef="Msg_cancel" />
         </bpmn:startEvent>
-        <bpmn:sequenceFlow id="Flow_099pqle" sourceRef="Event_1g4xmqo" targetRef="Event_0snigbc" />
-        <bpmn:endEvent id="Event_0snigbc">
-          <bpmn:incoming>Flow_099pqle</bpmn:incoming>
-        </bpmn:endEvent>
+        <bpmn:intermediateThrowEvent id="CompAula_C" name="Liberar aula">
+          <bpmn:compensateEventDefinition activityRef="Aula" />
+        </bpmn:intermediateThrowEvent>
+        <bpmn:intermediateThrowEvent id="CompVirtual_C" name="Liberar aula virtual">
+          <bpmn:compensateEventDefinition activityRef="Virtual" />
+        </bpmn:intermediateThrowEvent>
+        <bpmn:intermediateThrowEvent id="CompEquipo_C" name="Liberar equipamiento">
+          <bpmn:compensateEventDefinition activityRef="Equipo" />
+        </bpmn:intermediateThrowEvent>
+        <!-- Pausa pedida por el docente: no se puede completar hasta que terminen las compensaciones lanzadas. -->
+        <bpmn:userTask id="Pausa_C" name="Confirmar liberación de recursos" flowable:assignee="jefeAdmin" />
+        <bpmn:endEvent id="Event_0snigbc" />
+        <bpmn:sequenceFlow id="FC0" sourceRef="Event_1g4xmqo" targetRef="CompAula_C" />
+        <bpmn:sequenceFlow id="FC1" sourceRef="CompAula_C" targetRef="CompVirtual_C" />
+        <bpmn:sequenceFlow id="FC2" sourceRef="CompVirtual_C" targetRef="CompEquipo_C" />
+        <bpmn:sequenceFlow id="FC3" sourceRef="CompEquipo_C" targetRef="Pausa_C" />
+        <bpmn:sequenceFlow id="FC4" sourceRef="Pausa_C" targetRef="Event_0snigbc" />
       </bpmn:subProcess>
-      <!-- X2: la falta de aulas se atrapa dentro de Preparar y sigue el mismo camino que la cancelación. -->
+      <!-- La falta de aulas se atrapa dentro de Preparar y hace lo mismo que la cancelación (compensa lo gestionado y pausa). -->
       <bpmn:subProcess id="FaltaAulas" name="Falta de aulas" triggeredByEvent="true">
         <bpmn:startEvent id="InicioFaltaAulas" name="Sin aulas disponibles">
           <bpmn:extensionElements>
@@ -317,14 +301,27 @@
             <flowable:executionListener event="end" expression="${execution.setVariable('motivoCancelacion', 'SIN_AULAS')}" />
             <flowable:executionListener event="end" expression="${execution.setVariable('estadoCurso', 'CANCELADO')}" />
           </bpmn:extensionElements>
-          <bpmn:outgoing>FlujoFaltaAulas</bpmn:outgoing>
           <bpmn:errorEventDefinition id="ErrorEventDefinition_FaltaAulas" errorRef="Err_sinAulas" />
         </bpmn:startEvent>
-        <bpmn:sequenceFlow id="FlujoFaltaAulas" sourceRef="InicioFaltaAulas" targetRef="FinFaltaAulas" />
+        <bpmn:intermediateThrowEvent id="CompAula_F" name="Liberar aula">
+          <bpmn:compensateEventDefinition activityRef="Aula" />
+        </bpmn:intermediateThrowEvent>
+        <bpmn:intermediateThrowEvent id="CompVirtual_F" name="Liberar aula virtual">
+          <bpmn:compensateEventDefinition activityRef="Virtual" />
+        </bpmn:intermediateThrowEvent>
+        <bpmn:intermediateThrowEvent id="CompEquipo_F" name="Liberar equipamiento">
+          <bpmn:compensateEventDefinition activityRef="Equipo" />
+        </bpmn:intermediateThrowEvent>
+        <!-- Pausa pedida por el docente: no se puede completar hasta que terminen las compensaciones lanzadas. -->
+        <bpmn:userTask id="Pausa_F" name="Confirmar liberación de recursos" flowable:assignee="jefeAdmin" />
         <bpmn:endEvent id="FinFaltaAulas">
-          <bpmn:incoming>FlujoFaltaAulas</bpmn:incoming>
           <bpmn:terminateEventDefinition id="TerminateDef_FaltaAulas" />
         </bpmn:endEvent>
+        <bpmn:sequenceFlow id="FF0" sourceRef="InicioFaltaAulas" targetRef="CompAula_F" />
+        <bpmn:sequenceFlow id="FF1" sourceRef="CompAula_F" targetRef="CompVirtual_F" />
+        <bpmn:sequenceFlow id="FF2" sourceRef="CompVirtual_F" targetRef="CompEquipo_F" />
+        <bpmn:sequenceFlow id="FF3" sourceRef="CompEquipo_F" targetRef="Pausa_F" />
+        <bpmn:sequenceFlow id="FF4" sourceRef="Pausa_F" targetRef="FinFaltaAulas" />
       </bpmn:subProcess>
       <bpmn:boundaryEvent id="Event_0rm0c02" attachedToRef="Aula">
         <bpmn:compensateEventDefinition id="CompensateEventDefinition_10syb4w" />
@@ -338,10 +335,6 @@
         <bpmn:compensateEventDefinition id="CompensateEventDefinition_1weqaul" />
       </bpmn:boundaryEvent>
       <bpmn:userTask id="Activity_1m08pcl" name="Liberar Equipamiento" isForCompensation="true" flowable:candidateGroups="administracion">
-        <bpmn:extensionElements>
-          <!-- Destraba EsperarLiberacion si la instancia está esperando ahí (camino de cancelación). -->
-          <flowable:taskListener event="complete" class="unrc.cursos.AvisarLiberacionEquipamientoListener" />
-        </bpmn:extensionElements>
       </bpmn:userTask>
       <bpmn:serviceTask id="Aula" name="Reservar aula" flowable:class="unrc.cursos.ReservarAulaDelegate">
         <bpmn:incoming>or0</bpmn:incoming>
@@ -668,23 +661,6 @@
       <bpmndi:BPMNShape id="Activity_0wjeyvk_di" bpmnElement="Activity_12i2hpf">
         <dc:Bounds x="550" y="1210" width="100" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_048d5em_di" bpmnElement="Activity_048d5em" isExpanded="true">
-        <dc:Bounds x="1280" y="1410" width="300" height="120" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_0qbnbqc_di" bpmnElement="Event_1g4xmqo">
-        <dc:Bounds x="1312" y="1442" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1300" y="1485" width="61" height="27" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_17zht8p_di" bpmnElement="Event_0snigbc">
-        <dc:Bounds x="1492" y="1442" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_099pqle_di" bpmnElement="Flow_099pqle">
-        <di:waypoint x="1348" y="1460" />
-        <di:waypoint x="1492" y="1460" />
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="Activity_0b9e576_di" bpmnElement="Activity_1m08pcl">
         <dc:Bounds x="1000" y="1480" width="100" height="80" />
         <bpmndi:BPMNLabel />
@@ -938,37 +914,97 @@
           <dc:Bounds x="905" y="1595" width="90" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="DI_CompensarCancelacion" bpmnElement="CompensarCancelacion">
-        <dc:Bounds x="780" y="1622" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="758" y="1660" width="80" height="27" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="DI_GwHayEquipo" bpmnElement="GwHayEquipo" isMarkerVisible="true">
-        <dc:Bounds x="690" y="1615" width="50" height="50" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="676" y="1595" width="78" height="27" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="DI_EsperarLiberacion" bpmnElement="EsperarLiberacion">
-        <dc:Bounds x="440" y="1690" width="100" height="80" />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="DI_FaltaAulas" bpmnElement="FaltaAulas" isExpanded="true">
-        <dc:Bounds x="370" y="1400" width="300" height="120" />
+        <dc:Bounds x="370" y="1400" width="410" height="150" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="DI_InicioFaltaAulas" bpmnElement="InicioFaltaAulas">
-        <dc:Bounds x="402" y="1442" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="385" y="1485" width="70" height="27" />
-        </bpmndi:BPMNLabel>
+        <dc:Bounds x="400" y="1457" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="383" y="1495" width="70" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_CompAula_F" bpmnElement="CompAula_F">
+        <dc:Bounds x="455" y="1457" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="443" y="1495" width="60" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_CompVirtual_F" bpmnElement="CompVirtual_F">
+        <dc:Bounds x="515" y="1457" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="503" y="1495" width="60" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_CompEquipo_F" bpmnElement="CompEquipo_F">
+        <dc:Bounds x="575" y="1457" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="563" y="1495" width="60" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Pausa_F" bpmnElement="Pausa_F">
+        <dc:Bounds x="635" y="1435" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="DI_FinFaltaAulas" bpmnElement="FinFaltaAulas">
-        <dc:Bounds x="582" y="1442" width="36" height="36" />
+        <dc:Bounds x="725" y="1457" width="36" height="36" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="DI_FlujoFaltaAulas" bpmnElement="FlujoFaltaAulas">
-        <di:waypoint x="438" y="1460" />
-        <di:waypoint x="582" y="1460" />
+      <bpmndi:BPMNEdge id="DI_FF0" bpmnElement="FF0">
+        <di:waypoint x="436" y="1475" />
+        <di:waypoint x="455" y="1475" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_FF1" bpmnElement="FF1">
+        <di:waypoint x="491" y="1475" />
+        <di:waypoint x="515" y="1475" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_FF2" bpmnElement="FF2">
+        <di:waypoint x="551" y="1475" />
+        <di:waypoint x="575" y="1475" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_FF3" bpmnElement="FF3">
+        <di:waypoint x="611" y="1475" />
+        <di:waypoint x="635" y="1475" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_FF4" bpmnElement="FF4">
+        <di:waypoint x="735" y="1475" />
+        <di:waypoint x="725" y="1475" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="DI_Activity_048d5em" bpmnElement="Activity_048d5em" isExpanded="true">
+        <dc:Bounds x="1150" y="1400" width="420" height="150" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Event_1g4xmqo" bpmnElement="Event_1g4xmqo">
+        <dc:Bounds x="1180" y="1457" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1163" y="1495" width="70" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_CompAula_C" bpmnElement="CompAula_C">
+        <dc:Bounds x="1235" y="1457" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1223" y="1495" width="60" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_CompVirtual_C" bpmnElement="CompVirtual_C">
+        <dc:Bounds x="1295" y="1457" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1283" y="1495" width="60" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_CompEquipo_C" bpmnElement="CompEquipo_C">
+        <dc:Bounds x="1355" y="1457" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1343" y="1495" width="60" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Pausa_C" bpmnElement="Pausa_C">
+        <dc:Bounds x="1415" y="1435" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Event_0snigbc" bpmnElement="Event_0snigbc">
+        <dc:Bounds x="1515" y="1457" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="DI_FC0" bpmnElement="FC0">
+        <di:waypoint x="1216" y="1475" />
+        <di:waypoint x="1235" y="1475" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_FC1" bpmnElement="FC1">
+        <di:waypoint x="1271" y="1475" />
+        <di:waypoint x="1295" y="1475" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_FC2" bpmnElement="FC2">
+        <di:waypoint x="1331" y="1475" />
+        <di:waypoint x="1355" y="1475" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_FC3" bpmnElement="FC3">
+        <di:waypoint x="1391" y="1475" />
+        <di:waypoint x="1415" y="1475" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_FC4" bpmnElement="FC4">
+        <di:waypoint x="1515" y="1475" />
+        <di:waypoint x="1515" y="1475" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="DI_NoCancelado" bpmnElement="NoCancelado">
         <di:waypoint x="877" y="1665" />
@@ -976,26 +1012,8 @@
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="DI_SiCancelado" bpmnElement="SiCancelado">
         <di:waypoint x="852" y="1640" />
-        <di:waypoint x="816" y="1640" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DI_Flow_ACompensado" bpmnElement="Flow_ACompensado">
-        <di:waypoint x="780" y="1640" />
-        <di:waypoint x="740" y="1640" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DI_ConEquipo" bpmnElement="ConEquipo">
-        <di:waypoint x="690" y="1640" />
-        <di:waypoint x="490" y="1640" />
-        <di:waypoint x="490" y="1690" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DI_SinEquipo" bpmnElement="SinEquipo">
-        <di:waypoint x="715" y="1665" />
-        <di:waypoint x="715" y="1680" />
-        <di:waypoint x="620" y="1680" />
+        <di:waypoint x="620" y="1640" />
         <di:waypoint x="620" y="1690" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DI_LiberacionLista" bpmnElement="LiberacionLista">
-        <di:waypoint x="540" y="1730" />
-        <di:waypoint x="570" y="1730" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="DI_Preparado" bpmnElement="Preparado">
         <di:waypoint x="877" y="1590" />

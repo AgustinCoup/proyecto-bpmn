@@ -1,10 +1,10 @@
 
 Instancias analizadas: 55
-Recorridos diferentes: 10
+Recorridos diferentes: 9
 
 Los tres recorridos más frecuentes:
 
-12 casos (21.8 %)
+13 casos (23.6 %)
 Evaluar Viabilidad → Registrar y Elaborar propuesta → Enviar propuesta → Archivar solicitud
 
 12 casos (21.8 %)

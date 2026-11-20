@@ -35,7 +35,15 @@ const NOMBRES = {
   Event_1g4xmqo: 'Recibir Cancelacion',
   OrFin: 'Todos los recursos seleccionados listos',
   ParFin: 'Preparacion completa',
-  EsperarLiberacion: 'Esperar liberacion de equipamiento',
+  Pausa_C: 'Confirmar liberacion de recursos',
+  Pausa_F: 'Confirmar liberacion de recursos',
+  CompAula_C: 'Liberando recursos',
+  CompVirtual_C: 'Liberando recursos',
+  CompEquipo_C: 'Liberando recursos',
+  CompAula_F: 'Liberando recursos',
+  CompVirtual_F: 'Liberando recursos',
+  CompEquipo_F: 'Liberando recursos',
+  GwCancelado: 'Preparacion cancelada',
 };
 
 function nombreActividad(id) {
