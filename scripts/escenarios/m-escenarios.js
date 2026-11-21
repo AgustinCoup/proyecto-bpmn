@@ -117,7 +117,7 @@ async function e1() {
   const pid = await iniciarCurso(801, 2);
   await aceptar(pid, 40);
   check('estadoCurso al entrar a Preparar', await J.valor(pid, 'estadoCurso'), 'EN_PREPARACION');
-  check('Habilitar acceso creó la cuenta de la empresa 2', sql('select usuario from cuenta_empresa where empresa_id=2;'), 'emp_30722334456');
+  check('Habilitar acceso creó la cuenta de la empresa 2', sql('select usuario from cuenta_empresa where empresa_id=2;'), 'emp_30722334457');
   await enviarNomina(pid, '["Ana","Beto"]');
   await J.esperarHasta('Lista creada', () => J.hayTarea(pid, 'Lista'), 20);
   check('Lista asignada al administrativo menos cargado (empate → alfabético)', (await J.tarea(pid, 'Lista')).assignee, 'admin2');
