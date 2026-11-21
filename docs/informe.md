@@ -110,7 +110,7 @@ La consigna permite "modificaciones menores, siempre que se justifiquen". Agrupa
 
 ## 6. Resultado de la corrida
 
-`mvn test`: 50 tests, 0 fallas. `node scripts/escenarios/m-escenarios.js` (log: `scripts/escenarios/resultados/m-escenarios.log`), con el entorno levantado y un SMTP de prueba en el puerto 25:
+`mvn test`: 50 tests, 0 fallas. `node scripts/escenarios/m-escenarios.js` (log de la corrida entregada, del 2026-11-21: `scripts/escenarios/resultados/m-escenarios.log`; cada corrida lo reescribe), con el entorno levantado y un SMTP de prueba en el puerto 25:
 
 | Escenario | Resultado | Evidencia mínima |
 |---|---|---|

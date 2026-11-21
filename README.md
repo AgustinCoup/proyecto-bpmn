@@ -415,7 +415,7 @@ node scripts/escenarios/m-aceptacion-sin-fecha.js     # reproduce el error de un
 - Al terminar deja en Flowable solo "Demo processes": hay que volver a ejecutar `desplegar-modelo` para seguir usando el proceso. Con `--conservar` no hace falta.
 - **Resultado:**
   - código de salida 0 si todos los escenarios dan PASS;
-  - log completo en `scripts/escenarios/resultados/m-escenarios.log`;
+  - log completo en `scripts/escenarios/resultados/m-escenarios.log` (se reescribe en cada corrida; el del repositorio es el de la corrida entregada);
   - las líneas `✔`/`✘` son las verificaciones, y el bloque `RESUMEN` da el resultado por escenario.
 - El escenario 11 ejecuta el simulador real con entrada guionada y la lógica de la app de escritorio (`ServicioTareas`) sin interfaz, mediante `m-MaterialesApiJava.java`.
 

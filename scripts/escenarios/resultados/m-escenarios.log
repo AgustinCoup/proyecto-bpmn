@@ -1,0 +1,385 @@
+# 2026-11-21T20:40:57.147Z - m-escenarios
+===== Despliegue: DMN y modelo =====
+→ POST /flowable-rest/dmn-api/dmn-repository/deployments (multipart: viabilidadCurso.dmn)
+← 201 {"id":"da9fb202-e5eb-11f1-9005-028f08623d7d","name":"viabilidadCurso.dmn","deploymentTime":"2026-11-21T20:40:57.317Z","category":null,"url":"http://localhost:8080/flowable-rest/dmn-api/dmn-repository/deployments/da9fb202-e5eb-11f1-9005-028f08623d7d","parentDeploymentId":"da9fb202-e5eb-11f1-9005-028f08623d7d","tenantId":""}
+→ POST /flowable-rest/service/repository/deployments (multipart: Proyecto_Organizacion_cursos.bpmn20.xml)
+← 201 {"id":"dab7cde5-e5eb-11f1-9005-028f08623d7d","name":"Proyecto_Organizacion_cursos","deploymentTime":"2026-11-21T20:40:57.475Z","category":null,"parentDeploymentId":"dab7cde5-e5eb-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/repository/deployments/dab7cde5-e5eb-11f1-9005-028f08623d7d","tenantId":""}
+SMTP de prueba en el puerto 2525: activo
+
+===== ESCENARIO 1: Aceptación y finalización normal con liberación de recursos =====
+  [escenario 1] instancias activas de Process_Curso: antes 0, borradas 0, ahora 0
+→ POST /runtime/process-instances
+  {"message":"Solicitud de curso","businessKey":"801","variables":[{"name":"cursoId","value":801,"type":"integer"},{"name":"empresaId","value":2,"type":"integer"}]}
+← 201 {"id":"db59b33a-e5eb-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/process-instances/db59b33a-e5eb-11f1-9005-028f08623d7d","name":null,"businessKey":"801","businessStatus":null,"suspended":false,"ended":false,"processDefinitionId":"Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionUrl":"http://localhost:8080/flowable-rest/service/repository/process-definitions/Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionName":"Organizar curso de capacitación","processDefinitionDescription":"Modelo ejecutable en Flowable 6.8.0. Los recordatorios se cuentan por versión de propuesta. La fecha programada se obtiene de la propuesta aceptada. La empresa se representa como pool de caja negra; los mensajes internos del subproceso se expresan con tareas de envío/recepción y eventos de mensaje.","activityId":null,"startUserId":"rest-admin","startTime":"2026-11-21T20:40:58.536Z","variables":[{"name":"cursosEnEjecucion","type":"integer","value":0,"scope":"local"},{"name":"empresaId","type":"integer","value":2,"scope":"local"},{"name":"estadoCurso","type":"string","value":"EN_ACUERDO","scope":"local"},{"name":"Propuesta y presupuesto","value":null,"scope":"local"},{"name":"cursoId","type":"integer","value":801,"scope":"local"},{"name":"viable","type":"boolean","value":true,"scope":"local"},{"name":"Informe de resultados","value":null,"scope":"local"}],"callbackId":null,"callbackType":null,"referenceId":null,"referenceTy …(74 caracteres más)
+→ POST /runtime/tasks/db610651-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  ✔ Enviar propuesta está asignada a jefeAdmin: esperado "jefeAdmin", real "jefeAdmin"
+→ POST /runtime/tasks/db8927cb-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  Timers pendientes: Plazo dueDate=2026-11-26T20:40:59.059Z
+  ✓ espera respuesta (timer Plazo) (a los 0.0 s, sin intervención)
+→ GET /runtime/executions?processInstanceId=db59b33a-e5eb-11f1-9005-028f08623d7d&messageEventSubscriptionName=Aceptaci%C3%B3n
+← 200 {"data":[{"id":"dba53b52-e5eb-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/executions/dba53b52-e5eb-11f1-9005-028f08623d7d","parentId":"db59b33a-e5eb-11f1-9005-028f08623d7d","parentUrl":"http://localhost:8080/flowable-rest/service/runtime/executions/db59b33a-e5eb-11f1-9005-028f08623d7d","superExecutionId":null,"superExecutionUrl":null,"processInstanceId":"db59b33a-e5eb-11f1-9005-028f08623d7d","processInstanceUrl":"http://localhost:8080/flowable-rest/service/runtime/process-instances/db59b33a-e5eb-11f1-9005-028f08623d7d","suspended":false,"activityId":"Aceptar","tenantId":""}],"total":1,"start":0,"sort":"processInstanceId","order":"asc","size":1}
+→ PUT /runtime/executions/dba53b52-e5eb-11f1-9005-028f08623d7d
+  {"action":"messageEventReceived","messageName":"Aceptación","variables":[{"name":"fechaCurso","value":"2026-11-21T20:41:39Z","type":"string"}]}
+← 204 
+  [consulta] variables: {"recordatorios":0,"cursosEnEjecucion":0,"fechaCurso":"2026-11-21T20:41:39Z","empresaId":2,"propuestaVersion":1,"estadoCurso":"EN_PREPARACION","cursoId":801,"Propuesta y presupuesto":null,"viable":true,"Informe de resultados":null}
+  ✔ estadoCurso al entrar a Preparar: esperado "EN_PREPARACION", real "EN_PREPARACION"
+  ✔ Habilitar acceso creó la cuenta de la empresa 2: esperado "emp_30722334457", real "emp_30722334457"
+→ PUT /runtime/executions/dbbbf7be-e5eb-11f1-9005-028f08623d7d
+  {"action":"signal","variables":[{"name":"participantes","value":"[\"Ana\",\"Beto\"]","type":"string"}]}
+← 200 {"id":"dbbbf7be-e5eb-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/executions/dbbbf7be-e5eb-11f1-9005-028f08623d7d","parentId":"dbbba997-e5eb-11f1-9005-028f08623d7d","parentUrl":"http://localhost:8080/flowable-rest/service/runtime/executions/dbbba997-e5eb-11f1-9005-028f08623d7d","superExecutionId":null,"superExecutionUrl":null,"processInstanceId":"db59b33a-e5eb-11f1-9005-028f08623d7d","processInstanceUrl":"http://localhost:8080/flowable-rest/service/runtime/process-instances/db59b33a-e5eb-11f1-9005-028f08623d7d","suspended":false,"activityId":"Lista","tenantId":""}
+  ✓ Lista creada (a los 0.0 s, sin intervención)
+  ✔ Lista asignada al administrativo menos cargado (empate → alfabético): esperado "admin2", real "admin2"
+→ POST /runtime/tasks/dbe46662-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+→ POST /runtime/tasks/dbbc44e9-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+→ POST /runtime/tasks/dbbc44ec-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[{"name":"requiereAula","value":true,"type":"boolean"},{"name":"requierePlataforma","value":true,"type":"boolean"},{"name":"requiereEquipamiento","value":true,"type":"boolean"}]}
+← 200 
+  ✓ Virtual y Equipo creadas (a los 0.0 s, sin intervención)
+  [consulta] variables: {"requiereAula":true,"recordatorios":0,"cursosEnEjecucion":0,"requierePlataforma":true,"empresaId":2,"propuestaVersion":1,"aulaAsignada":"Aula Magna Principal","requiereEquipamiento":true,"fechaCurso":"2026-11-21T20:41:39Z","estadoCurso":"EN_PREPARACION","cursoId":801,"Propuesta y presupuesto":null,"viable":true,"Informe de resultados":null,"participantes":"[\"Ana\",\"Beto\"]"}
+  ✔ aula reservada por el delegate: esperado "Aula Magna Principal", real "Aula Magna Principal"
+→ POST /runtime/tasks/dbfbbf10-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+→ POST /runtime/tasks/dbfbe623-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+→ POST /runtime/tasks/dc142934-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[{"name":"docenteSeleccionado","value":"docente1","type":"string"}]}
+← 200 
+  ✔ Definir docente responde 200: esperado 200, real 200
+  [consulta] variables: {"requiereAula":true,"recordatorios":0,"cursosEnEjecucion":0,"requierePlataforma":true,"empresaId":2,"propuestaVersion":1,"aulaAsignada":"Aula Magna Principal","docenteSeleccionado":"docente1","requiereEquipamiento":true,"fechaCurso":"2026-11-21T20:41:39Z","estadoCurso":"CONFIRMADO_PENDIENTE_INICIO","cursoId":801,"Propuesta y presupuesto":null,"viable":true,"Informe de resultados":null,"participantes":"[\"Ana\",\"Beto\"]"}
+  ✔ estadoCurso tras confirmar: esperado "CONFIRMADO_PENDIENTE_INICIO", real "CONFIRMADO_PENDIENTE_INICIO"
+  ✓ Dictar creada al llegar la fecha acordada (a los 40.3 s, sin intervención)
+  ✔ Dictar asignada al docente elegido: esperado "docente1", real "docente1"
+  [consulta] variables: {"requiereAula":true,"recordatorios":0,"cursosEnEjecucion":0,"requierePlataforma":true,"empresaId":2,"propuestaVersion":1,"aulaAsignada":"Aula Magna Principal","docenteSeleccionado":"docente1","requiereEquipamiento":true,"fechaCurso":"2026-11-21T20:41:39Z","estadoCurso":"EN_DESARROLLO","cursoId":801,"Propuesta y presupuesto":null,"viable":true,"Informe de resultados":null,"participantes":"[\"Ana\",\"Beto\"]"}
+  ✔ estadoCurso en el dictado: esperado "EN_DESARROLLO", real "EN_DESARROLLO"
+→ POST /runtime/tasks/f3beaa33-e5eb-11f1-9e64-8a5b731a7e36
+  {"action":"complete","variables":[]}
+← 200 
+  [consulta] variables: {"requiereAula":true,"recordatorios":0,"cursosEnEjecucion":0,"requierePlataforma":true,"empresaId":2,"propuestaVersion":1,"aulaAsignada":"Aula Magna Principal","docenteSeleccionado":"docente1","requiereEquipamiento":true,"fechaCurso":"2026-11-21T20:41:39Z","estadoCurso":"ELABORANDO_INFORME","cursoId":801,"Propuesta y presupuesto":null,"viable":true,"Informe de resultados":null,"participantes":"[\"Ana\",\"Beto\"]"}
+  ✔ estadoCurso tras el dictado: esperado "ELABORANDO_INFORME", real "ELABORANDO_INFORME"
+  ✔ Informe asignado a jefeDocente: esperado "jefeDocente", real "jefeDocente"
+→ POST /runtime/tasks/f42ea9b2-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  ✔ Enviar informe asignado a jefeAdmin: esperado "jefeAdmin", real "jefeAdmin"
+→ POST /runtime/tasks/f4381f97-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  ✓ Liberar Equipamiento (compensación) (a los 0.0 s, sin intervención)
+  ✔ el proceso NO terminó antes de liberar el equipamiento: esperado false, real false
+→ POST /runtime/tasks/f44231c2-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  ✓ proceso terminado (a los 0.0 s, sin intervención)
+  Variables: {"aulaAsignada":"Aula Magna Principal","aulaLiberada":true,"aulaVirtualLiberada":true,"cursoId":801,"cursosEnEjecucion":0,"docenteSeleccionado":"docente1","empresaId":2,"estadoCurso":"FINALIZADO","fechaCurso":"2026-11-21T20:41:39Z","Informe de resultados":null,"Lista definitiva":null,"participantes":"[\"Ana\",\"Beto\"]","propuestaVersion":1,"Propuesta y presupuesto":null,"recordatorios":0,"requiereAula":true,"requiereEquipamiento":true,"requierePlataforma":true,"resultado":"FINALIZADO","viable":true}
+  ✔ Liberar Aula corrió: esperado true, real true
+  ✔ Liberar Aula Virtual corrió: esperado true, real true
+  ✔ estadoCurso final: esperado "FINALIZADO", real "FINALIZADO"
+  ✓ correos recibidos: Propuesta de curso (version 1) | Confirmacion del curso | Informe de resultados (a los 0.0 s, sin intervención)
+  ✔ avisos por correo a la empresa 2: esperado [true,true,true], real [true,true,true]
+  ✔ resultado: esperado "FINALIZADO", real "FINALIZADO"
+  ✔ curso.estado: esperado "FINALIZADO", real "FINALIZADO"
+
+===== ESCENARIO 2: Solicitud de modificaciones y nueva propuesta =====
+  [escenario 2] instancias activas de Process_Curso: antes 0, borradas 0, ahora 0
+→ POST /runtime/process-instances
+  {"message":"Solicitud de curso","businessKey":"802","variables":[{"name":"cursoId","value":802,"type":"integer"},{"name":"empresaId","value":1,"type":"integer"}]}
+← 201 {"id":"f4a75c3e-e5eb-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/process-instances/f4a75c3e-e5eb-11f1-9005-028f08623d7d","name":null,"businessKey":"802","businessStatus":null,"suspended":false,"ended":false,"processDefinitionId":"Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionUrl":"http://localhost:8080/flowable-rest/service/repository/process-definitions/Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionName":"Organizar curso de capacitación","processDefinitionDescription":"Modelo ejecutable en Flowable 6.8.0. Los recordatorios se cuentan por versión de propuesta. La fecha programada se obtiene de la propuesta aceptada. La empresa se representa como pool de caja negra; los mensajes internos del subproceso se expresan con tareas de envío/recepción y eventos de mensaje.","activityId":null,"startUserId":"rest-admin","startTime":"2026-11-21T20:41:40.988Z","variables":[{"name":"cursosEnEjecucion","type":"integer","value":0,"scope":"local"},{"name":"empresaId","type":"integer","value":1,"scope":"local"},{"name":"estadoCurso","type":"string","value":"EN_ACUERDO","scope":"local"},{"name":"Propuesta y presupuesto","value":null,"scope":"local"},{"name":"cursoId","type":"integer","value":802,"scope":"local"},{"name":"viable","type":"boolean","value":true,"scope":"local"},{"name":"Informe de resultados","value":null,"scope":"local"}],"callbackId":null,"callbackType":null,"referenceId":null,"referenceTy …(74 caracteres más)
+→ POST /runtime/tasks/f4a7f895-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  ✔ Enviar propuesta está asignada a jefeAdmin: esperado "jefeAdmin", real "jefeAdmin"
+→ POST /runtime/tasks/f4cae9ef-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  Timers pendientes: Plazo dueDate=2026-11-26T20:41:41.283Z
+  ✓ espera respuesta (timer Plazo) (a los 0.0 s, sin intervención)
+  [consulta] variables: {"recordatorios":0,"cursosEnEjecucion":0,"empresaId":1,"propuestaVersion":1,"estadoCurso":"EN_ACUERDO","Propuesta y presupuesto":null,"cursoId":802,"viable":true,"Informe de resultados":null}
+  ✔ propuestaVersion inicial: esperado 1, real 1
+→ GET /runtime/executions?processInstanceId=f4a75c3e-e5eb-11f1-9005-028f08623d7d&messageEventSubscriptionName=Solicitud%20de%20modificaciones
+← 200 {"data":[{"id":"f4d438c8-e5eb-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/executions/f4d438c8-e5eb-11f1-9005-028f08623d7d","parentId":"f4a75c3e-e5eb-11f1-9005-028f08623d7d","parentUrl":"http://localhost:8080/flowable-rest/service/runtime/executions/f4a75c3e-e5eb-11f1-9005-028f08623d7d","superExecutionId":null,"superExecutionUrl":null,"processInstanceId":"f4a75c3e-e5eb-11f1-9005-028f08623d7d","processInstanceUrl":"http://localhost:8080/flowable-rest/service/runtime/process-instances/f4a75c3e-e5eb-11f1-9005-028f08623d7d","suspended":false,"activityId":"Modificar","tenantId":""}],"total":1,"start":0,"sort":"processInstanceId","order":"asc","size":1}
+→ PUT /runtime/executions/f4d438c8-e5eb-11f1-9005-028f08623d7d
+  {"action":"messageEventReceived","messageName":"Solicitud de modificaciones","variables":[{"name":"observaciones","value":"Reducir el presupuesto","type":"string"}]}
+← 200 {"id":"f4d438c8-e5eb-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/executions/f4d438c8-e5eb-11f1-9005-028f08623d7d","parentId":"f4a75c3e-e5eb-11f1-9005-028f08623d7d","parentUrl":"http://localhost:8080/flowable-rest/service/runtime/executions/f4a75c3e-e5eb-11f1-9005-028f08623d7d","superExecutionId":null,"superExecutionUrl":null,"processInstanceId":"f4a75c3e-e5eb-11f1-9005-028f08623d7d","processInstanceUrl":"http://localhost:8080/flowable-rest/service/runtime/process-instances/f4a75c3e-e5eb-11f1-9005-028f08623d7d","suspended":false,"activityId":"Revisar","tenantId":""}
+  ✓ Revisar creada (a los 0.0 s, sin intervención)
+  ✔ Revisar asignada a jefeAdmin: esperado "jefeAdmin", real "jefeAdmin"
+  [consulta] variables: {"recordatorios":0,"cursosEnEjecucion":0,"empresaId":1,"propuestaVersion":1,"observaciones":"Reducir el presupuesto","estadoCurso":"EN_ACUERDO","Propuesta y presupuesto":null,"cursoId":802,"viable":true,"Informe de resultados":null}
+  ✔ observaciones guardadas: esperado "Reducir el presupuesto", real "Reducir el presupuesto"
+→ POST /runtime/tasks/f4de720a-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  [consulta] variables: {"recordatorios":0,"cursosEnEjecucion":0,"empresaId":1,"propuestaVersion":2,"observaciones":"Reducir el presupuesto","estadoCurso":"EN_ACUERDO","Propuesta y presupuesto":null,"cursoId":802,"viable":true,"Informe de resultados":null}
+  ✔ propuestaVersion tras revisar (antes de reenviar): esperado 2, real 2
+  ✔ Enviar propuesta vuelve a ser tarea de jefeAdmin: esperado "jefeAdmin", real "jefeAdmin"
+→ POST /runtime/tasks/f4e9e3c0-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  Timers pendientes: Plazo dueDate=2026-11-26T20:41:41.498Z
+  ✓ nueva espera de respuesta (timer nuevo) (a los 0.0 s, sin intervención)
+  [tras reenviar] variables: {"recordatorios":0,"cursosEnEjecucion":0,"empresaId":1,"propuestaVersion":2,"observaciones":"Reducir el presupuesto","estadoCurso":"EN_ACUERDO","Propuesta y presupuesto":null,"cursoId":802,"viable":true,"Informe de resultados":null}
+  ✔ propuestaVersion tras revisar: esperado 2, real 2
+  ✔ recordatorios reiniciado: esperado 0, real 0
+  Suscripciones: message:Aceptar(Aceptación), message:Rechazar(Rechazo), message:Modificar(Solicitud de modificaciones)
+  ✔ mensajes habilitados otra vez: esperado ["Aceptación","Rechazo","Solicitud de modificaciones"], real ["Aceptación","Rechazo","Solicitud de modificaciones"]
+  ✔ Enviar corrió una vez por versión: esperado 2, real 2
+  ✓ correos recibidos: Propuesta de curso (version 1) | Propuesta de curso (version 2) (a los 0.0 s, sin intervención)
+  ✔ la empresa recibió las versiones 1 y 2 de la propuesta: esperado [true,true], real [true,true]
+
+===== ESCENARIO 3: Rechazo de la propuesta =====
+  [escenario 3] instancias activas de Process_Curso: antes 0, borradas 0, ahora 0
+→ POST /runtime/process-instances
+  {"message":"Solicitud de curso","businessKey":"803","variables":[{"name":"cursoId","value":803,"type":"integer"},{"name":"empresaId","value":1,"type":"integer"}]}
+← 201 {"id":"f5256636-e5eb-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/process-instances/f5256636-e5eb-11f1-9005-028f08623d7d","name":null,"businessKey":"803","businessStatus":null,"suspended":false,"ended":false,"processDefinitionId":"Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionUrl":"http://localhost:8080/flowable-rest/service/repository/process-definitions/Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionName":"Organizar curso de capacitación","processDefinitionDescription":"Modelo ejecutable en Flowable 6.8.0. Los recordatorios se cuentan por versión de propuesta. La fecha programada se obtiene de la propuesta aceptada. La empresa se representa como pool de caja negra; los mensajes internos del subproceso se expresan con tareas de envío/recepción y eventos de mensaje.","activityId":null,"startUserId":"rest-admin","startTime":"2026-11-21T20:41:41.814Z","variables":[{"name":"cursosEnEjecucion","type":"integer","value":0,"scope":"local"},{"name":"empresaId","type":"integer","value":1,"scope":"local"},{"name":"estadoCurso","type":"string","value":"EN_ACUERDO","scope":"local"},{"name":"Propuesta y presupuesto","value":null,"scope":"local"},{"name":"cursoId","type":"integer","value":803,"scope":"local"},{"name":"viable","type":"boolean","value":true,"scope":"local"},{"name":"Informe de resultados","value":null,"scope":"local"}],"callbackId":null,"callbackType":null,"referenceId":null,"referenceTy …(74 caracteres más)
+→ POST /runtime/tasks/f52677bd-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  ✔ Enviar propuesta está asignada a jefeAdmin: esperado "jefeAdmin", real "jefeAdmin"
+→ POST /runtime/tasks/f54ceb87-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  Timers pendientes: Plazo dueDate=2026-11-26T20:41:42.136Z
+  ✓ espera respuesta (timer Plazo) (a los 0.0 s, sin intervención)
+→ GET /runtime/executions?processInstanceId=f5256636-e5eb-11f1-9005-028f08623d7d&messageEventSubscriptionName=Rechazo
+← 200 {"data":[{"id":"f556616f-e5eb-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/executions/f556616f-e5eb-11f1-9005-028f08623d7d","parentId":"f5256636-e5eb-11f1-9005-028f08623d7d","parentUrl":"http://localhost:8080/flowable-rest/service/runtime/executions/f5256636-e5eb-11f1-9005-028f08623d7d","superExecutionId":null,"superExecutionUrl":null,"processInstanceId":"f5256636-e5eb-11f1-9005-028f08623d7d","processInstanceUrl":"http://localhost:8080/flowable-rest/service/runtime/process-instances/f5256636-e5eb-11f1-9005-028f08623d7d","suspended":false,"activityId":"Rechazar","tenantId":""}],"total":1,"start":0,"sort":"processInstanceId","order":"asc","size":1}
+→ PUT /runtime/executions/f556616f-e5eb-11f1-9005-028f08623d7d
+  {"action":"messageEventReceived","messageName":"Rechazo","variables":[]}
+← 200 {"id":"f556616f-e5eb-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/executions/f556616f-e5eb-11f1-9005-028f08623d7d","parentId":"f5256636-e5eb-11f1-9005-028f08623d7d","parentUrl":"http://localhost:8080/flowable-rest/service/runtime/executions/f5256636-e5eb-11f1-9005-028f08623d7d","superExecutionId":null,"superExecutionUrl":null,"processInstanceId":"f5256636-e5eb-11f1-9005-028f08623d7d","processInstanceUrl":"http://localhost:8080/flowable-rest/service/runtime/process-instances/f5256636-e5eb-11f1-9005-028f08623d7d","suspended":false,"activityId":"Archivar","tenantId":""}
+  ✓ Archivar creada (a los 0.0 s, sin intervención)
+  ✔ Archivar asignada a jefeAdmin: esperado "jefeAdmin", real "jefeAdmin"
+  [consulta] variables: {"recordatorios":0,"cursosEnEjecucion":0,"empresaId":1,"resultado":"RECHAZADO","propuestaVersion":1,"estadoCurso":"EN_ACUERDO","Propuesta y presupuesto":null,"cursoId":803,"viable":true,"Informe de resultados":null}
+  ✔ resultado ya es RECHAZADO antes de archivar: esperado "RECHAZADO", real "RECHAZADO"
+→ POST /runtime/tasks/f55f6132-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  ✓ proceso terminado (a los 0.0 s, sin intervención)
+  ✔ no pasó por Recordatorio ni Preparar: esperado false, real false
+  ✔ curso.estado: esperado "RECHAZADO", real "RECHAZADO"
+
+===== ESCENARIO 4: Cierre por falta de respuesta (recordatorios) =====
+  [escenario 4] instancias activas de Process_Curso: antes 0, borradas 0, ahora 0
+→ POST /runtime/process-instances
+  {"message":"Solicitud de curso","businessKey":"804","variables":[{"name":"cursoId","value":804,"type":"integer"},{"name":"empresaId","value":1,"type":"integer"},{"name":"plazoRespuesta","value":"PT20S","type":"string"}]}
+← 201 {"id":"f5afcb27-e5eb-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/process-instances/f5afcb27-e5eb-11f1-9005-028f08623d7d","name":null,"businessKey":"804","businessStatus":null,"suspended":false,"ended":false,"processDefinitionId":"Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionUrl":"http://localhost:8080/flowable-rest/service/repository/process-definitions/Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionName":"Organizar curso de capacitación","processDefinitionDescription":"Modelo ejecutable en Flowable 6.8.0. Los recordatorios se cuentan por versión de propuesta. La fecha programada se obtiene de la propuesta aceptada. La empresa se representa como pool de caja negra; los mensajes internos del subproceso se expresan con tareas de envío/recepción y eventos de mensaje.","activityId":null,"startUserId":"rest-admin","startTime":"2026-11-21T20:41:42.721Z","variables":[{"name":"cursosEnEjecucion","type":"integer","value":0,"scope":"local"},{"name":"empresaId","type":"integer","value":1,"scope":"local"},{"name":"plazoRespuesta","type":"string","value":"PT20S","scope":"local"},{"name":"estadoCurso","type":"string","value":"EN_ACUERDO","scope":"local"},{"name":"Propuesta y presupuesto","value":null,"scope":"local"},{"name":"cursoId","type":"integer","value":804,"scope":"local"},{"name":"viable","type":"boolean","value":true,"scope":"local"},{"name":"Informe de resultados","value":null,"scope":"loca …(148 caracteres más)
+→ POST /runtime/tasks/f5b04070-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+→ POST /runtime/tasks/f5c994da-e5eb-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  ✓ Archivar creada tras 2 recordatorios y un 3er vencimiento (a los 70.5 s, sin intervención)
+  [antes de archivar] variables: {"recordatorios":2,"cursosEnEjecucion":0,"empresaId":1,"resultado":"SIN_RESPUESTA","propuestaVersion":1,"plazoRespuesta":"PT20S","estadoCurso":"EN_ACUERDO","cursoId":804,"Propuesta y presupuesto":null,"viable":true,"Informe de resultados":null}
+  ✔ recordatorios: esperado 2, real 2
+  ✔ resultado: esperado "SIN_RESPUESTA", real "SIN_RESPUESTA"
+  ✔ Recordatorio corrió 2 veces: esperado 2, real 2
+→ POST /runtime/tasks/1ec81e87-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  ✓ proceso terminado (a los 0.0 s, sin intervención)
+  ✔ curso.estado: esperado "SIN_RESPUESTA", real "SIN_RESPUESTA"
+  ✓ correos recibidos: Propuesta de curso (version 1) | Recordatorio (a los 0.0 s, sin intervención)
+  ✔ la empresa recibió la propuesta y los recordatorios: esperado [true,true], real [true,true]
+  ✔ 2 recordatorios por correo: esperado 2, real 2
+
+===== ESCENARIO 5: Límite de cursos en ejecución (no viable) =====
+  [escenario 5] instancias activas de Process_Curso: antes 0, borradas 0, ahora 0
+→ POST /runtime/process-instances
+  {"message":"Solicitud de curso","businessKey":"811","variables":[{"name":"cursoId","value":811,"type":"integer"},{"name":"empresaId","value":1,"type":"integer"}]}
+← 201 {"id":"2013ff7c-e5ec-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/process-instances/2013ff7c-e5ec-11f1-9005-028f08623d7d","name":null,"businessKey":"811","businessStatus":null,"suspended":false,"ended":false,"processDefinitionId":"Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionUrl":"http://localhost:8080/flowable-rest/service/repository/process-definitions/Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionName":"Organizar curso de capacitación","processDefinitionDescription":"Modelo ejecutable en Flowable 6.8.0. Los recordatorios se cuentan por versión de propuesta. La fecha programada se obtiene de la propuesta aceptada. La empresa se representa como pool de caja negra; los mensajes internos del subproceso se expresan con tareas de envío/recepción y eventos de mensaje.","activityId":null,"startUserId":"rest-admin","startTime":"2026-11-21T20:42:53.842Z","variables":[{"name":"cursosEnEjecucion","type":"integer","value":0,"scope":"local"},{"name":"empresaId","type":"integer","value":1,"scope":"local"},{"name":"estadoCurso","type":"string","value":"EN_ACUERDO","scope":"local"},{"name":"Propuesta y presupuesto","value":null,"scope":"local"},{"name":"cursoId","type":"integer","value":811,"scope":"local"},{"name":"viable","type":"boolean","value":true,"scope":"local"},{"name":"Informe de resultados","value":null,"scope":"local"}],"callbackId":null,"callbackType":null,"referenceId":null,"referenceTy …(74 caracteres más)
+→ POST /runtime/process-instances
+  {"message":"Solicitud de curso","businessKey":"812","variables":[{"name":"cursoId","value":812,"type":"integer"},{"name":"empresaId","value":1,"type":"integer"}]}
+← 201 {"id":"203eb918-e5ec-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/process-instances/203eb918-e5ec-11f1-9005-028f08623d7d","name":null,"businessKey":"812","businessStatus":null,"suspended":false,"ended":false,"processDefinitionId":"Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionUrl":"http://localhost:8080/flowable-rest/service/repository/process-definitions/Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionName":"Organizar curso de capacitación","processDefinitionDescription":"Modelo ejecutable en Flowable 6.8.0. Los recordatorios se cuentan por versión de propuesta. La fecha programada se obtiene de la propuesta aceptada. La empresa se representa como pool de caja negra; los mensajes internos del subproceso se expresan con tareas de envío/recepción y eventos de mensaje.","activityId":null,"startUserId":"rest-admin","startTime":"2026-11-21T20:42:54.122Z","variables":[{"name":"cursosEnEjecucion","type":"integer","value":1,"scope":"local"},{"name":"empresaId","type":"integer","value":1,"scope":"local"},{"name":"estadoCurso","type":"string","value":"EN_ACUERDO","scope":"local"},{"name":"Propuesta y presupuesto","value":null,"scope":"local"},{"name":"cursoId","type":"integer","value":812,"scope":"local"},{"name":"viable","type":"boolean","value":true,"scope":"local"},{"name":"Informe de resultados","value":null,"scope":"local"}],"callbackId":null,"callbackType":null,"referenceId":null,"referenceTy …(74 caracteres más)
+→ POST /runtime/process-instances
+  {"message":"Solicitud de curso","businessKey":"813","variables":[{"name":"cursoId","value":813,"type":"integer"},{"name":"empresaId","value":1,"type":"integer"}]}
+← 201 {"id":"20663e64-e5ec-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/process-instances/20663e64-e5ec-11f1-9005-028f08623d7d","name":null,"businessKey":"813","businessStatus":null,"suspended":false,"ended":false,"processDefinitionId":"Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionUrl":"http://localhost:8080/flowable-rest/service/repository/process-definitions/Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionName":"Organizar curso de capacitación","processDefinitionDescription":"Modelo ejecutable en Flowable 6.8.0. Los recordatorios se cuentan por versión de propuesta. La fecha programada se obtiene de la propuesta aceptada. La empresa se representa como pool de caja negra; los mensajes internos del subproceso se expresan con tareas de envío/recepción y eventos de mensaje.","activityId":null,"startUserId":"rest-admin","startTime":"2026-11-21T20:42:54.381Z","variables":[{"name":"cursosEnEjecucion","type":"integer","value":2,"scope":"local"},{"name":"empresaId","type":"integer","value":1,"scope":"local"},{"name":"estadoCurso","type":"string","value":"EN_ACUERDO","scope":"local"},{"name":"Propuesta y presupuesto","value":null,"scope":"local"},{"name":"cursoId","type":"integer","value":813,"scope":"local"},{"name":"viable","type":"boolean","value":true,"scope":"local"},{"name":"Informe de resultados","value":null,"scope":"local"}],"callbackId":null,"callbackType":null,"referenceId":null,"referenceTy …(74 caracteres más)
+→ POST /runtime/process-instances
+  {"message":"Solicitud de curso","businessKey":"814","variables":[{"name":"cursoId","value":814,"type":"integer"},{"name":"empresaId","value":1,"type":"integer"}]}
+← 201 {"id":"208efc30-e5ec-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/process-instances/208efc30-e5ec-11f1-9005-028f08623d7d","name":null,"businessKey":"814","businessStatus":null,"suspended":false,"ended":false,"processDefinitionId":"Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionUrl":"http://localhost:8080/flowable-rest/service/repository/process-definitions/Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionName":"Organizar curso de capacitación","processDefinitionDescription":"Modelo ejecutable en Flowable 6.8.0. Los recordatorios se cuentan por versión de propuesta. La fecha programada se obtiene de la propuesta aceptada. La empresa se representa como pool de caja negra; los mensajes internos del subproceso se expresan con tareas de envío/recepción y eventos de mensaje.","activityId":null,"startUserId":"rest-admin","startTime":"2026-11-21T20:42:54.648Z","variables":[{"name":"cursosEnEjecucion","type":"integer","value":3,"scope":"local"},{"name":"empresaId","type":"integer","value":1,"scope":"local"},{"name":"estadoCurso","type":"string","value":"EN_ACUERDO","scope":"local"},{"name":"Propuesta y presupuesto","value":null,"scope":"local"},{"name":"cursoId","type":"integer","value":814,"scope":"local"},{"name":"viable","type":"boolean","value":true,"scope":"local"},{"name":"Informe de resultados","value":null,"scope":"local"}],"callbackId":null,"callbackType":null,"referenceId":null,"referenceTy …(74 caracteres más)
+→ POST /runtime/process-instances
+  {"message":"Solicitud de curso","businessKey":"815","variables":[{"name":"cursoId","value":815,"type":"integer"},{"name":"empresaId","value":1,"type":"integer"}]}
+← 201 {"id":"20b6335c-e5ec-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/process-instances/20b6335c-e5ec-11f1-9005-028f08623d7d","name":null,"businessKey":"815","businessStatus":null,"suspended":false,"ended":false,"processDefinitionId":"Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionUrl":"http://localhost:8080/flowable-rest/service/repository/process-definitions/Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionName":"Organizar curso de capacitación","processDefinitionDescription":"Modelo ejecutable en Flowable 6.8.0. Los recordatorios se cuentan por versión de propuesta. La fecha programada se obtiene de la propuesta aceptada. La empresa se representa como pool de caja negra; los mensajes internos del subproceso se expresan con tareas de envío/recepción y eventos de mensaje.","activityId":null,"startUserId":"rest-admin","startTime":"2026-11-21T20:42:54.905Z","variables":[{"name":"cursosEnEjecucion","type":"integer","value":4,"scope":"local"},{"name":"empresaId","type":"integer","value":1,"scope":"local"},{"name":"estadoCurso","type":"string","value":"EN_ACUERDO","scope":"local"},{"name":"Propuesta y presupuesto","value":null,"scope":"local"},{"name":"cursoId","type":"integer","value":815,"scope":"local"},{"name":"viable","type":"boolean","value":true,"scope":"local"},{"name":"Informe de resultados","value":null,"scope":"local"}],"callbackId":null,"callbackType":null,"referenceId":null,"referenceTy …(74 caracteres más)
+  [consulta] variables: {"cursosEnEjecucion":4,"empresaId":1,"estadoCurso":"EN_ACUERDO","Propuesta y presupuesto":null,"cursoId":815,"viable":true,"Informe de resultados":null}
+  ✔ la 5ª (4 otras activas) es viable: esperado true, real true
+→ POST /runtime/process-instances
+  {"message":"Solicitud de curso","businessKey":"816","variables":[{"name":"cursoId","value":816,"type":"integer"},{"name":"empresaId","value":1,"type":"integer"}]}
+← 201 {"id":"20de06c8-e5ec-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/process-instances/20de06c8-e5ec-11f1-9005-028f08623d7d","name":null,"businessKey":"816","businessStatus":null,"suspended":false,"ended":true,"processDefinitionId":"Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionUrl":"http://localhost:8080/flowable-rest/service/repository/process-definitions/Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionName":"Organizar curso de capacitación","processDefinitionDescription":"Modelo ejecutable en Flowable 6.8.0. Los recordatorios se cuentan por versión de propuesta. La fecha programada se obtiene de la propuesta aceptada. La empresa se representa como pool de caja negra; los mensajes internos del subproceso se expresan con tareas de envío/recepción y eventos de mensaje.","activityId":null,"startUserId":"rest-admin","startTime":"2026-11-21T20:42:55.166Z","variables":[{"name":"cursosEnEjecucion","type":"integer","value":5,"scope":"local"},{"name":"empresaId","type":"integer","value":1,"scope":"local"},{"name":"resultado","type":"string","value":"NO_VIABLE","scope":"local"},{"name":"Propuesta y presupuesto","value":null,"scope":"local"},{"name":"cursoId","type":"integer","value":816,"scope":"local"},{"name":"viable","type":"boolean","value":false,"scope":"local"},{"name":"Informe de resultados","value":null,"scope":"local"}],"callbackId":null,"callbackType":null,"referenceId":null,"referenceType" …(70 caracteres más)
+  Variables: {"cursoId":816,"cursosEnEjecucion":5,"empresaId":1,"Informe de resultados":null,"Propuesta y presupuesto":null,"resultado":"NO_VIABLE","viable":false}
+  ✔ la 6ª ve 5 otras en ejecución: esperado 5, real 5
+  Variables: {"cursoId":816,"cursosEnEjecucion":5,"empresaId":1,"Informe de resultados":null,"Propuesta y presupuesto":null,"resultado":"NO_VIABLE","viable":false}
+  ✔ la 6ª no es viable: esperado false, real false
+  ✓ 6ª terminada (a los 0.0 s, sin intervención)
+  ✔ terminó sin pasar por Propuesta: esperado false, real false
+  Variables: {"cursoId":816,"cursosEnEjecucion":5,"empresaId":1,"Informe de resultados":null,"Propuesta y presupuesto":null,"resultado":"NO_VIABLE","viable":false}
+  ✔ resultado: esperado "NO_VIABLE", real "NO_VIABLE"
+  ✔ curso.estado (curso vinculado después de terminar la instancia): esperado "NO_VIABLE", real "NO_VIABLE"
+  ✓ correos recibidos: no es posible desarrollarlo (a los 0.0 s, sin intervención)
+  ✔ la empresa recibió el aviso de no viable: esperado [true], real [true]
+
+===== ESCENARIO 6: Cancelación durante la preparación con compensaciones =====
+  [escenario 6] instancias activas de Process_Curso: antes 0, borradas 0, ahora 0
+→ POST /runtime/process-instances
+  {"message":"Solicitud de curso","businessKey":"806","variables":[{"name":"cursoId","value":806,"type":"integer"},{"name":"empresaId","value":1,"type":"integer"}]}
+← 201 {"id":"2144de03-e5ec-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/process-instances/2144de03-e5ec-11f1-9005-028f08623d7d","name":null,"businessKey":"806","businessStatus":null,"suspended":false,"ended":false,"processDefinitionId":"Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionUrl":"http://localhost:8080/flowable-rest/service/repository/process-definitions/Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionName":"Organizar curso de capacitación","processDefinitionDescription":"Modelo ejecutable en Flowable 6.8.0. Los recordatorios se cuentan por versión de propuesta. La fecha programada se obtiene de la propuesta aceptada. La empresa se representa como pool de caja negra; los mensajes internos del subproceso se expresan con tareas de envío/recepción y eventos de mensaje.","activityId":null,"startUserId":"rest-admin","startTime":"2026-11-21T20:42:55.840Z","variables":[{"name":"cursosEnEjecucion","type":"integer","value":0,"scope":"local"},{"name":"empresaId","type":"integer","value":1,"scope":"local"},{"name":"estadoCurso","type":"string","value":"EN_ACUERDO","scope":"local"},{"name":"Propuesta y presupuesto","value":null,"scope":"local"},{"name":"cursoId","type":"integer","value":806,"scope":"local"},{"name":"viable","type":"boolean","value":true,"scope":"local"},{"name":"Informe de resultados","value":null,"scope":"local"}],"callbackId":null,"callbackType":null,"referenceId":null,"referenceTy …(74 caracteres más)
+→ POST /runtime/tasks/21452c3a-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  ✔ Enviar propuesta está asignada a jefeAdmin: esperado "jefeAdmin", real "jefeAdmin"
+→ POST /runtime/tasks/215b2544-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  Timers pendientes: Plazo dueDate=2026-11-26T20:42:56.019Z
+  ✓ espera respuesta (timer Plazo) (a los 0.0 s, sin intervención)
+→ GET /runtime/executions?processInstanceId=2144de03-e5ec-11f1-9005-028f08623d7d&messageEventSubscriptionName=Aceptaci%C3%B3n
+← 200 {"data":[{"id":"21602e5b-e5ec-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/executions/21602e5b-e5ec-11f1-9005-028f08623d7d","parentId":"2144de03-e5ec-11f1-9005-028f08623d7d","parentUrl":"http://localhost:8080/flowable-rest/service/runtime/executions/2144de03-e5ec-11f1-9005-028f08623d7d","superExecutionId":null,"superExecutionUrl":null,"processInstanceId":"2144de03-e5ec-11f1-9005-028f08623d7d","processInstanceUrl":"http://localhost:8080/flowable-rest/service/runtime/process-instances/2144de03-e5ec-11f1-9005-028f08623d7d","suspended":false,"activityId":"Aceptar","tenantId":""}],"total":1,"start":0,"sort":"processInstanceId","order":"asc","size":1}
+→ PUT /runtime/executions/21602e5b-e5ec-11f1-9005-028f08623d7d
+  {"action":"messageEventReceived","messageName":"Aceptación","variables":[{"name":"fechaCurso","value":"2026-11-21T21:42:56Z","type":"string"}]}
+← 204 
+→ POST /runtime/tasks/217208d5-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[{"name":"requiereAula","value":true,"type":"boolean"},{"name":"requierePlataforma","value":true,"type":"boolean"},{"name":"requiereEquipamiento","value":true,"type":"boolean"}]}
+← 200 
+  ✓ Virtual y Equipo creadas (a los 0.0 s, sin intervención)
+→ POST /runtime/tasks/217934de-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+→ GET /runtime/executions?processInstanceId=2144de03-e5ec-11f1-9005-028f08623d7d&messageEventSubscriptionName=Cancelaci%C3%B3n
+← 200 {"data":[{"id":"2171e1b5-e5ec-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/executions/2171e1b5-e5ec-11f1-9005-028f08623d7d","parentId":"2171baa0-e5ec-11f1-9005-028f08623d7d","parentUrl":"http://localhost:8080/flowable-rest/service/runtime/executions/2171baa0-e5ec-11f1-9005-028f08623d7d","superExecutionId":null,"superExecutionUrl":null,"processInstanceId":"2144de03-e5ec-11f1-9005-028f08623d7d","processInstanceUrl":"http://localhost:8080/flowable-rest/service/runtime/process-instances/2144de03-e5ec-11f1-9005-028f08623d7d","suspended":false,"activityId":"Event_1g4xmqo","tenantId":""}],"total":1,"start":0,"sort":"processInstanceId","order":"asc","size":1}
+→ PUT /runtime/executions/2171e1b5-e5ec-11f1-9005-028f08623d7d
+  {"action":"messageEventReceived","messageName":"Cancelación","variables":[]}
+← 200 {"id":"2171e1b5-e5ec-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/executions/2171e1b5-e5ec-11f1-9005-028f08623d7d","parentId":"2171baa0-e5ec-11f1-9005-028f08623d7d","parentUrl":"http://localhost:8080/flowable-rest/service/runtime/executions/2171baa0-e5ec-11f1-9005-028f08623d7d","superExecutionId":null,"superExecutionUrl":null,"processInstanceId":"2144de03-e5ec-11f1-9005-028f08623d7d","processInstanceUrl":"http://localhost:8080/flowable-rest/service/runtime/process-instances/2144de03-e5ec-11f1-9005-028f08623d7d","suspended":false,"activityId":"Event_1g4xmqo","tenantId":""}
+  ✓ Liberar Equipamiento creada (a los 0.0 s, sin intervención)
+  [tras cancelar] variables: {"requiereAula":true,"recordatorios":0,"cursosEnEjecucion":0,"requierePlataforma":true,"empresaId":1,"resultado":"CANCELADO","propuestaVersion":1,"aulaAsignada":"Aula Magna Principal","requiereEquipamiento":true,"motivoCancelacion":"EMPRESA","fechaCurso":"2026-11-21T21:42:56Z","aulaLiberada":true,"estadoCurso":"CANCELADO","cursoId":806,"Propuesta y presupuesto":null,"viable":true,"Informe de resultados":null}
+  ✔ Liberar Aula corrió (aula gestionada): esperado true, real true
+  ✔ Liberar Aula Virtual NO corrió (nunca se completó): esperado undefined, real undefined
+  ✔ motivoCancelacion: esperado "EMPRESA", real "EMPRESA"
+  ✔ estadoCurso: esperado "CANCELADO", real "CANCELADO"
+  ✔ la tarea Virtual pendiente fue interrumpida: esperado false, real false
+  ✓ tarea de pausa Confirmar liberación (a los 0.0 s, sin intervención)
+  ✔ la pausa es de jefeAdmin: esperado "jefeAdmin", real "jefeAdmin"
+  ✔ Notificar Cierre espera a las compensaciones: esperado false, real false
+  ✔ Liberar Equipamiento creada y sólo la del equipamiento gestionado: esperado true, real true
+→ POST /runtime/tasks/218a9a1c-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+→ POST /runtime/tasks/218ac130-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  ✓ proceso terminado (a los 0.0 s, sin intervención)
+  ✔ Notificar Cierre corrió después: esperado true, real true
+  ✔ curso.estado: esperado "CANCELADO", real "CANCELADO"
+  ✓ correos recibidos: Cierre de la solicitud (a los 0.0 s, sin intervención)
+  ✔ aviso de cierre por correo: esperado [true], real [true]
+
+===== ESCENARIO 7: Falta de aulas y excepción =====
+  [escenario 7] instancias activas de Process_Curso: antes 0, borradas 0, ahora 0
+→ POST /runtime/process-instances
+  {"message":"Solicitud de curso","businessKey":"807","variables":[{"name":"cursoId","value":807,"type":"integer"},{"name":"empresaId","value":1,"type":"integer"},{"name":"simularFaltaAulas","value":true,"type":"boolean"}]}
+← 201 {"id":"21e7120e-e5ec-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/process-instances/21e7120e-e5ec-11f1-9005-028f08623d7d","name":null,"businessKey":"807","businessStatus":null,"suspended":false,"ended":false,"processDefinitionId":"Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionUrl":"http://localhost:8080/flowable-rest/service/repository/process-definitions/Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionName":"Organizar curso de capacitación","processDefinitionDescription":"Modelo ejecutable en Flowable 6.8.0. Los recordatorios se cuentan por versión de propuesta. La fecha programada se obtiene de la propuesta aceptada. La empresa se representa como pool de caja negra; los mensajes internos del subproceso se expresan con tareas de envío/recepción y eventos de mensaje.","activityId":null,"startUserId":"rest-admin","startTime":"2026-11-21T20:42:56.903Z","variables":[{"name":"cursosEnEjecucion","type":"integer","value":0,"scope":"local"},{"name":"empresaId","type":"integer","value":1,"scope":"local"},{"name":"simularFaltaAulas","type":"boolean","value":true,"scope":"local"},{"name":"estadoCurso","type":"string","value":"EN_ACUERDO","scope":"local"},{"name":"Propuesta y presupuesto","value":null,"scope":"local"},{"name":"cursoId","type":"integer","value":807,"scope":"local"},{"name":"viable","type":"boolean","value":true,"scope":"local"},{"name":"Informe de resultados","value":null,"scope":"loc …(149 caracteres más)
+→ POST /runtime/tasks/21e78757-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  ✔ Enviar propuesta está asignada a jefeAdmin: esperado "jefeAdmin", real "jefeAdmin"
+→ POST /runtime/tasks/22003f81-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  Timers pendientes: Plazo dueDate=2026-11-26T20:42:57.115Z
+  ✓ espera respuesta (timer Plazo) (a los 0.0 s, sin intervención)
+→ GET /runtime/executions?processInstanceId=21e7120e-e5ec-11f1-9005-028f08623d7d&messageEventSubscriptionName=Aceptaci%C3%B3n
+← 200 {"data":[{"id":"22074468-e5ec-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/executions/22074468-e5ec-11f1-9005-028f08623d7d","parentId":"21e7120e-e5ec-11f1-9005-028f08623d7d","parentUrl":"http://localhost:8080/flowable-rest/service/runtime/executions/21e7120e-e5ec-11f1-9005-028f08623d7d","superExecutionId":null,"superExecutionUrl":null,"processInstanceId":"21e7120e-e5ec-11f1-9005-028f08623d7d","processInstanceUrl":"http://localhost:8080/flowable-rest/service/runtime/process-instances/21e7120e-e5ec-11f1-9005-028f08623d7d","suspended":false,"activityId":"Aceptar","tenantId":""}],"total":1,"start":0,"sort":"processInstanceId","order":"asc","size":1}
+→ PUT /runtime/executions/22074468-e5ec-11f1-9005-028f08623d7d
+  {"action":"messageEventReceived","messageName":"Aceptación","variables":[{"name":"fechaCurso","value":"2026-11-21T21:42:57Z","type":"string"}]}
+← 204 
+→ POST /runtime/tasks/221156b2-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[{"name":"requiereAula","value":true,"type":"boolean"},{"name":"requierePlataforma","value":true,"type":"boolean"},{"name":"requiereEquipamiento","value":false,"type":"boolean"}]}
+← 200 
+  ✔ completar Evaluar recursos responde 200 (el error se atrapa): esperado 200, real 200
+  ✓ tarea de pausa Confirmar liberación (a los 0.0 s, sin intervención)
+→ POST /runtime/tasks/2216d415-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  ✓ proceso terminado (a los 0.0 s, sin intervención)
+  ✔ se disparó el subproceso de eventos de error: esperado true, real true
+  ✔ pasó por Notificar Cierre: esperado true, real true
+  Variables: {"cursoId":807,"cursosEnEjecucion":0,"empresaId":1,"estadoCurso":"CANCELADO","fechaCurso":"2026-11-21T21:42:57Z","Informe de resultados":null,"Lista definitiva":null,"motivoCancelacion":"SIN_AULAS","propuestaVersion":1,"Propuesta y presupuesto":null,"recordatorios":0,"requiereAula":true,"requiereEquipamiento":false,"requierePlataforma":true,"resultado":"CANCELADO","simularFaltaAulas":true,"viable":true}
+  ✔ motivoCancelacion: esperado "SIN_AULAS", real "SIN_AULAS"
+  ✔ resultado: esperado "CANCELADO", real "CANCELADO"
+  ✔ no se liberó nada que no se gestionó: esperado [null,null], real [null,null]
+  ✔ curso.estado: esperado "CANCELADO", real "CANCELADO"
+  ✔ estadoCurso: esperado "CANCELADO", real "CANCELADO"
+  ✓ correos recibidos: Cierre de la solicitud (a los 0.0 s, sin intervención)
+  ✔ aviso de cierre por correo: esperado [true], real [true]
+
+===== ESCENARIO 11: Materiales por API Java + comunicaciones por API REST (CLI) =====
+  [escenario 11] instancias activas de Process_Curso: antes 0, borradas 0, ahora 0
+→ POST /runtime/process-instances
+  {"message":"Solicitud de curso","businessKey":"811","variables":[{"name":"cursoId","value":811,"type":"integer"},{"name":"empresaId","value":1,"type":"integer"}]}
+← 201 {"id":"2270db01-e5ec-11f1-9005-028f08623d7d","url":"http://localhost:8080/flowable-rest/service/runtime/process-instances/2270db01-e5ec-11f1-9005-028f08623d7d","name":null,"businessKey":"811","businessStatus":null,"suspended":false,"ended":false,"processDefinitionId":"Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionUrl":"http://localhost:8080/flowable-rest/service/repository/process-definitions/Process_Curso:4:db133458-e5eb-11f1-9005-028f08623d7d","processDefinitionName":"Organizar curso de capacitación","processDefinitionDescription":"Modelo ejecutable en Flowable 6.8.0. Los recordatorios se cuentan por versión de propuesta. La fecha programada se obtiene de la propuesta aceptada. La empresa se representa como pool de caja negra; los mensajes internos del subproceso se expresan con tareas de envío/recepción y eventos de mensaje.","activityId":null,"startUserId":"rest-admin","startTime":"2026-11-21T20:42:57.806Z","variables":[{"name":"cursosEnEjecucion","type":"integer","value":0,"scope":"local"},{"name":"empresaId","type":"integer","value":1,"scope":"local"},{"name":"estadoCurso","type":"string","value":"EN_ACUERDO","scope":"local"},{"name":"Propuesta y presupuesto","value":null,"scope":"local"},{"name":"cursoId","type":"integer","value":811,"scope":"local"},{"name":"viable","type":"boolean","value":true,"scope":"local"},{"name":"Informe de resultados","value":null,"scope":"local"}],"callbackId":null,"callbackType":null,"referenceId":null,"referenceTy …(74 caracteres más)
+→ POST /runtime/tasks/22712938-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+→ POST /runtime/tasks/22880ca2-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  Timers pendientes: Plazo dueDate=2026-11-26T20:42:57.990Z
+  ✓ espera respuesta (a los 0.0 s, sin intervención)
+  ✔ CLI antes de aceptar ofrece Aceptar, Rechazar y Pedir modificaciones: esperado true, real true
+  ✔ CLI antes de aceptar NO ofrece Nómina ni Cancelar: esperado false, real false
+  ✔ CLI tras aceptar ofrece Nómina y Cancelar, y ya no Aceptar: esperado [true,true,false], real [true,true,false]
+  ✔ CLI informó los dos envíos: esperado 2, real 2
+  [consulta] variables: {"recordatorios":0,"cursosEnEjecucion":0,"empresaId":1,"fechaCurso":"2026-11-21T21:42:58Z","propuestaVersion":1,"estadoCurso":"EN_PREPARACION","Propuesta y presupuesto":null,"cursoId":811,"viable":true,"Informe de resultados":null,"participantes":"[\"Ana\",\"Beto\",\"Carla\"]"}
+  ✔ fechaCurso llegó a la instancia: esperado "string", real "string"
+  [consulta] variables: {"recordatorios":0,"cursosEnEjecucion":0,"empresaId":1,"fechaCurso":"2026-11-21T21:42:58Z","propuestaVersion":1,"estadoCurso":"EN_PREPARACION","Propuesta y presupuesto":null,"cursoId":811,"viable":true,"Informe de resultados":null,"participantes":"[\"Ana\",\"Beto\",\"Carla\"]"}
+  ✔ participantes llegaron a la instancia: esperado "[\"Ana\",\"Beto\",\"Carla\"]", real "[\"Ana\",\"Beto\",\"Carla\"]"
+  ✓ Lista creada (a los 0.0 s, sin intervención)
+→ POST /runtime/tasks/22fca099-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+→ POST /runtime/tasks/22f77073-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[{"name":"requiereAula","value":false,"type":"boolean"},{"name":"requierePlataforma","value":true,"type":"boolean"},{"name":"requiereEquipamiento","value":false,"type":"boolean"}]}
+← 200 
+  ✓ Virtual creada (a los 0.0 s, sin intervención)
+→ POST /runtime/tasks/233f00db-e5ec-11f1-9005-028f08623d7d
+  {"action":"complete","variables":[]}
+← 200 
+  [app Java] listar docente1 → OK 0 tareas
+  ✔ docente1 (otro grupo) no ve la tarea: esperado "OK 0 tareas", real "OK 0 tareas"
+  [app Java] listar admin2 → OK 1 tareas | TAREA 22f77070-e5ec-11f1-9005-028f08623d7d instancia=2270db01-e5ec-11f1-9005-028f08623d7d asignada=null
+  ✔ admin2 ve 1 tarea Preparar materiales: esperado "OK 1 tareas", real "OK 1 tareas"
+  [app Java] completar admin2 22f77070-e5ec-11f1-9005-028f08623d7d → ERROR IllegalStateException: Solo puede completar la tarea quien la tiene asignada. Reclamala primero.
+  ✔ no se puede completar sin reclamar: esperado false, real false
+  [app Java] reclamar docente1 22f77070-e5ec-11f1-9005-028f08623d7d → ERROR IllegalStateException: La tarea no esta disponible para el usuario docente1 ni para sus grupos.
+  ✔ docente1 no puede reclamarla: esperado false, real false
+  [app Java] listar admin2 → ERROR autenticacion rechazada para admin2
+  ✔ clave incorrecta rechazada: esperado false, real false
+  [app Java] reclamar admin2 22f77070-e5ec-11f1-9005-028f08623d7d → OK reclamada 22f77070-e5ec-11f1-9005-028f08623d7d
+  ✔ admin2 reclama: esperado true, real true
+  [app Java] listar jefeAdmin → OK 0 tareas
+  ✔ jefeAdmin ya no la ve como disponible: esperado "OK 0 tareas", real "OK 0 tareas"
+  [app Java] completar jefeAdmin 22f77070-e5ec-11f1-9005-028f08623d7d → ERROR IllegalStateException: Solo puede completar la tarea quien la tiene asignada. Reclamala primero.
+  ✔ jefeAdmin no puede completar la de otro: esperado false, real false
+  [app Java] completar admin2 22f77070-e5ec-11f1-9005-028f08623d7d → OK completada 22f77070-e5ec-11f1-9005-028f08623d7d
+  ✔ admin2 completa: esperado true, real true
+  ✓ la preparación terminó y el proceso llegó a Definir docente (a los 0.0 s, sin intervención)
+  ✔ Confirmar corrió dentro del motor de la app Java: esperado true, real true
+  [final] instancias activas de Process_Curso: antes 0, borradas 0, ahora 0
+Limpieza: despliegues que quedan en Flowable: ["Demo processes"]
+
+================ RESUMEN ================
+PASS  Escenario  1  Aceptación y finalización normal con liberación de recursos  (43 s)  [resultado=FINALIZADO, curso.estado=FINALIZADO]
+PASS  Escenario  2  Solicitud de modificaciones y nueva propuesta  (1 s)  [propuestaVersion=2]
+PASS  Escenario  3  Rechazo de la propuesta  (1 s)  [curso.estado=RECHAZADO]
+PASS  Escenario  4  Cierre por falta de respuesta (recordatorios)  (71 s)  [curso.estado=SIN_RESPUESTA]
+PASS  Escenario  5  Límite de cursos en ejecución (no viable)  (2 s)  [curso.estado=NO_VIABLE]
+PASS  Escenario  6  Cancelación durante la preparación con compensaciones  (1 s)  [curso.estado=CANCELADO]
+PASS  Escenario  7  Falta de aulas y excepción  (1 s)  [curso.estado=CANCELADO, motivo=SIN_AULAS]
+PASS  Escenario 11  Materiales por API Java + comunicaciones por API REST (CLI)  (27 s)
+Correos recibidos en total: 15
+Escenarios 8, 9 y 10: manuales (docs/revisiones-manuales.md).
+Log completo guardado en: /home/amadeo/0_Workspace/procesos_negocios/proyecto/proyecto-bpmn/scripts/escenarios/resultados/m-escenarios.log

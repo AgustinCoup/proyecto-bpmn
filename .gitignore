@@ -4,6 +4,14 @@ target/
 # Dependencias de Node del sitio web
 node_modules/
 
+# Entorno virtual y caché de Python de la minería (README, sección 12)
+mineria/**/.venv/
+mineria/**/__pycache__/
+
+# Salidas locales del recorrido automático de escenarios (logs, despliegues, classpath).
+# Se versiona sólo el log de la corrida entregada, citado en docs/informe.md.
+scripts/escenarios/**/resultados/*
+!scripts/escenarios/resultados/m-escenarios.log
 
 # Archivos de IDE y del sistema operativo
 .idea/
