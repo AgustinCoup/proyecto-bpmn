@@ -52,7 +52,7 @@ Datos: solicitudes A y B de la misma empresa; aceptación de ambas y cancelació
 | 10.3 | Segunda solicitud (B) de la misma empresa: dos instancias esperando respuesta | Conforme | curso B = 3 |
 | 10.4 | Hay solicitudes activas para que la empresa responda (A y B) | Conforme | instancias activas=2 (comunicaciones por API REST, mismas llamadas que el simulador) |
 | 10.5 | Fecha de inicio futura en formato ISO 8601 UTC | Conforme | 2026-11-20T14:27:53Z |
-| 10.6 | Aceptación de A: se crea la cuenta emp_30722334456 de la empresa 2 | Conforme | 2\|emp_30722334456 |
+| 10.6 | Aceptación de A: se crea la cuenta emp_30722334457 de la empresa 2 | Conforme | 2\|emp_30722334457 |
 | 10.7 | Aceptación de B: la empresa 2 sigue con una sola cuenta (se reutiliza) | Conforme | — |
 | 10.8 | La empresa 2 ve "Mis cursos" con exactamente sus dos cursos y no el curso 1 | Conforme | filas=2 |
 | 10.9 | Detalle de B: datos del curso, estado EN_PREPARACION y varias actividades en paralelo | Conforme | Preparar materiales, Evaluar Recursos, Preparar curso, Recibir Cancelacion, Recibir nomina, Volver |

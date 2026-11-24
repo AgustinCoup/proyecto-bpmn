@@ -139,7 +139,7 @@ Todas las claves son `test`.
 | Jefe del equipo docente | `jefeDocente` | `docentes` | http://localhost:3000/docentes/login |
 | Docentes | `docente1`, `docente2` | `docentes` | http://localhost:3000/docentes/login |
 | Empresa 1 (con cuenta desde el inicio) | `emp_30711223343` | — | http://localhost:3000/empresa/login |
-| Empresa 2 (la cuenta se crea al aceptar una propuesta) | `emp_30722334456` | — | http://localhost:3000/empresa/login |
+| Empresa 2 (la cuenta se crea al aceptar una propuesta) | `emp_30722334457` | — | http://localhost:3000/empresa/login |
 | Cualquier visitante | — | — | http://localhost:3000/solicitar |
 | Administrador de la interfaz de Flowable | `admin` (también los usuarios de arriba) | — | http://localhost:8081/flowable-ui |
 | Usuario de servicio de la API REST | `rest-admin` | — | http://localhost:8080/flowable-rest/docs/ (Swagger) |
@@ -178,7 +178,7 @@ Debe mostrar `Web institucion escuchando en http://localhost:3000`.
 |---|---|---|
 | Solicitud pública | `/solicitar` | Registra la empresa y el curso e inicia la instancia del proceso |
 | Empresas | `/empresa` | Cursos de la empresa, estado y actividades en curso (incluidas las paralelas) |
-| Administración | `/admin` | Tareas del grupo `administracion`: propuesta, envío, revisión, archivo, lista definitiva, evaluación de recursos, envío del informe |
+| Administración | `/admin` | Tareas del grupo `administracion`: propuesta, envío, revisión, archivo, lista definitiva, evaluación de recursos, envío del informe y confirmación de la liberación de recursos tras una cancelación o falta de aulas |
 | Equipo docente | `/docentes` | Definir docente, desarrollar curso, elaborar informe (genera el PDF) |
 
 **Campos de prueba:** el formulario de solicitud muestra, en modo desarrollo (`DEV_MODE`, activo por defecto), dos campos opcionales:
@@ -415,7 +415,7 @@ node scripts/escenarios/m-aceptacion-sin-fecha.js     # reproduce el error de un
 - Al terminar deja en Flowable solo "Demo processes": hay que volver a ejecutar `desplegar-modelo` para seguir usando el proceso. Con `--conservar` no hace falta.
 - **Resultado:**
   - código de salida 0 si todos los escenarios dan PASS;
-  - log completo en `scripts/escenarios/resultados/m-escenarios.log`;
+  - log completo en `scripts/escenarios/resultados/m-escenarios.log` (se reescribe en cada corrida; el del repositorio es el de la corrida entregada);
   - las líneas `✔`/`✘` son las verificaciones, y el bloque `RESUMEN` da el resultado por escenario.
 - El escenario 11 ejecuta el simulador real con entrada guionada y la lógica de la app de escritorio (`ServicioTareas`) sin interfaz, mediante `m-MaterialesApiJava.java`.
 
@@ -444,6 +444,8 @@ node scripts/escenarios/m-aceptacion-sin-fecha.js     # reproduce el error de un
 | Error al solicitar, en *Evaluar Viabilidad* | La regla DMN no está desplegada: ejecutar `desplegar-modelo` |
 | Una solicitud nueva queda `NO_VIABLE` | Hay 5 o más instancias activas: `node scripts/escenarios/m-limpiar-instancias.js` |
 | *Definir docente* no se puede completar | La aceptación se envió sin `fechaCurso` |
+| *Confirmar liberación de recursos* aparece deshabilitada | Queda abierta *Liberar Equipamiento*: completarla primero en la interfaz de Flowable (sección 9) |
+| Un curso cancelado sigue `EN_PROCESO` en la BD | Falta completar *Confirmar liberación de recursos* en `/admin` con `jefeAdmin`: la instancia termina recién entonces |
 | El temporizador de la fecha no vence | La fecha no está en UTC o está lejos; generarla como en la sección 7 |
 | La app de escritorio no muestra tareas | El proceso aún no llegó a la preparación, o el usuario no es del grupo `administracion`; usar **Actualizar** |
 | La app de escritorio no conecta (`TimeZone`) | Ya está resuelto en el código; verificar `FLOWABLE_DB_USER` y `FLOWABLE_DB_PASSWORD` |
