@@ -1,0 +1,239 @@
+0. ANTES DE LA DEFENSA (una sola vez, en este orden)
+
+0.1 Docker abierto. Compilar el JAR y levantar contenedores
+mvn package -DskipTests
+SMTP_PORT=2525 docker compose up -d
+docker compose ps
+
+0.2 Solo la primera vez (o tras "docker compose down -v")
+chmod +x scripts/*.sh
+./scripts/crear-usuarios.sh
+./scripts/crear-bd.sh
+Si da "bad interpreter" o $'\r' (finales de linea de Windows):
+sed -i 's/\r$//' scripts/*.sh
+
+0.3 Verificar que todo anda (8 de 8 PASS, ~4 min). OJO: deja Flowable SIN modelo
+export SMTP_PORT=2525
+node scripts/escenarios/m-escenarios.js
+
+0.4 Desplegar DMN + modelo
+./scripts/desplegar-modelo.sh
+
+0.5 Historial para 4.3 y 4.4 (55 instancias, ~4 min). Deja el modelo desplegado
+node mineria/generar_historial.js
+
+0.6 Dejar Flowable sin instancias activas (cuentan para el limite de 5)
+node scripts/escenarios/m-limpiar-instancias.js
+
+0.7 Si recompilaste Java:
+mvn package -DskipTests
+docker compose restart flowable-rest flowable-ui
+
+
+1. TERMINALES DE LA DEMO (una terminal por cosa; quedan abiertas)
+
+---- Terminal A: correo de prueba (puerto 2525) ----
+node scripts/escenarios/m-smtp-sumidero.js 2525
+
+---- Terminal B: sitio web (http://localhost:3000) ----
+cd web
+npm install
+export SESSION_SECRET="un-texto-largo-cualquiera"
+npm start
+
+---- Terminal C: simulador de la empresa (CLI, API REST) ----
+export FLOWABLE_REST_USER=jefeAdmin
+export FLOWABLE_REST_PASSWORD=test
+mvn -q exec:java -Dexec.mainClass=unrc.cursos.simulador.SimuladorMain
+
+---- Terminal D: app de escritorio "Preparar materiales" (API Java, Swing) ----
+export FLOWABLE_DB_USER=flowable
+export FLOWABLE_DB_PASSWORD=flowable
+mvn -q exec:java -Dexec.mainClass=unrc.cursos.escritorio.AppMateriales
+
+---- Terminal E: libre para comandos sueltos (fechas, limpieza, logs) ----
+
+Fecha acordada 3 minutos en el futuro (UTC, ISO 8601) -> para "Aceptar" en el simulador
+date -u -d '+3 minutes' +%Y-%m-%dT%H:%M:%SZ
+
+Fecha acordada lejana (1 hora) -> para cancelacion / falta de aulas (que no venza el timer)
+date -u -d '+1 hour' +%Y-%m-%dT%H:%M:%SZ
+
+Ver los avisos por correo que mando el proceso
+docker logs flowable-rest 2>&1 | grep Aviso
+
+Entre un escenario y otro (borra las instancias activas de Process_Curso)
+node scripts/escenarios/m-limpiar-instancias.js
+
+
+URLs Y USUARIOS (clave de todos: test)
+Sitio publico (solicitud) ...... http://localhost:3000/solicitar
+Administracion ................. http://localhost:3000/admin/login        jefeAdmin / admin2
+Equipo docente ................. http://localhost:3000/docentes/login     jefeDocente / docente1 / docente2
+Empresa ........................ http://localhost:3000/empresa/login      emp_30711223343 (empresa 1)
+                                                                           emp_30722334456 (empresa 2, se crea al aceptar)
+Flowable UI .................... http://localhost:8081/flowable-ui        admin / test  (o admin2 / test)
+Swagger REST ................... http://localhost:8080/flowable-rest/docs/ rest-admin / test
+CUIT valido de prueba: 30-72233445-7 (empresa 2)
+Campos de prueba del formulario /solicitar: plazoRespuesta (ej. PT20S) y simularFaltaAulas (si/no)
+
+
+ESCENARIO 9 - Solicitud desde el sitio web e inicio de la instancia
+- Navegador: http://localhost:3000/solicitar -> completar y enviar (probar antes vacio y CUIT invalido)
+- Navegador: /admin/login como jefeAdmin -> aparece "Registrar y Elaborar propuesta"
+- Comprobar la BD (curso EN_PROCESO con process_instance_id):
+docker compose exec -T postgres psql -U institucion -d institucion -c "select id, empresa_id, estado, process_instance_id from curso order by id;"
+
+
+ESCENARIO 5 - Limite de cursos en ejecucion (NO VIABLE)
+- Opcion A (automatica, ~1 min). Cerrar antes la Terminal A (el script abre su propio SMTP en el mismo puerto)
+SMTP_PORT=2525 node scripts/escenarios/m-escenarios.js --solo=5 --conservar
+
+- Opcion B (en vivo): crear 5 instancias activas y la 6ta desde el sitio
+node scripts/escenarios/m-limpiar-instancias.js
+for i in 1 2 3 4 5; do id=$((900+i)); docker compose exec -T postgres psql -U institucion -d institucion -c "delete from curso where id=$id; insert into curso (id, empresa_id, tematica, descripcion, cantidad_participantes, fechas_preferidas) values ($id, 1, 'Demo limite', 'x', 10, 'pronto');"; curl -s -u rest-admin:test -H "Content-Type: application/json" -d "{\"message\":\"Solicitud de curso\",\"businessKey\":\"$id\",\"variables\":[{\"name\":\"cursoId\",\"value\":$id},{\"name\":\"empresaId\",\"value\":1}]}" http://localhost:8080/flowable-rest/service/runtime/process-instances > /dev/null; done
+- Navegador: http://localhost:3000/solicitar -> enviar la 6ta solicitud -> queda NO_VIABLE (ver Flowable UI y la BD)
+docker compose exec -T postgres psql -U institucion -d institucion -c "select id, estado from curso order by id;"
+- Al terminar:
+node scripts/escenarios/m-limpiar-instancias.js
+
+
+ESCENARIO 2 - Solicitud de modificaciones y nueva propuesta (x2)
+- Navegador: /solicitar -> enviar solicitud
+- Navegador: jefeAdmin en /admin -> completar "Registrar y Elaborar propuesta" -> completar "Enviar propuesta"
+- Terminal C (simulador): elegir la solicitud -> "Pedir modificaciones" (escribir observaciones)
+- Navegador: jefeAdmin -> "Revisar propuesta" (completar) -> "Enviar propuesta" otra vez (version 2)
+- Terminal C: repetir "Pedir modificaciones" -> revisar -> enviar (version 3). El contador de recordatorios vuelve a 0
+- Automatico:
+SMTP_PORT=2525 node scripts/escenarios/m-escenarios.js --solo=2 --conservar
+
+
+ESCENARIO 3 - Rechazo de la propuesta
+- Navegador: /solicitar -> enviar; jefeAdmin completa "Propuesta" y "Enviar propuesta"
+- Terminal C (simulador): elegir la solicitud -> "Rechazar la propuesta" (confirmar con s)
+- Navegador: jefeAdmin -> "Archivar" (completar). curso.estado = RECHAZADO
+docker compose exec -T postgres psql -U institucion -d institucion -c "select id, estado from curso order by id;"
+- Automatico:
+SMTP_PORT=2525 node scripts/escenarios/m-escenarios.js --solo=3 --conservar
+
+
+ESCENARIO 4 - Cierre por falta de respuesta (recordatorios)
+- Navegador: /solicitar -> en el campo plazoRespuesta poner  PT20S  -> enviar
+- Navegador: jefeAdmin completa "Propuesta" y "Enviar propuesta"; NO responder con el simulador
+- Esperar ~1 minuto: se mandan 2 recordatorios y a la 3ra espera aparece "Archivar" para jefeAdmin
+docker logs flowable-rest 2>&1 | grep Aviso
+- Navegador: jefeAdmin -> "Archivar". curso.estado = SIN_RESPUESTA
+- Automatico (~2 min):
+SMTP_PORT=2525 node scripts/escenarios/m-escenarios.js --solo=4 --conservar
+
+
+ESCENARIO 1 - Aceptacion, curso completo y liberacion de recursos
+node scripts/escenarios/m-limpiar-instancias.js
+- Navegador: /solicitar (empresa 2, CUIT 30-72233445-7) -> enviar
+- Navegador: jefeAdmin -> completar "Propuesta" y "Enviar propuesta"
+- Generar la fecha (3 minutos adelante) y copiarla:
+date -u -d '+3 minutes' +%Y-%m-%dT%H:%M:%SZ
+- Terminal C (simulador): elegir solicitud -> "Aceptar la propuesta" -> pegar la fecha
+  - (se crea la cuenta emp_30722334456 de la empresa 2)
+- Terminal C: "Enviar nomina" -> pegar:
+["Ana","Beto","Carla"]
+- Navegador: se crea "Confeccionar lista definitiva" ya asignada por el listener (al menos cargado) -> el asignado la completa
+- Terminal D (app Swing): ingresar admin2 / test -> Actualizar -> Reclamar tarea -> Completar tarea ("Preparar materiales")
+- Navegador: /admin -> Reclamar y completar "Evaluar Recursos" marcando aula fisica, aula virtual y equipamiento
+- Flowable UI (http://localhost:8081/flowable-ui, admin2 / test, app Tasks): reclamar y completar
+  - "Solicitar Aula Virtual" y "Contratar equipamiento"
+- Navegador: jefeDocente -> "Definir docente" (elegir docente1)  -> la empresa ve CONFIRMADO_PENDIENTE_INICIO
+- Esperar a que venza la fecha (3 min): docente1 en /docentes -> "Desarrollar curso" (completar)
+- Navegador: jefeDocente -> "Elaborar informe" (genera el PDF)
+- Navegador: jefeAdmin -> "Enviar informe"
+- Flowable UI: reclamar y completar "Liberar Equipamiento" -> la instancia termina, curso FINALIZADO
+docker compose exec -T postgres psql -U institucion -d institucion -c "select id, estado from curso order by id;"
+docker logs flowable-rest 2>&1 | grep Aviso
+- Automatico (~3 min):
+SMTP_PORT=2525 node scripts/escenarios/m-escenarios.js --solo=1 --conservar
+
+
+ESCENARIO 6 - Cancelacion durante la preparacion (compensaciones parciales)
+node scripts/escenarios/m-limpiar-instancias.js
+- /solicitar -> enviar; jefeAdmin completa "Propuesta" y "Enviar propuesta"
+- Fecha lejana (1 hora):
+date -u -d '+1 hour' +%Y-%m-%dT%H:%M:%SZ
+- Terminal C: "Aceptar la propuesta" con esa fecha
+- /admin: reclamar y completar "Evaluar Recursos" con las TRES opciones
+- Flowable UI: completar SOLO "Contratar equipamiento" (dejar "Solicitar Aula Virtual" sin hacer)
+- Terminal C: "Cancelar durante la preparacion"
+- Se compensa solo lo gestionado (aula fisica y equipamiento; NO el aula virtual)
+- Flowable UI: completar "Liberar Equipamiento"
+- /admin (jefeAdmin): "Confirmar liberacion de recursos" -> curso CANCELADO
+  - (si se intenta antes de liberar el equipamiento, el sitio avisa)
+docker compose exec -T postgres psql -U institucion -d institucion -c "select id, estado from curso order by id;"
+- Automatico:
+SMTP_PORT=2525 node scripts/escenarios/m-escenarios.js --solo=6 --conservar
+- Recorrido del sitio contra Flowable real (desde web/):
+- cd web && node tests/e2e/pausa-cancelacion.e2e.js && cd ..
+
+
+ESCENARIO 7 - Falta de aulas y excepcion
+node scripts/escenarios/m-limpiar-instancias.js
+- /solicitar -> en simularFaltaAulas elegir "si" -> enviar
+- jefeAdmin completa "Propuesta" y "Enviar propuesta"
+- Terminal C: "Aceptar la propuesta" con la fecha lejana (1 hora)
+- /admin: reclamar y completar "Evaluar Recursos" marcando AULA FISICA (con o sin las demas)
+- Se dispara el error "falta de aulas": aparece "Confirmar liberacion de recursos" (jefeAdmin) -> completarla
+- La instancia termina; curso CANCELADO (motivo SIN_AULAS)
+docker compose exec -T postgres psql -U institucion -d institucion -c "select id, estado from curso order by id;"
+- Automatico:
+SMTP_PORT=2525 node scripts/escenarios/m-escenarios.js --solo=7 --conservar
+
+
+4.3 - CONSULTAS SOBRE EL HISTORIAL (requiere el historial de 0.5)
+- Opcion 1: app Swing (Terminal D) -> boton "Analisis del historial"
+- Opcion 2: por consola
+mvn -q dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
+export FLOWABLE_DB_USER=flowable FLOWABLE_DB_PASSWORD=flowable
+java -cp "target/classes:$(cat target/classpath.txt)" unrc.cursos.analisis.AnalisisMain
+- Salida entregada para comparar:
+cat mineria/resultados-4.3.txt
+
+
+4.4 - MINERIA DE PROCESOS (PM4Py)
+- Requiere: sudo apt install python3-venv graphviz
+cd mineria
+python3 -m venv .venv
+source .venv/bin/activate
+pip install pm4py pandas requests
+export FLOWABLE_USER=rest-admin FLOWABLE_PASSWORD=test
+python exportar_history.py
+python analizar.py
+- Salidas: eventos.csv, resultados.txt, recorridos.png, modelo_descubierto.png / .bpmn, conclusion.md
+cd ..
+- (Si el entorno virtual ya esta creado: cd mineria; source .venv/bin/activate; python exportar_history.py; python analizar.py)
+
+
+RECORRIDO AUTOMATICO COMPLETO (escenarios 1-7 y 11, ~4 min)
+- Cerrar antes la Terminal A (SMTP). Al terminar Flowable queda SIN modelo -> volver a desplegar:
+SMTP_PORT=2525 node scripts/escenarios/m-escenarios.js
+./scripts/desplegar-modelo.sh
+- Variante que NO borra el modelo al terminar:
+SMTP_PORT=2525 node scripts/escenarios/m-escenarios.js --conservar
+
+
+EMERGENCIAS
+Una solicitud nueva sale NO_VIABLE sin motivo -> hay 5 o mas instancias activas:
+node scripts/escenarios/m-limpiar-instancias.js
+Error al solicitar en "Evaluar Viabilidad" -> falta el DMN/modelo:
+./scripts/desplegar-modelo.sh
+Volver a los datos de prueba de la BD:
+./scripts/crear-bd.sh
+flowable-ui en Exited(1) en el primer arranque:
+SMTP_PORT=2525 docker compose up -d
+target/cursos-flowable.jar es una carpeta (se levanto Docker antes de compilar):
+borrarla (rm -rf target/cursos-flowable.jar), luego: mvn package -DskipTests ; SMTP_PORT=2525 docker compose up -d
+Permission denied en un .sh: chmod +x scripts/*.sh
+No llegan correos: el SMTP de prueba (Terminal A) debe estar en 2525 y los contenedores creados con SMTP_PORT=2525
+  (si cambias SMTP_PORT hay que repetir: SMTP_PORT=2525 docker compose up -d)
+Puerto 3000 ocupado: ss -ltnp | grep ':3000'
+"Definir docente" no se completa: la aceptacion se envio sin fecha -> volver a aceptar con fecha ISO UTC
+Apagar conservando datos / borrando todo:
+docker compose down
+docker compose down -v      (despues repetir 0.1 a 0.4)
