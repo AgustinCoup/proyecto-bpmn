@@ -12,8 +12,8 @@
 |---|---|---|---|---|---|
 | 1 | D | §3.1: "decision task de flowable". La Figura 1 usa una tarea de regla de negocio. | `Evaluar Viabilidad` es `serviceTask flowable:type="dmn"` (la *decision task* de Flowable), con la DMN `viabilidadCurso`. | `businessRuleTask` no despliega en esta imagen (la ejecuta con Drools, que no está). La decision task cumple literalmente lo pedido. | cambios 15, 34 a 36 |
 | 2 | D | Figura 1: varias actividades automáticas son tareas de script. | `Habilitar acceso de la empresa` y `Liberar Aula Virtual` pasaron a tarea de servicio con su clase Java. Después, `Enviar recordatorio`, `Notificar Desición`, `Notificar Cierre` y `Enviar confirmación` también (envían correo). No queda ninguna tarea de script. | Una tarea de script no puede invocar un `JavaDelegate`. Los IDs y el diagrama visual no cambian. | cambios 37, 41, 58 a 61 |
-| 3 | D | Figura 1 y §3.5: `Enviar propuesta` (el diagrama la dibujaba automática). §1.1 y §2: la envía el jefe administrativo. | Es tarea de usuario de `jefeAdmin`; al completarse reinicia el contador de recordatorios y avisa por correo. | El enunciado manda sobre el dibujo. | cambio 57; decisión del usuario 2026-11-04 |
-| 4 | D | Figura 1: la cancelación lanza una compensación y termina con error; el fin normal es un "fin con compensación". §1.3 y §1.4 piden esas compensaciones. | Rediseño: subprocesos de eventos de cancelación y de falta de aulas dentro de `Preparar` (el segundo con fin de terminación); se quita el borde de error de `Preparar`; cada subproceso de evento lanza las compensaciones con `activityRef` (`Aula`, `Virtual`, `Equipo`) y termina en una tarea de usuario de pausa (`Pausa_C`, `Pausa_F`, "Confirmar liberación de recursos", de `jefeAdmin`), según el patrón recomendado por el docente; compuerta XOR `GwCancelado` después de `Preparar`; lanzamiento de compensación `CompensarFin` fuera de `Preparar`; `Fin` pasa a fin simple. | El diseño original no funciona en Flowable 6.8.0: no compensa nada, traba la instancia, ignora el fin con compensación y no espera las tareas de usuario. El rediseño cumple §1.3 (compensa sólo lo gestionado y notifica el cierre al final) y §1.4 (el proceso concluye al liberar). | cambios 45 a 56 y 64 a 67 |
+| 3 | D | Figura 1 y §3.5: `Enviar propuesta` (el diagrama la dibujaba automática). §1.1 y §2: la envía el jefe administrativo. | Es tarea de usuario de `jefeAdmin`; al completarse reinicia el contador de recordatorios y avisa por correo. | El enunciado manda sobre el dibujo. | cambio 57. |
+| 4 | D | Figura 1: la cancelación lanza una compensación y termina con error; el fin normal es un "fin con compensación". §1.3 y §1.4 piden esas compensaciones. | Rediseño: subprocesos de eventos de cancelación y de falta de aulas dentro de `Preparar` (el segundo con fin de terminación); se quita el borde de error de `Preparar`; cada subproceso de evento lanza las compensaciones con `activityRef` (`Aula`, `Virtual`, `Equipo`) y termina en una tarea de usuario de pausa (`Pausa_C`, `Pausa_F`, "Confirmar liberación de recursos", de `jefeAdmin`); compuerta XOR `GwCancelado` después de `Preparar`; lanzamiento de compensación `CompensarFin` fuera de `Preparar`; `Fin` pasa a fin simple. | El diseño original no funciona en Flowable 6.8.0: no compensa nada, traba la instancia, ignora el fin con compensación y no espera las tareas de usuario. El rediseño cumple §1.3 (compensa sólo lo gestionado y notifica el cierre al final) y §1.4 (el proceso concluye al liberar). | cambios 45 a 56 y 64 a 67 |
 | 5 | D | — | Se quitaron 12 mensajes sin uso (restos de otra versión del enunciado). | Nadie los referenciaba. | cambio 4 |
 | 6 | D | — | Se conservan los tres objetos de datos del diagrama, con `name` (Flowable no despliega sin él). Crean variables nulas sin uso. | Fidelidad a la Figura 1. | cambio 28 |
 | 7 | D | §3.5: plazos de recordatorio de 5 días; "reducir los plazos" para pruebas. | El timer `Plazo` usa la variable opcional `plazoRespuesta` (5 días por defecto). | Probar en segundos sin editar el modelo. | cambio 25; escenario 4 |
@@ -30,15 +30,8 @@
 | 13 | I | Variables de prueba al iniciar | `plazoRespuesta` y `simularFaltaAulas` (opcionales). | Permiten los escenarios 4 y 7 sin editar el modelo. No cambian el comportamiento normal. |
 | 15 | I | Espera de la liberación | La tarea de usuario `Pausa_C`/`Pausa_F` ("Confirmar liberación de recursos", `jefeAdmin`) dentro del subproceso de evento: Flowable no la deja completar hasta que terminen las compensaciones (reemplaza a `EsperarLiberacion` y a `AvisarLiberacionEquipamientoListener`). | Para que *Notificar Cierre* ocurra después de todas las compensaciones (§1.3), como en el ejemplo del docente. Efecto: tras una cancelación o falta de aulas la instancia queda activa hasta que `jefeAdmin` completa la pausa (si se la intenta completar antes, Flowable responde 500 por una restricción de la base). |
 
-## C. Alcance: lo opcional que no se hizo
 
-| # | Tipo | Consigna | Qué hicimos | Por qué |
-|---|---|---|---|---|
-| 16 | A | §4.1.3 (texto azul): completar *Registrar y elaborar propuesta* y *Revisar propuesta* con formulario y **generar el PDF**. | No se genera PDF de la propuesta ni de su revisión. Se completan con un formulario (datos en la BD). | Texto azul = opcional (confirmado por el usuario el 2026-11-03). |
-| 17 | A | §4.1.2, §4.1.4 y §4.2.2 (texto azul): acceso de empresas, funciones del docente que desarrolla, interfaz gráfica para el simulador en grupos de hasta 3. | Se mantiene el acceso de las empresas (el escenario 10 lo exige); el simulador es de línea de comandos. | Lo azul es el título de §4.1.2, no el contenido que usan los escenarios. Si el usuario quiere recortarlo, se pregunta. |
-| 18 | A | §4.1.3: el PDF del **informe de resultados** sí es obligatorio. | Se mantiene: el informe se adjunta como PDF y su ID va en `informePdf` / `curso.informe_pdf`. | No es celeste. |
-
-## D. Simulaciones
+## C. Simulaciones
 
 | # | Tipo | Consigna | Qué hicimos |
 |---|---|---|---|
@@ -46,16 +39,15 @@
 | 20 | S | §4.1.3: "simular una supuesta conexión con un web service" para el aula física. | `ReservarAulaDelegate` devuelve siempre el aula "Aula Magna Principal" (o la excepción `SIN_AULAS` si `simularFaltaAulas`); `LiberarAulaDelegate` sólo marca la liberación. |
 | 21 | S | §4.2.2: el simulador de la empresa puede ser de línea de comandos (grupos de hasta 3). | `SimuladorMain` (CLI). **Suposición: el grupo es de 3 o menos; confirmar.** |
 
-## E. Requisitos que cumplen el sitio y las apps porque el motor no los hace (C)
+## D. Requisitos que cumplen el sitio y las apps porque el motor no los hace (C)
 
 | # | Tipo | Consigna | Qué pasa en el motor | Qué hay que hacer |
 |---|---|---|---|---|
 | 22 | C | §2: reclamar antes de completar; las asignadas sólo las completa su titular. | Flowable completa una tarea de grupo sin reclamarla y deja a cualquier usuario con acceso REST completar tareas ajenas. | El sitio usa las credenciales del propio usuario (no `rest-admin`) y bloquea "completar" si la tarea no está asignada a quien la completa. La app Swing ya lo hace. |
-| 23 | C | §1.2: *Evaluar recursos* debe seleccionar al menos una alternativa. | Con las tres banderas en `false` (o si falta alguna) el motor responde 500 y deshace todo. | El sitio valida antes de enviar (decisión del usuario 2026-11-04: no se agrega un flujo por defecto al modelo). |
-| 24 | C | §3.5: la fecha acordada debe estar definida antes del timer. | Una "Aceptación" sin `fechaCurso` se acepta y falla (500) recién al completar *Definir docente*. | El simulador y el sitio obligan a enviar la fecha (opción A elegida por el usuario el 2026-11-04; el modelo no se toca). |
-| 25 | C | §4.1.4 / §1.4: "Definir docente" mediante "la aplicación móvil". | No hay aplicación móvil en el alcance. | Se hace desde el sitio (§4.1.4) y la UI de Flowable. Aclararlo en la defensa. |
+| 23 | C | §1.2: *Evaluar recursos* debe seleccionar al menos una alternativa. | Con las tres banderas en `false` (o si falta alguna) el motor responde 500 y deshace todo. | El sitio valida antes de enviar. |
+| 24 | C | §3.5: la fecha acordada debe estar definida antes del timer. | Una "Aceptación" sin `fechaCurso` se acepta y falla (500) recién al completar *Definir docente*. | El simulador y el sitio obligan a enviar la fecha. |
 
-## F. Análisis de las ejecuciones (V3: secciones 4.3 y 4.4)
+## E. Análisis de las ejecuciones (V3: secciones 4.3 y 4.4)
 
 | # | Tipo | Consigna | Qué hicimos |
 |---|---|---|---|
@@ -64,7 +56,3 @@
 | 28 | I | §4.3.3: tareas completadas por persona. | Se cuentan las tareas con responsable que no fueron interrumpidas. Se corrigió `AsignarMenosCargadoListener`: la asignación del listener no quedaba en el historial (la tarea aparecía sin responsable); ahora usa `TaskHelper.changeTaskAssignee` (test `laAsignacionQuedaRegistradaEnElHistorialDeLaTarea`). |
 | 29 | I | §4.4: usar los scripts provistos "adaptándolos". | Las versiones adaptadas están en `mineria/` y cada cambio respecto de los originales, en la sección 1 de `docs/mineria.md`. `analizar.py` conserva el filtro `userTask`/`serviceTask` del profe (decisión del usuario, 2026-11-10): ver las limitaciones en la sección 5 de `docs/mineria.md`. |
 | 30 | S | §4.4: analizar las ejecuciones. | Con pocas ejecuciones reales no hay recorridos que comparar: `mineria/generar_historial.js` genera 55 instancias terminadas con mezcla fija de caminos y plazos acortados. Los datos son sintéticos y los porcentajes no describen una institución real. |
-
-## Cómo mantener este archivo
-
-Este documento es el registro único de los apartamientos respecto de la consigna. Los que afectan al diagrama se detallan además en `docs/cambios-modelo.md`.

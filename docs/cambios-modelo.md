@@ -43,7 +43,7 @@ Alcance: `Inicio`, `Activity_1xw400l`, `Gateway_10gftrn`, `Activity_0iibzwu`, `E
 
 | # | Elemento | Qué cambió | Por qué | Provisorio | Evidencia |
 |---|---|---|---|---|---|
-| 15 | `Activity_1xw400l` "Evaluar Viabilidad" | `businessRuleTask` → `serviceTask` (primero con una expresión provisoria `viable = true`; **la entrada 34 la reemplaza por la regla DMN**). **El ícono cambia** de tabla de reglas a engranaje. Decidido con el usuario el 2026-11-03. | 1) En esta imagen, `businessRuleTask` no despliega: Flowable lo ejecuta con Drools, que no está (500 `NoClassDefFoundError: org/kie/api/runtime/rule/AgendaFilter`). Pasa lo mismo vacío, con listener o con `flowable:type="dmn"`. 2) La consigna (§3.1) pide una *decision task de flowable*, que en el XML de Flowable es `serviceTask flowable:type="dmn"`. Se probó: con 2 cursos dio `viable=true` y con 7, `viable=false`. Pasarla hoy a `serviceTask` deja el ícono definitivo, y en la fase 3 sólo cambia la implementación. | No: la provisoriedad terminó en la fase 3 (entrada 34). | `businessRuleTask`: `f-paso0.log:3-11`, `:24-27`. Con clase: `:13-16`. Decision task: `:29-49` (sin la variable de entrada da 500: `:50-52`). En el modelo: `g-camino-acuerdo.log:64`, `:23` (`viable: true`). |
+| 15 | `Activity_1xw400l` "Evaluar Viabilidad" | `businessRuleTask` → `serviceTask` (primero con una expresión provisoria `viable = true`; **la entrada 34 la reemplaza por la regla DMN**). **El ícono cambia** de tabla de reglas a engranaje.  | 1) En esta imagen, `businessRuleTask` no despliega: Flowable lo ejecuta con Drools, que no está (500 `NoClassDefFoundError: org/kie/api/runtime/rule/AgendaFilter`). Pasa lo mismo vacío, con listener o con `flowable:type="dmn"`. 2) La consigna (§3.1) pide una *decision task de flowable*, que en el XML de Flowable es `serviceTask flowable:type="dmn"`. Se probó: con 2 cursos dio `viable=true` y con 7, `viable=false`. Pasarla hoy a `serviceTask` deja el ícono definitivo, y en la fase 3 sólo cambia la implementación. | No: la provisoriedad terminó en la fase 3 (entrada 34). | `businessRuleTask`: `f-paso0.log:3-11`, `:24-27`. Con clase: `:13-16`. Decision task: `:29-49` (sin la variable de entrada da 500: `:50-52`). En el modelo: `g-camino-acuerdo.log:64`, `:23` (`viable: true`). |
 | 16 | `Flow_0k38d9g` ("si") | Condición `${viable}`. | La compuerta exclusiva necesita una condición por flujo para elegir. | No | `g-camino-acuerdo.log:64-66`. |
 | 17 | `Flow_0w8xn3l` ("no") | Condición `${!viable}`. | Ídem, el caso contrario. | No | No ejercitado: hoy `viable` siempre es `true` (entrada 15). |
 | 18 | `Activity_0iibzwu` "Notificar Desición" | Script Groovy: `execution.setVariable('resultado', 'NO_VIABLE')` y un log. | El Execution Listener de fin necesita `resultado` en todo camino de cierre (§3.4). La notificación a la empresa se simula con el log. | No | No ejercitado (ver 17). Despliega. |
@@ -87,11 +87,10 @@ Pruebas por REST (desde Flowable limpio, iniciando por el mensaje "Solicitud de 
 
 Pruebas contra el entorno completo: A) empresa sin cuenta, hasta `Preparar`: cuenta creada, `Lista` a `admin2`, aula reservada; B) falta de aulas con empresa que ya tiene cuenta: reutiliza la cuenta, `CANCELADO`; C) rechazo: `RECHAZADO`.
 
-**Hallazgo (fase X2):** al completarse todas las tareas de `Preparar`, la instancia llega a `SubFin` pero `Preparar` no termina y el proceso queda detenido (sin tareas ni jobs). Es el efecto de tener un evento de borde (`Event_0farfur`) y un subproceso de eventos (`Activity_048d5em`) en el mismo subproceso. No se tocó: es el rediseño X2, a hacer con el OK explícito del usuario.
+**Hallazgo (fase X2):** al completarse todas las tareas de `Preparar`, la instancia llega a `SubFin` pero `Preparar` no termina y el proceso queda detenido (sin tareas ni jobs). Es el efecto de tener un evento de borde (`Event_0farfur`) y un subproceso de eventos (`Activity_048d5em`) en el mismo subproceso.
 
 ### Fase X2: cancelación, falta de aulas y fin con compensación (2026-11-03)
 
-Con el OK explícito del usuario. Diseño X2.
 
 | # | Elemento | Qué cambió | Por qué | Provisorio | Evidencia |
 |---|---|---|---|---|---|
@@ -114,7 +113,6 @@ Diagrama: se agregaron formas y aristas para los elementos nuevos y se quitaron 
 
 ### Avisos por correo, envío de la propuesta y estado en vivo (2026-11-04)
 
-Con el OK explícito del usuario (decisiones tomadas tras el recorrido de escenarios, `docs/licencias-consigna.md`). Pruebas: `scripts/escenarios/m-escenarios.js`.
 
 | # | Elemento | Qué cambió | Por qué | Provisorio | Evidencia |
 |---|---|---|---|---|---|
@@ -157,8 +155,8 @@ Fuera del modelo, el mismo día: `AsignarMenosCargadoListener` y `ContarCursosEn
 | 32 | `Confirmar` "Enviar confirmación" | Ídem. | Ídem. | **Sí, fase X2.** | Ídem. |
 | 33 | `Activity_12e0et1` "Notificar Cierre" | Ídem. | Ídem. | **Sí, fase X2.** | Ídem. |
 
-Quedan sin tocar, como se pidió: `Event_0farfur`, `Event_1rvo4k6`, `Event_0snigbc`, `Fin` y la estructura de `Preparar`.
+Quedan sin tocar: `Event_0farfur`, `Event_1rvo4k6`, `Event_0snigbc`, `Fin` y la estructura de `Preparar`.
 
 ### Nota: dos motores toman los jobs
 
-`flowable-ui` trae su propio motor y su propio ejecutor asíncrono sobre la misma base de datos. Los timers, y lo que corre después de ellos (por ejemplo, *Enviar recordatorio*), los ejecuta **cualquiera de los dos contenedores**. El proceso funciona igual, pero el log de esos scripts puede salir en `flowable-ui`. Cuando haya clases Java, tendrán que estar en los dos contenedores, o habrá que apagar el ejecutor de `flowable-ui`. Evidencia: `g-log-async.log` (`flowable-rest`) y `g-log-async-ui.log` (`flowable-ui`), mismo proceso y vueltas alternadas. Pendiente de decisión: implica cambiar `docker-compose.yml`.
+`flowable-ui` trae su propio motor y su propio ejecutor asíncrono sobre la misma base de datos. Los timers, y lo que corre después de ellos (por ejemplo, *Enviar recordatorio*), los ejecuta **cualquiera de los dos contenedores**. El proceso funciona igual, pero el log de esos scripts puede salir en `flowable-ui`. Cuando haya clases Java, tendrán que estar en los dos contenedores, o habrá que apagar el ejecutor de `flowable-ui`. Evidencia: `g-log-async.log` (`flowable-rest`) y `g-log-async-ui.log` (`flowable-ui`), mismo proceso y vueltas alternadas.
